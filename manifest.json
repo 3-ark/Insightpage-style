@@ -1,0 +1,10 @@
+{
+    "id": "insightpage-style",
+    "name": "insightpage-style",
+    "version": "1.0.0",
+    "minAppVersion": "1.13.1",
+    "description": "This Plugin lets you create Charts, render abcjs, popover comment callout within Obsidian to match the styles in insightnote",
+    "author": "3-ark",
+    "authorUrl": "https://github.com/3-ark",
+    "isDesktopOnly": false
+}

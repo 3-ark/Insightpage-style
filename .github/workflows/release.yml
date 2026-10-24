@@ -1,0 +1,75 @@
+name: Release Obsidian Plugin
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag / version to release (e.g., 1.0.1 or v1.0.1). If omitted, defaults to manifest.json version.'
+        required: false
+        type: string
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # otherwise, you will failed to push refs to dest repo
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Get Version
+        id: version
+        run: |
+          INPUT_TAG="${{ inputs.tag }}"
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+            TAG="${TAG#v}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+            TAG="${TAG#v}"
+          else
+            MANIFEST_VER=$(node -p "require('./manifest.json').version")
+            TAG="$MANIFEST_VER"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      # Build the plugin
+      - name: Build
+        id: build
+        run: |
+          pnpm install
+          pnpm build
+
+      # Package the required files into a zip
+      - name: Package
+        run: |
+          zip -r ${{ github.event.repository.name }}.zip main.js manifest.json styles.css
+
+      # Create the release on github and upload assets
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          draft: false
+          prerelease: false
+          files: |
+            ${{ github.event.repository.name }}.zip
+            main.js
+            manifest.json
+            styles.css
