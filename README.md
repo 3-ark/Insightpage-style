@@ -4,6 +4,12 @@
 
 ---
 
+## Examples
+
+[Here](https://github.com/3-ark/Insightpage-style/tree/main/examples) are some examples, you can put them in your vault to test
+
+---
+
 ## Features & Usage
 
 ### 1. ABC Sheet Music Rendering (`abc` / `abcjs`)
@@ -34,7 +40,7 @@ K: G
 
 ---
 
-### 2. Observable Plot & Charts (`plot`, `observable`, `js-chart`, `chart`)
+### 2. Observable Plot & Charts (`plot`, `chart`)
 
 Create interactive, responsive charts using YAML configurations or JavaScript code leveraging [Observable Plot](https://observablehq.com/@observablehq/plot) and [D3](https://d3js.org/).
 
@@ -250,7 +256,7 @@ Special thanks to the authors and maintainers of the open-source projects and li
 - **[obsidian-charts](https://github.com/phibr0/obsidian-charts)** by [phibr0](https://github.com/phibr0): Special thanks! Some code in the simple chart rendering part and settings page are adapted from here.
 - **[Leaflet.js](https://leafletjs.com/)**: For interactive map rendering engine and map features (`map` / `leaflet` blocks).
 - **[abcjs](https://www.abcjs.net/)**: For ABC sheet music notation rendering and interactive audio player (`abc` / `abcjs` blocks).
-- **[Observable Plot](https://observablehq.com/@observablehq/plot)**: For expressive visual plot rendering (`plot`, `observable`, `js-chart` blocks).
+- **[Observable Plot](https://observablehq.com/@observablehq/plot)**: For expressive visual plot rendering (`plot`, `observable` blocks).
 - **[D3.js](https://d3js.org/)**: For data transformations, scales, and visualization utilities.
 - **[chroma-js](https://github.com/gka/chroma.js)**: For color manipulation and color palette generation.
 - **[Vanilla Picker](https://github.com/SavenokMaxim/vanilla-picker)**: For color picker interface in settings tab.
