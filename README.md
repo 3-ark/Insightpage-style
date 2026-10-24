@@ -243,6 +243,21 @@ pnpm run build
 
 ---
 
+## Credits & Acknowledgments
+
+Special thanks to the authors and maintainers of the open-source projects and libraries that make **InsightPage Style** possible:
+
+- **[obsidian-charts](https://github.com/phibr0/obsidian-charts)** by [phibr0](https://github.com/phibr0): Special thanks! Some code in the simple chart rendering part and settings page are adapted from here.
+- **[Leaflet.js](https://leafletjs.com/)**: For interactive map rendering engine and map features (`map` / `leaflet` blocks).
+- **[abcjs](https://www.abcjs.net/)**: For ABC sheet music notation rendering and interactive audio player (`abc` / `abcjs` blocks).
+- **[Observable Plot](https://observablehq.com/@observablehq/plot)**: For expressive visual plot rendering (`plot`, `observable`, `js-chart` blocks).
+- **[D3.js](https://d3js.org/)**: For data transformations, scales, and visualization utilities.
+- **[chroma-js](https://github.com/gka/chroma.js)**: For color manipulation and color palette generation.
+- **[Vanilla Picker](https://github.com/SavenokMaxim/vanilla-picker)**: For color picker interface in settings tab.
+- **[Svelte](https://svelte.dev/)**: For reactive modal and section UI components.
+
+---
+
 ## License
 
 AGPL-3.0 License.
