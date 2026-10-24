@@ -136,5 +136,57 @@ export class ChartSettingTab extends PluginSettingTab {
         });
       });
     }
+
+    containerEl.createEl('h3', { text: 'Credits & Acknowledgments' });
+    const creditsContainer = containerEl.createEl('div', { cls: 'setting-item-description' });
+
+    const creditsIntro = creditsContainer.createEl('p');
+    creditsIntro.appendText('Special thanks to the open-source libraries and projects that power InsightPage Style:');
+
+    const creditsList = creditsContainer.createEl('ul', {
+      attr: { style: 'margin-top: 8px; padding-left: 20px;' },
+    });
+
+    const addCredit = (name: string, href: string, description: string) => {
+      const li = creditsList.createEl('li', { attr: { style: 'margin-bottom: 4px;' } });
+      li.createEl('a', { href, text: name });
+      li.appendText(` — ${description}`);
+    };
+
+    addCredit(
+      'obsidian-charts',
+      'https://github.com/phibr0/obsidian-charts',
+      'Special thanks! Some code in the simple chart part and setting page are from here.'
+    );
+    addCredit(
+      'Leaflet.js',
+      'https://leafletjs.com/',
+      'Interactive map rendering.'
+    );
+    addCredit(
+      'abcjs',
+      'https://www.abcjs.net/',
+      'ABC sheet music notation rendering and interactive audio playback.'
+    );
+    addCredit(
+      'Observable Plot',
+      'https://observablehq.com/@observablehq/plot',
+      'Interactive JavaScript plot rendering engine.'
+    );
+    addCredit(
+      'D3.js',
+      'https://d3js.org/',
+      'Data visualization and scale utilities.'
+    );
+    addCredit(
+      'chroma-js',
+      'https://github.com/gka/chroma.js',
+      'Color space conversions and palette creation.'
+    );
+    addCredit(
+      'Vanilla Picker',
+      'https://github.com/SavenokMaxim/vanilla-picker',
+      'Color picker interface.'
+    );
   }
 }
