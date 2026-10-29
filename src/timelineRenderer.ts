@@ -10,6 +10,14 @@ import {
   type TimelineConfig,
 } from './charts/timelineParser';
 import { createCustomFetch } from './chartRenderer';
+import {
+  getTimeGranularity,
+  createAdaptiveTickFormatter,
+  formatCursorDate,
+  calculateOptimalTickCount,
+  preventTickOverlap,
+  type TimeGranularity,
+} from './lib/timeline-utils';
 
 export {
   parseEventDate,
@@ -18,33 +26,80 @@ export {
   parseCsvOrTsv,
   parseMarkdownTableRows,
   mapRawRowsToTimelineData,
+  getTimeGranularity,
+  createAdaptiveTickFormatter,
+  formatCursorDate,
+  calculateOptimalTickCount,
+  preventTickOverlap,
   type TimelineEvent,
   type ParsedTimelineData,
   type TimelineConfig,
+  type TimeGranularity,
+};
+
+export function formatTimelineTick(
+  d: Date | d3.NumberValue,
+  domain?: [Date, Date],
+  tickIntervalMs?: number
+): string {
+  const dateVal = d instanceof Date ? d : new Date(Number(d));
+  if (isNaN(dateVal.getTime())) return '';
+
+  let intervalMs = tickIntervalMs;
+  if ((intervalMs === undefined || isNaN(intervalMs)) && domain && domain[0] && domain[1]) {
+    const spanMs = Math.abs(domain[1].getTime() - domain[0].getTime());
+    if (!isNaN(spanMs)) {
+      intervalMs = spanMs / 6;
+    }
+  }
+
+  if (!intervalMs || isNaN(intervalMs)) {
+    const year = dateVal.getFullYear();
+    if (year < 0) return `${Math.abs(year)} BC`;
+    if (year < 1000) return `${year} AD`;
+    return String(year);
+  }
+
+  const formatter = createAdaptiveTickFormatter(intervalMs);
+  return formatter(dateVal);
+}
+
+// Performance optimization: Hoist wikilink parsing regexes and HTML escape lookup maps to module scope.
+// Short-circuit plain text strings without wikilink brackets ('[[') or special HTML characters to avoid
+// redundant RegExp compilation, string replacements, and loop passes.
+const WIKILINK_STRIP_REGEX = /\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g;
+const WIKILINK_PARSE_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+const HTML_ESCAPE_CHECK_REGEX = /[&<>"']/;
+const HTML_ESCAPE_REPLACE_REGEX = /[&<>"']/g;
+const HTML_ESCAPE_MAP: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
 };
 
 function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+  if (!str || !HTML_ESCAPE_CHECK_REGEX.test(str)) return str || '';
+  return str.replace(HTML_ESCAPE_REPLACE_REGEX, (ch) => HTML_ESCAPE_MAP[ch] || ch);
 }
 
 export function stripWikilinks(text: string): string {
-  if (typeof text !== 'string') return '';
-  return text.replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, '$1');
+  if (typeof text !== 'string' || !text) return '';
+  if (!text.includes('[[')) return text;
+  return text.replace(WIKILINK_STRIP_REGEX, '$1');
 }
 
 export function parseWikilinksToHtml(text: string): string {
-  if (typeof text !== 'string') return '';
-  const regex = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+  if (typeof text !== 'string' || !text) return '';
+  if (!text.includes('[[')) return escapeHtml(text);
+
+  WIKILINK_PARSE_REGEX.lastIndex = 0;
   let result = '';
   let lastIdx = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(text)) !== null) {
+  while ((match = WIKILINK_PARSE_REGEX.exec(text)) !== null) {
     const textBefore = text.slice(lastIdx, match.index);
     result += escapeHtml(textBefore);
 
@@ -54,7 +109,7 @@ export function parseWikilinksToHtml(text: string): string {
     const escapedAlias = escapeHtml(alias);
 
     result += `<a class="internal-link" data-href="${escapedTarget}" href="${escapedTarget}" style="color: var(--link-color, #3b82f6); text-decoration: underline; cursor: pointer;">${escapedAlias}</a>`;
-    lastIdx = regex.lastIndex;
+    lastIdx = WIKILINK_PARSE_REGEX.lastIndex;
   }
 
   result += escapeHtml(text.slice(lastIdx));
@@ -122,13 +177,15 @@ const DOWNLOAD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height
 function formatDisplayDate(date: Date): string {
   if (!date || isNaN(date.getTime())) return '';
   const year = date.getFullYear();
+  const d3 = getD3();
   if (year < 0) {
-    return `${Math.abs(year)} BC`;
+    const monthStr = d3.timeFormat('%b')(date);
+    return `${monthStr} ${Math.abs(year)} BC`;
   }
   if (year < 1000) {
-    return `${year} AD`;
+    const monthStr = d3.timeFormat('%b')(date);
+    return `${monthStr} ${year} AD`;
   }
-  const d3 = getD3();
   return d3.timeFormat('%b %Y')(date);
 }
 
@@ -806,8 +863,7 @@ export async function renderTimelineBlockAsync(
     let maxTime = -Infinity;
 
     const processedEvents: ProcessedEvent[] = rawEvents.map((evt, idx) => {
-      const startDate = parseEventDate(evt.start, now);
-      const startTime = startDate.getTime();
+      let startDate = parseEventDate(evt.start, now);
 
       const endVal = evt.end;
       let isOngoing = evt.ongoing === true;
@@ -828,7 +884,12 @@ export async function renderTimelineBlockAsync(
         endDate = startDate;
       }
 
-      if (endDate < startDate) endDate = startDate;
+      if (!isOngoing && endDate < startDate) {
+        const temp = startDate;
+        startDate = endDate;
+        endDate = temp;
+      }
+      const startTime = startDate.getTime();
       const endTime = endDate.getTime();
 
       if (startTime < minTime) minTime = startTime;
@@ -904,13 +965,27 @@ export async function renderTimelineBlockAsync(
     const eventHeight = scaleY.bandwidth() * 0.65;
     const circleRadius = Math.max(3.5, eventHeight * 0.32);
 
-    const formatYearTick = (d: Date | d3.NumberValue): string => {
-      const dateVal = d instanceof Date ? d : new Date(Number(d));
-      if (isNaN(dateVal.getTime())) return '';
-      const year = dateVal.getFullYear();
-      if (year < 0) return `${Math.abs(year)} BC`;
-      if (year < 1000) return `${year} AD`;
-      return String(year);
+    let activeScaleX = timeScale;
+    let initialSpanMs = dateExtent[1].getTime() - dateExtent[0].getTime();
+
+    const getOptimalTicks = () => {
+      const dom = activeScaleX.domain() as [Date, Date];
+      const spanMs = dom && dom[0] && dom[1] ? Math.abs(dom[1].getTime() - dom[0].getTime()) : initialSpanMs;
+      return calculateOptimalTickCount(innerWidth, spanMs);
+    };
+
+    const targetTicks = getOptimalTicks();
+    const gridTicks = Math.max(targetTicks * 2, Math.floor(innerWidth / 45));
+
+    const formatTick = (d: Date | d3.NumberValue): string => {
+      const dom = activeScaleX.domain() as [Date, Date];
+      const spanMs = dom && dom[0] && dom[1] ? Math.abs(dom[1].getTime() - dom[0].getTime()) : initialSpanMs;
+      const ticks = activeScaleX.ticks ? activeScaleX.ticks(getOptimalTicks()) : [];
+      let intervalMs = spanMs / Math.max(1, targetTicks);
+      if (ticks.length >= 2) {
+        intervalMs = Math.abs(ticks[1].getTime() - ticks[0].getTime());
+      }
+      return createAdaptiveTickFormatter(intervalMs)(d);
     };
 
     const chartG = d3Svg.append('g').attr('class', 'chart-main');
@@ -920,17 +995,17 @@ export async function renderTimelineBlockAsync(
     const axisTopG = chartG.append('g').attr('class', 'axis x axis-top').attr('transform', `translate(${margin.left},${margin.top})`);
     const axisBottomG = chartG.append('g').attr('class', 'axis x axis-bottom').attr('transform', `translate(${margin.left},${margin.top + innerHeight + padding.top + 10})`);
 
-    const targetTicks = Math.max(5, Math.floor(innerWidth / 90));
-    const gridTicks = Math.max(8, Math.floor(innerWidth / 45));
-
-    const timeAxisTop = d3.axisTop(timeScale).ticks(targetTicks).tickFormat(formatYearTick).tickSize(6);
-    const timeAxisBottom = d3.axisBottom(timeScale).ticks(targetTicks).tickFormat(formatYearTick).tickSize(6);
+    const timeAxisTop = d3.axisTop(timeScale).ticks(targetTicks).tickFormat(formatTick).tickSize(6);
+    const timeAxisBottom = d3.axisBottom(timeScale).ticks(targetTicks).tickFormat(formatTick).tickSize(6);
     const timeGrid = d3.axisTop(timeScale).ticks(gridTicks).tickFormat(() => '').tickSize(-innerHeight - padding.top - 10);
 
     axisTopG.call(timeAxisTop);
     axisBottomG.call(timeAxisBottom);
     gridG.call(timeGrid);
     gridG.select('.domain').attr('display', 'none');
+
+    preventTickOverlap(axisTopG.node() as SVGGElement);
+    preventTickOverlap(axisBottomG.node() as SVGGElement);
 
     const legendHeight = 35;
     const legendY = height - legendHeight - 10;
@@ -1149,14 +1224,20 @@ export async function renderTimelineBlockAsync(
       const isKChanged = Math.abs(k - lastK) > 1e-6;
       lastK = k;
 
-      const scaleX = transform.rescaleX(timeScale);
-      timeAxisTop.scale(scaleX);
-      timeAxisBottom.scale(scaleX);
-      timeGrid.scale(scaleX);
+      activeScaleX = transform.rescaleX(timeScale);
+      const currentTicks = getOptimalTicks();
+      const currentGridTicks = Math.max(currentTicks * 2, Math.floor(innerWidth / 45));
+
+      timeAxisTop.scale(activeScaleX).ticks(currentTicks);
+      timeAxisBottom.scale(activeScaleX).ticks(currentTicks);
+      timeGrid.scale(activeScaleX).ticks(currentGridTicks);
 
       axisTopG.call(timeAxisTop);
       axisBottomG.call(timeAxisBottom);
       gridG.call(timeGrid);
+
+      preventTickOverlap(axisTopG.node() as SVGGElement);
+      preventTickOverlap(axisBottomG.node() as SVGGElement);
 
       if (nowG && nowLineNode && nowLabelNode) {
         const nowX = k * baseNowX + tx;
@@ -1237,7 +1318,7 @@ export async function renderTimelineBlockAsync(
 
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .extent([[0, 0], [width, height]])
-      .scaleExtent([0.8, 12])
+      .scaleExtent([0.2, 12])
       .on('start', () => {
         svg.classList.add('is-zooming');
         eventsG.style('pointer-events', 'none');

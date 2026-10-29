@@ -52,9 +52,14 @@ const BC_REPLACE_REGEX = /(?:^|\b)(?:BC|BCE)(?:\b|$)/gi;
 const AD_REGEX = /(?:^|\b)(?:AD|CE)(?:\b|$)/i;
 const AD_REPLACE_REGEX = /(?:^|\b)(?:AD|CE)(?:\b|$)/gi;
 const INTEGER_YEAR_REGEX = /^[+-]?\d+$/;
+const ISO_DATE_REGEX = /^([+-]?\d{1,6})[-/](\d{1,2})(?:[-/](\d{1,2}))?(?:[ T].*)?$/;
 const DIGITS_REGEX = /\b\d+\b/;
 const SEPARATOR_ROW_REGEX = /^[:\s|-]*$/;
 const BLOCK_REF_SUFFIX_REGEX = /\s*\^\w+\s*$/;
+
+// Performance optimization: Hoist JS reserved literal keyword set to module scope to avoid
+// allocating temporary arrays inside regex replace callbacks during loose object parsing.
+const JS_KEYWORDS_SET = new Set(['true', 'false', 'null', 'undefined']);
 
 export function parseEventDate(val: string | number | Date | undefined, fallback: Date): Date {
   if (val === undefined || val === null || val === '') return fallback;
@@ -74,11 +79,11 @@ export function parseEventDate(val: string | number | Date | undefined, fallback
     return d;
   }
 
-  const str = String(val).trim();
+  let str = String(val).trim();
   if (str === '') return fallback;
 
-  // Performance optimization: Check for integer year strings first to short-circuit plain numeric years
-  // (e.g. "2023", "1999", "-44") before running era regexes.
+  // Performance optimization: Integer year string check first (+/- numeric year strings)
+  // to short-circuit date parsing before running BC/BCE/AD/CE era tag regular expressions.
   if (INTEGER_YEAR_REGEX.test(str)) {
     const num = Number(str);
     if (!isNaN(num) && Math.abs(num) <= 10000) {
@@ -88,55 +93,66 @@ export function parseEventDate(val: string | number | Date | undefined, fallback
     }
   }
 
-  if (BC_REGEX.test(str)) {
-    const cleaned = str.replace(BC_REPLACE_REGEX, '').trim();
-    const yearMatch = cleaned.match(DIGITS_REGEX);
-    if (yearMatch) {
-      const yearNum = Math.abs(Number(yearMatch[0]));
-      if (yearNum <= 10000) {
-        const withoutYear = cleaned.replace(yearMatch[0], '').trim();
-        let month = 0;
-        let day = 1;
-        if (withoutYear) {
-          const testDate = new Date(`${withoutYear} 2000`);
-          if (!isNaN(testDate.getTime())) {
-            month = testDate.getMonth();
-            day = testDate.getDate();
-          }
-        }
+  // Detect BC / BCE / AD / CE eras so era tags can be stripped before ISO/year matching
+  const isBC = BC_REGEX.test(str);
+  const isAD = !isBC && AD_REGEX.test(str);
+
+  if (isBC) {
+    str = str.replace(BC_REPLACE_REGEX, '').trim();
+  } else if (isAD) {
+    str = str.replace(AD_REPLACE_REGEX, '').trim();
+  }
+
+  // 1. Integer year string check (post-era tag stripping)
+  if (INTEGER_YEAR_REGEX.test(str)) {
+    let num = Number(str);
+    if (isBC && num > 0) num = -num;
+    if (!isNaN(num) && Math.abs(num) <= 10000) {
+      const d = new Date(0);
+      d.setFullYear(num, 0, 1);
+      return d;
+    }
+  }
+
+  // 2. ISO / standard date string check (e.g. YYYY-MM-DD, -YYYY-MM-DD, YYYY/MM/DD)
+  const isoMatch = str.match(ISO_DATE_REGEX);
+  if (isoMatch) {
+    let yearNum = Number(isoMatch[1]);
+    if (isBC && yearNum > 0) yearNum = -yearNum;
+    const monthNum = Number(isoMatch[2]) - 1;
+    const dayNum = isoMatch[3] ? Number(isoMatch[3]) : 1;
+    if (!isNaN(yearNum) && Math.abs(yearNum) <= 10000 && monthNum >= 0 && monthNum <= 11 && dayNum >= 1 && dayNum <= 31) {
+      const d = new Date(0);
+      d.setFullYear(yearNum, monthNum, dayNum);
+      return d;
+    }
+  }
+
+  // 3. Fallback for strings starting with negative sign (e.g. -2020/01 or non-standard format)
+  if (str.startsWith('-')) {
+    const parts = str.slice(1).split(/[-/ T]/).filter(Boolean);
+    if (parts.length >= 1 && !isNaN(Number(parts[0]))) {
+      const yearNum = -Math.abs(Number(parts[0]));
+      const monthNum = parts[1] && !isNaN(Number(parts[1])) ? Number(parts[1]) - 1 : 0;
+      const dayNum = parts[2] && !isNaN(Number(parts[2])) ? Number(parts[2]) : 1;
+      if (Math.abs(yearNum) <= 10000 && monthNum >= 0 && monthNum <= 11 && dayNum >= 1 && dayNum <= 31) {
         const d = new Date(0);
-        d.setFullYear(-yearNum, month, day);
+        d.setFullYear(yearNum, monthNum, dayNum);
         return d;
       }
     }
   }
 
-  if (AD_REGEX.test(str)) {
-    const cleaned = str.replace(AD_REPLACE_REGEX, '').trim();
-    const yearMatch = cleaned.match(DIGITS_REGEX);
-    if (yearMatch) {
-      const yearNum = Number(yearMatch[0]);
-      if (Math.abs(yearNum) <= 10000) {
-        const withoutYear = cleaned.replace(yearMatch[0], '').trim();
-        let month = 0;
-        let day = 1;
-        if (withoutYear) {
-          const testDate = new Date(`${withoutYear} 2000`);
-          if (!isNaN(testDate.getTime())) {
-            month = testDate.getMonth();
-            day = testDate.getDate();
-          }
-        }
-        const d = new Date(0);
-        d.setFullYear(yearNum, month, day);
-        return d;
-      }
-    }
-  }
-
+  // 4. Native Date constructor fallback (for positive/standard date strings)
   const parsed = new Date(str);
   if (!isNaN(parsed.getTime())) {
-    const year = parsed.getFullYear();
+    let year = parsed.getFullYear();
+    if (isBC && year > 0) {
+      year = -year;
+      const d = new Date(parsed.getTime());
+      d.setFullYear(year);
+      return d;
+    }
     if (year >= -10000 && year <= 3000) {
       return parsed;
     }
@@ -263,7 +279,9 @@ export function safeParseYaml(str: string): any {
 
 export function parseLooseObjectLiteral(code: string): any {
   let cleaned = code.trim();
-  cleaned = cleaned.replace(/\bDate\.now\(\)/g, String(Date.now()));
+  if (cleaned.includes('Date.now()')) {
+    cleaned = cleaned.replace(/\bDate\.now\(\)/g, String(Date.now()));
+  }
 
   if (cleaned.startsWith('{{') && cleaned.endsWith('}}')) {
     cleaned = '[' + cleaned.slice(1, -1) + ']';
@@ -275,7 +293,7 @@ export function parseLooseObjectLiteral(code: string): any {
   cleaned = cleaned.replace(/(:\s*)([^"'\s{},\[\]][^{},\[\]]*?)(?=\s*[,}\]])/g, (match, prefix, val) => {
     const trimmedVal = val.trim();
     if (!trimmedVal) return match;
-    if (['true', 'false', 'null', 'undefined'].includes(trimmedVal)) return prefix + trimmedVal;
+    if (JS_KEYWORDS_SET.has(trimmedVal)) return prefix + trimmedVal;
     if (!isNaN(Number(trimmedVal))) return prefix + trimmedVal;
     return `${prefix}"${trimmedVal}"`;
   });
@@ -283,7 +301,7 @@ export function parseLooseObjectLiteral(code: string): any {
   cleaned = cleaned.replace(/(\[\s*|\,\s*)([^"'\s\d\.,{\}\[\]][^{}\[\]]*?)(?=\s*[,\]])/g, (match, prefix, val) => {
     const trimmedVal = val.trim();
     if (!trimmedVal) return match;
-    if (['true', 'false', 'null', 'undefined'].includes(trimmedVal)) return prefix + trimmedVal;
+    if (JS_KEYWORDS_SET.has(trimmedVal)) return prefix + trimmedVal;
     if (!isNaN(Number(trimmedVal))) return prefix + trimmedVal;
     return `${prefix}"${trimmedVal}"`;
   });
@@ -352,6 +370,62 @@ export function parseCsvOrTsv(text: string): Record<string, string>[] {
   return rows;
 }
 
+export function splitMarkdownTableRow(line: string): string[] {
+  const cells: string[] = [];
+  let current = '';
+  let inWikilink = false;
+  let inCode = false;
+  let isEscaped = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (isEscaped) {
+      current += char;
+      isEscaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      isEscaped = true;
+      current += char;
+      continue;
+    }
+
+    if (char === '`') {
+      inCode = !inCode;
+      current += char;
+      continue;
+    }
+
+    if (!inCode) {
+      if (char === '[' && nextChar === '[') {
+        inWikilink = true;
+        current += '[[';
+        i++;
+        continue;
+      }
+      if (char === ']' && nextChar === ']') {
+        inWikilink = false;
+        current += ']]';
+        i++;
+        continue;
+      }
+    }
+
+    if (char === '|' && !inWikilink && !inCode) {
+      cells.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  cells.push(current);
+  return cells;
+}
+
 // Performance optimization: Single-pass line iteration rather than chained .split().map().filter().
 // Use start/end cell index bounds to trim boundary cells without calling .shift() (which triggers O(N) element re-indexing),
 // detect separator rows with direct SEPARATOR_ROW_REGEX.test(line) checks, and replace forEach row field callbacks with direct loops.
@@ -364,7 +438,7 @@ export function parseMarkdownTableRows(tableText: string): Record<string, string
     if (!line.includes('|') || line.startsWith('^') || SEPARATOR_ROW_REGEX.test(line)) continue;
 
     const cleanLine = line.replace(BLOCK_REF_SUFFIX_REGEX, '');
-    const rawCells = cleanLine.split('|');
+    const rawCells = splitMarkdownTableRow(cleanLine);
 
     const startIdx = rawCells.length > 0 && rawCells[0].trim() === '' ? 1 : 0;
     const endIdx = rawCells.length > startIdx && rawCells[rawCells.length - 1].trim() === '' ? rawCells.length - 1 : rawCells.length;
@@ -432,25 +506,30 @@ export function mapRawRowsToTimelineData(
 
   const categoryKeysSet = new Set(categoryKeys);
 
-  // Performance optimization: Pre-compute O(1) Sets for collection and category keys outside row iteration.
-  // Replaces nested linear array searches (!collectionKeys.includes(k)) with O(1) Set lookups per row property.
-  const events: TimelineEvent[] = rows.map((row) => {
+  // Performance optimization: Pre-allocate target events array and use direct index loops instead of
+  // higher-order rows.map() and forEach() closures to minimize GC pressure during dataset transformation.
+  const events: TimelineEvent[] = new Array(rows.length);
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
     const title = String(row[titleKey] ?? '').trim();
     const start = row[startKey] !== undefined ? row[startKey] : '';
     const end = endKey && row[endKey] !== undefined ? row[endKey] : undefined;
 
     const collections: string[] = [];
-    collectionKeys.forEach((colKey) => {
+    for (let c = 0; c < collectionKeys.length; c++) {
+      const colKey = collectionKeys[c];
       const val = row[colKey];
       if (val !== undefined && val !== null && String(val).trim() !== '') {
         if (Array.isArray(val)) {
-          val.forEach((item) => collections.push(String(item)));
+          for (let k = 0; k < val.length; k++) {
+            collections.push(String(val[k]));
+          }
         } else {
           const str = String(val).trim();
           if (str) collections.push(str);
         }
       }
-    });
+    }
 
     const evtObj: TimelineEvent = {
       title: title || 'Untitled Event',
@@ -459,11 +538,12 @@ export function mapRawRowsToTimelineData(
       collection: collections,
     };
 
-    categoryKeys.forEach((catKey) => {
+    for (let k = 0; k < categoryKeys.length; k++) {
+      const catKey = categoryKeys[k];
       if (row[catKey] !== undefined) {
         evtObj[catKey] = row[catKey];
       }
-    });
+    }
 
     const rowKeys = Object.keys(row);
     for (let i = 0; i < rowKeys.length; i++) {
@@ -473,8 +553,8 @@ export function mapRawRowsToTimelineData(
       }
     }
 
-    return evtObj;
-  });
+    events[r] = evtObj;
+  }
 
   const categories = schema?.categories && schema.categories.length > 0
     ? schema.categories
@@ -592,7 +672,9 @@ export function parseTimelineCode(code: string): ParsedTimelineData {
     cleaned = cleaned.replace(/^```[a-zA-Z0-9_-]*\n?/, '').replace(/\n?```$/, '').trim();
   }
   cleaned = cleaned.replace(/^(const|let|var)\s+\w+\s*=\s*/, '').replace(/;?\s*$/, '').trim();
-  cleaned = cleaned.replace(/\bDate\.now\(\)/g, String(Date.now()));
+  if (cleaned.includes('Date.now()')) {
+    cleaned = cleaned.replace(/\bDate\.now\(\)/g, String(Date.now()));
+  }
 
   let rawParsed: any = null;
 
@@ -642,7 +724,21 @@ export function parseTimelineCode(code: string): ParsedTimelineData {
   let userActiveCategory: string | undefined;
 
   if (Array.isArray(rawParsed)) {
-    eventsArr = rawParsed.flat().filter((item) => item && typeof item === 'object');
+    // Performance optimization: Flatten and validate raw parsed event array in a single pass without
+    // allocating intermediate array objects from .flat().filter().
+    for (let i = 0; i < rawParsed.length; i++) {
+      const item = rawParsed[i];
+      if (Array.isArray(item)) {
+        for (let j = 0; j < item.length; j++) {
+          const sub = item[j];
+          if (sub && typeof sub === 'object') {
+            eventsArr.push(sub);
+          }
+        }
+      } else if (item && typeof item === 'object') {
+        eventsArr.push(item);
+      }
+    }
   } else if (typeof rawParsed === 'object' && rawParsed !== null) {
     if (Array.isArray(rawParsed.events)) eventsArr = rawParsed.events;
     else if (Array.isArray(rawParsed.data)) eventsArr = rawParsed.data;
@@ -661,23 +757,31 @@ export function parseTimelineCode(code: string): ParsedTimelineData {
     throw new Error('No valid timeline events found in data');
   }
 
-  const discoveredCategoriesSet = new Set<string>();
-  eventsArr.forEach((evt) => {
-    if (evt && typeof evt === 'object') {
-      Object.keys(evt).forEach((key) => {
-        if (!RESERVED_KEYS.has(key)) {
-          const val = evt[key];
-          if (typeof val === 'string' || typeof val === 'number') {
-            discoveredCategoriesSet.add(key);
+  // Performance optimization: Guard auto-discovery category loop to execute ONLY when userCategories
+  // are not explicitly provided. When userCategories exist, skipping the event key extraction loop
+  // avoids O(E * K) Object.keys() heap array allocations and Set lookups per timeline data parse pass.
+  let categories: string[];
+  if (userCategories && userCategories.length > 0) {
+    categories = userCategories;
+  } else {
+    const discoveredCategoriesSet = new Set<string>();
+    for (let i = 0; i < eventsArr.length; i++) {
+      const evt = eventsArr[i];
+      if (evt && typeof evt === 'object') {
+        const evtKeys = Object.keys(evt);
+        for (let j = 0; j < evtKeys.length; j++) {
+          const key = evtKeys[j];
+          if (!RESERVED_KEYS.has(key)) {
+            const val = evt[key];
+            if (typeof val === 'string' || typeof val === 'number') {
+              discoveredCategoriesSet.add(key);
+            }
           }
         }
-      });
+      }
     }
-  });
-
-  const categories = userCategories && userCategories.length > 0
-    ? userCategories
-    : Array.from(discoveredCategoriesSet);
+    categories = Array.from(discoveredCategoriesSet);
+  }
 
   if (categories.length === 0) {
     categories.push('category');

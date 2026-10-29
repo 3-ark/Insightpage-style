@@ -1,5 +1,6 @@
 import { Editor, Notice } from 'obsidian';
 import type { DataField } from 'src/constants/settingsConstants';
+import { splitMarkdownTableRow } from './charts/timelineParser';
 
 let _Extractor: any = null;
 function getExtractor(): any {
@@ -40,7 +41,7 @@ export function parseMarkdownTable(tableString: string, layout: 'columns' | 'row
         if (!line.includes('|') || line.startsWith('^')) continue;
 
         const cleanLine = line.replace(/\s*\^\w+\s*$/, '');
-        const rawCells = cleanLine.split('|');
+        const rawCells = splitMarkdownTableRow(cleanLine);
 
         const startIdx = rawCells.length > 0 && rawCells[0].trim() === '' ? 1 : 0;
         const endIdx = rawCells.length > startIdx && rawCells[rawCells.length - 1].trim() === '' ? rawCells.length - 1 : rawCells.length;
@@ -74,40 +75,36 @@ export function parseMarkdownTable(tableString: string, layout: 'columns' | 'row
 
     const fields: Record<string, Record<string, string>> = {};
 
+    // Performance optimization: Replace r.slice(1) array copies, dataRows.map row label array allocations,
+    // and nested forEach closure executions with direct single-pass index loops and index offsets.
     if (layout === 'rows') {
         const labelHeaders = hasRowTitles && rawHeaders.length > 1 ? rawHeaders.slice(1) : rawHeaders;
-        dataRows.forEach((r, idx) => {
+        const offset = hasRowTitles ? 1 : 0;
+        for (let idx = 0; idx < dataRows.length; idx++) {
+            const r = dataRows[idx];
             const rowTitle = hasRowTitles ? r[0] : `Row ${idx + 1}`;
-            const rowData = hasRowTitles ? r.slice(1) : r;
             const rowObj: Record<string, string> = {};
-            labelHeaders.forEach((lbl, i) => {
-                rowObj[lbl] = rowData[i] !== undefined ? rowData[i] : '';
-            });
+            for (let i = 0; i < labelHeaders.length; i++) {
+                const lbl = labelHeaders[i];
+                const val = r[i + offset];
+                rowObj[lbl] = val !== undefined ? val : '';
+            }
             fields[rowTitle] = rowObj;
-        });
+        }
     } else {
-        if (hasRowTitles) {
-            const colHeaders = rawHeaders.slice(1);
-            const rowLabels = dataRows.map((r, idx) => r[0] || `Row ${idx + 1}`);
-            colHeaders.forEach((colTitle, colIdx) => {
-                const colObj: Record<string, string> = {};
-                dataRows.forEach((r, rowIdx) => {
-                    const lbl = rowLabels[rowIdx];
-                    colObj[lbl] = r[colIdx + 1] !== undefined ? r[colIdx + 1] : '';
-                });
-                fields[colTitle] = colObj;
-            });
-        } else {
-            const colHeaders = rawHeaders;
-            const rowLabels = dataRows.map((_, idx) => `${idx + 1}`);
-            colHeaders.forEach((colTitle, colIdx) => {
-                const colObj: Record<string, string> = {};
-                dataRows.forEach((r, rowIdx) => {
-                    const lbl = rowLabels[rowIdx];
-                    colObj[lbl] = r[colIdx] !== undefined ? r[colIdx] : '';
-                });
-                fields[colTitle] = colObj;
-            });
+        const colHeaders = hasRowTitles ? rawHeaders.slice(1) : rawHeaders;
+        const offset = hasRowTitles ? 1 : 0;
+        for (let c = 0; c < colHeaders.length; c++) {
+            fields[colHeaders[c]] = {};
+        }
+        for (let r = 0; r < dataRows.length; r++) {
+            const row = dataRows[r];
+            const lbl = hasRowTitles ? (row[0] || `Row ${r + 1}`) : `${r + 1}`;
+            for (let c = 0; c < colHeaders.length; c++) {
+                const colTitle = colHeaders[c];
+                const val = row[c + offset];
+                fields[colTitle][lbl] = val !== undefined ? val : '';
+            }
         }
     }
 
