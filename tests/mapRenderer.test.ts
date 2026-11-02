@@ -8,6 +8,20 @@ const originalRequire = Module.prototype.require;
 Module.prototype.require = function (id: string) {
   if (id === 'obsidian') {
     return {
+      MarkdownRenderChild: class MockMarkdownRenderChild {
+        containerEl: HTMLElement;
+        onload?: () => void;
+        onunload?: () => void;
+        constructor(containerEl: HTMLElement) {
+          this.containerEl = containerEl;
+        }
+        load() {
+          this.onload?.();
+        }
+        unload() {
+          this.onunload?.();
+        }
+      },
       parseYaml: (str: string) => {
         const result: any = {};
         const lines = str.split('\n');
@@ -193,6 +207,7 @@ test('window.L property setter allows setting window.L without throwing TypeErro
   const { getLeaflet, setLeaflet } = await import('../src/mapRenderer');
   const dom = setupDom();
 
+  const originalLeaflet = getLeaflet();
   Object.defineProperty(dom.window, 'L', {
     configurable: true,
     enumerable: true,
@@ -205,4 +220,101 @@ test('window.L property setter allows setting window.L without throwing TypeErro
   }, 'Assigning to window.L should not throw TypeError');
 
   assert.strictEqual((dom.window as any).L.test, true, 'window.L getter should return updated instance');
+
+  // Restore leaflet
+  setLeaflet(originalLeaflet);
+});
+
+test('renderMapBlock attaches MarkdownRenderChild and handles reading view lifecycle & invalidateSize', async () => {
+  const { renderMapBlock } = await import('../src/mapRenderer');
+  const dom = setupDom();
+
+  let childRegistered: any = null;
+  const mockCtx = {
+    addChild: (child: any) => {
+      childRegistered = child;
+    },
+  };
+
+  const container = dom.window.document.getElementById('container') as HTMLElement;
+  const yamlSource = `center: [37.7749, -122.4194]
+zoom: 10`;
+
+  renderMapBlock(yamlSource, container, mockCtx);
+
+  assert.ok(childRegistered, 'MarkdownRenderChild should be registered with ctx.addChild');
+  assert.strictEqual(typeof childRegistered.onload, 'function');
+  assert.strictEqual(typeof childRegistered.onunload, 'function');
+
+  // Trigger onload
+  assert.doesNotThrow(() => {
+    childRegistered.onload();
+  }, 'Calling child onload should invalidateSize without throwing');
+
+  // Trigger onunload
+  assert.doesNotThrow(() => {
+    childRegistered.onunload();
+  }, 'Calling child onunload should clean up observers and map without throwing');
+});
+
+test('renderMapBlock supports ResizeObserver and IntersectionObserver callbacks without premature disconnection', async () => {
+  const { renderMapBlock } = await import('../src/mapRenderer');
+  const dom = setupDom();
+
+  let resizeCallback: any = null;
+  let resizeDisconnected = false;
+  class MockResizeObserver {
+    constructor(cb: any) {
+      resizeCallback = cb;
+    }
+    observe() {}
+    disconnect() {
+      resizeDisconnected = true;
+    }
+  }
+  (global as any).ResizeObserver = MockResizeObserver;
+
+  let intersectionCallback: any = null;
+  let intersectionDisconnected = false;
+  class MockIntersectionObserver {
+    constructor(cb: any) {
+      intersectionCallback = cb;
+    }
+    observe() {}
+    disconnect() {
+      intersectionDisconnected = true;
+    }
+  }
+  (global as any).IntersectionObserver = MockIntersectionObserver;
+
+  const detachedContainer = dom.window.document.createElement('div');
+  const yamlSource = `center: [37.7749, -122.4194]
+zoom: 10`;
+
+  let childRegistered: any = null;
+  const mockCtx = {
+    addChild: (c: any) => { childRegistered = c; },
+  };
+
+  renderMapBlock(yamlSource, detachedContainer, mockCtx);
+
+  assert.ok(resizeCallback, 'ResizeObserver callback should be created');
+  assert.ok(intersectionCallback, 'IntersectionObserver callback should be created');
+
+  // Simulate initial callback when element is not connected / unattached in reading view
+  resizeCallback([{ contentRect: { width: 0, height: 0 } }]);
+  assert.strictEqual(resizeDisconnected, false, 'ResizeObserver should NOT disconnect when element has 0 dimensions during initial render');
+
+  // Simulate element acquiring dimensions in reading view
+  resizeCallback([{ contentRect: { width: 600, height: 400 } }]);
+  assert.strictEqual(resizeDisconnected, false, 'ResizeObserver should stay connected and handle positive dimensions');
+
+  // Simulate intersection observer firing when map scrolls into view in reading view
+  intersectionCallback([{ isIntersecting: true }]);
+  assert.strictEqual(intersectionDisconnected, false, 'IntersectionObserver should trigger without error');
+
+  // On child unload, observers should be disconnected
+  childRegistered.onunload();
+  assert.strictEqual(resizeDisconnected, true, 'ResizeObserver should be disconnected upon child unload');
+  assert.strictEqual(intersectionDisconnected, true, 'IntersectionObserver should be disconnected upon child unload');
 });

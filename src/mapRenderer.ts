@@ -69,7 +69,7 @@ function parseLatLng(val: any): [number, number] | null {
   return null;
 }
 
-export function renderMapBlock(source: string, container: HTMLElement): void {
+export function renderMapBlock(source: string, container: HTMLElement, ctx?: any): void {
   const L = getLeaflet();
 
   let config: any = {};
@@ -366,31 +366,90 @@ export function renderMapBlock(source: string, container: HTMLElement): void {
     }
   }
 
-  // Ensure Leaflet correctly calculates map container bounds and loads visible tiles immediately
+  // Multi-stage invalidation to ensure Leaflet calculates correct dimensions and loads visible tiles
+  let isCleanedUp = false;
+  let resizeObserver: ResizeObserver | null = null;
+  let intersectionObserver: IntersectionObserver | null = null;
+  const timeoutIds: any[] = [];
+
   const triggerInvalidate = () => {
-    if (map && typeof map.invalidateSize === 'function') {
-      map.invalidateSize();
-    }
+    if (isCleanedUp || !map || typeof map.invalidateSize !== 'function') return;
+    map.invalidateSize({ debounceMoveend: true });
   };
 
+  // Immediate and staggered frame/timeout passes to adapt as container is inserted and styled
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(triggerInvalidate);
   } else if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
     window.requestAnimationFrame(triggerInvalidate);
-  } else {
-    setTimeout(triggerInvalidate, 0);
   }
 
+  // Staggered timeouts help catch layout transitions in Obsidian reading view
+  [0, 50, 150, 300, 600].forEach((delay) => {
+    const tid = setTimeout(triggerInvalidate, delay);
+    timeoutIds.push(tid);
+  });
+
+  // Track size changes without prematurely disconnecting when mapDiv is temporarily unattached during initial render
   if (typeof ResizeObserver !== 'undefined') {
-    const resizeObserver = new ResizeObserver(() => {
-      if (!mapDiv.isConnected) {
-        resizeObserver.disconnect();
-        return;
-      }
-      if (map && typeof map.invalidateSize === 'function') {
-        map.invalidateSize();
+    resizeObserver = new ResizeObserver((entries) => {
+      if (isCleanedUp) return;
+      for (const entry of entries) {
+        if (entry.contentRect && (entry.contentRect.width > 0 || entry.contentRect.height > 0)) {
+          triggerInvalidate();
+        }
       }
     });
     resizeObserver.observe(mapDiv);
+  }
+
+  // Detect when map becomes visible in Obsidian reading view viewport
+  if (typeof IntersectionObserver !== 'undefined') {
+    intersectionObserver = new IntersectionObserver((entries) => {
+      if (isCleanedUp) return;
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          triggerInvalidate();
+        }
+      }
+    });
+    intersectionObserver.observe(mapDiv);
+  }
+
+  // Integrate with Obsidian's MarkdownRenderChild lifecycle if available
+  const obsidian = require('obsidian');
+  const MarkdownRenderChildClass = obsidian?.MarkdownRenderChild;
+
+  const cleanup = () => {
+    if (isCleanedUp) return;
+    isCleanedUp = true;
+    timeoutIds.forEach((id) => clearTimeout(id));
+    timeoutIds.length = 0;
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
+    if (intersectionObserver) {
+      intersectionObserver.disconnect();
+      intersectionObserver = null;
+    }
+    try {
+      if (map && typeof map.remove === 'function') {
+        map.remove();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  if (ctx && typeof ctx.addChild === 'function' && MarkdownRenderChildClass) {
+    const child = new MarkdownRenderChildClass(container);
+    child.onload = () => {
+      triggerInvalidate();
+      // Delay check in case layout settling occurs right after onload
+      setTimeout(triggerInvalidate, 100);
+    };
+    child.onunload = cleanup;
+    ctx.addChild(child);
   }
 }

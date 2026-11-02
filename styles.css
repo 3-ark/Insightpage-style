@@ -563,11 +563,11 @@ a[href="https://ko-fi.com/phibr0"] > img
   z-index: 1000;
   padding: 0.5rem 0.75rem;
   font-size: 0.75rem;
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   background-color: var(--background-primary, #ffffff);
   color: var(--text-normal, #222222);
-  border: 1px solid var(--background-modifier-border, rgba(128, 128, 128, 0.3));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--background-modifier-border, rgba(128, 128, 128, 0.25));
+  box-shadow: var(--shadow-l, 0 8px 24px rgba(0, 0, 0, 0.12));
   max-width: 280px;
 }
 
@@ -599,14 +599,14 @@ a[href="https://ko-fi.com/phibr0"] > img
 }
 
 .timeline-svg .axis-top .tick text {
-  fill: var(--text-normal, #334155);
+  fill: var(--text-muted, #64748b);
   font-size: 12px;
   font-weight: 500;
   dy: -6px;
 }
 
 .timeline-svg .axis-bottom .tick text {
-  fill: var(--text-normal, #334155);
+  fill: var(--text-muted, #64748b);
   font-size: 12px;
   font-weight: 500;
   dy: 14px;
@@ -620,4 +620,18 @@ a[href="https://ko-fi.com/phibr0"] > img
 
 .timeline-svg.is-zooming .events {
   pointer-events: none;
+}
+
+.timeline-svg .event-label {
+  fill: var(--text-normal, #222222);
+  font-weight: 600;
+  transition: opacity 0.15s ease;
+}
+
+.timeline-svg .event-bar {
+  transition: fill-opacity 0.15s ease;
+}
+
+.timeline-svg .needle-badge-rect {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
 }

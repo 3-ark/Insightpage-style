@@ -59,8 +59,8 @@ test('formatCursorDate returns precise date badges based on duration granularity
   assert.equal(formatCursorDate(d, 30 * 1000), 'May 15, 2023 14:30:45');
   assert.equal(formatCursorDate(d, 5 * 3600 * 1000), 'May 15, 2023 14:30');
   assert.equal(formatCursorDate(d, 10 * 86400 * 1000), 'May 15, 2023');
-  assert.equal(formatCursorDate(d, 100 * 86400 * 1000), 'May 2023');
-  assert.equal(formatCursorDate(d, 500 * 86400 * 1000), '2023');
+  assert.equal(formatCursorDate(d, 100 * 86400 * 1000), 'May 15, 2023');
+  assert.equal(formatCursorDate(d, 500 * 86400 * 1000), 'May 15, 2023');
 });
 
 test('calculateOptimalTickCount calculates density based on width and granularity', () => {

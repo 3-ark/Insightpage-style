@@ -201,8 +201,8 @@ export default class ChartPlugin extends Plugin {
     this.registerMarkdownCodeBlockProcessor('abc', renderAbc);
     this.registerMarkdownCodeBlockProcessor('abcjs', renderAbc);
 
-    const renderMap = (source: string, el: HTMLElement) => {
-      renderMapBlock(source, el);
+    const renderMap = (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
+      renderMapBlock(source, el, ctx);
     };
     this.registerMarkdownCodeBlockProcessor('map', renderMap);
     this.registerMarkdownCodeBlockProcessor('leaflet', renderMap);

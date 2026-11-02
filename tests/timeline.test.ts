@@ -895,3 +895,129 @@ test('renderTimelineBlock scales axis ticks on zoom-out (k < 1.0)', async () => 
     `Zoomed out ticks (${zoomOutTicksCount}) should be less than or equal to initial ticks (${initialTicksCount})`
   );
 });
+
+test('renderTimelineBlock displays needle cursor indicator on mousemove and hides on mouseleave and zoom', async () => {
+  const { renderTimelineBlock } = await import('../src/timelineRenderer');
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
+  (global as any).window = dom.window;
+  (global as any).document = dom.window.document;
+  (global as any).Element = dom.window.Element;
+  (global as any).HTMLElement = dom.window.HTMLElement;
+  (global as any).SVGElement = dom.window.SVGElement;
+  (global as any).requestAnimationFrame = (cb: Function) => { cb(); return 1; };
+  (global as any).cancelAnimationFrame = () => {};
+  Object.defineProperty(global, 'navigator', { value: dom.window.navigator, configurable: true, writable: true });
+
+  const container = dom.window.document.getElementById('container') as HTMLElement;
+  const code = JSON.stringify([
+    {
+      start: '2020-01-01',
+      end: '2021-01-01',
+      title: 'Needle Indicator Test Event',
+    },
+  ]);
+
+  renderTimelineBlock(code, container);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  const wrapper = container.querySelector('.timeline-wrapper') as HTMLElement;
+  const svgEl = wrapper.querySelector('svg.timeline-svg') as SVGElement;
+  assert.ok(svgEl, 'Timeline SVG element should exist');
+
+  const needleG = wrapper.querySelector('.needle-indicator') as SVGElement;
+  assert.ok(needleG, 'Needle group element should exist');
+  assert.equal(needleG.style.display, 'none', 'Needle should initially be hidden');
+
+  const needleLine = wrapper.querySelector('.needle-line') as SVGElement;
+  assert.ok(needleLine, 'Needle line element should exist');
+
+  const needleBadgeRect = wrapper.querySelector('.needle-badge-rect') as SVGElement;
+  assert.ok(needleBadgeRect, 'Needle badge rect element should exist');
+
+  const needleBadgeText = wrapper.querySelector('.needle-badge-text') as SVGElement;
+  assert.ok(needleBadgeText, 'Needle badge text element should exist');
+
+  // Trigger mousemove over SVG (e.g., clientX = 100)
+  const mouseMoveEvt = new dom.window.MouseEvent('mousemove', {
+    bubbles: true,
+    cancelable: true,
+    clientX: 100,
+  });
+  svgEl.dispatchEvent(mouseMoveEvt);
+
+  assert.equal(needleG.style.display, '', 'Needle group should become visible on mousemove');
+  assert.ok(needleBadgeText.textContent && needleBadgeText.textContent.length > 0, 'Needle badge text should be populated');
+  // Verify that badge text includes day level precision (e.g., month, day, year)
+  assert.match(needleBadgeText.textContent, /[A-Z][a-z]{2}\s+\d{1,2},\s+\d{4}/, 'Needle badge text should contain day in date');
+
+  // Trigger mouseleave
+  const mouseLeaveEvt = new dom.window.MouseEvent('mouseleave', {
+    bubbles: true,
+    cancelable: true,
+  });
+  svgEl.dispatchEvent(mouseLeaveEvt);
+
+  assert.equal(needleG.style.display, 'none', 'Needle group should hide on mouseleave');
+});
+
+test('renderTimelineBlock applies refined styling attributes to event labels, event bars, and legend text', async () => {
+  const { renderTimelineBlock } = await import('../src/timelineRenderer');
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
+  (global as any).window = dom.window;
+  (global as any).document = dom.window.document;
+  (global as any).Element = dom.window.Element;
+  (global as any).HTMLElement = dom.window.HTMLElement;
+  (global as any).SVGElement = dom.window.SVGElement;
+  (global as any).requestAnimationFrame = (cb: Function) => cb();
+  (global as any).cancelAnimationFrame = () => {};
+  Object.defineProperty(global, 'navigator', { value: dom.window.navigator, configurable: true, writable: true });
+
+  const container = dom.window.document.getElementById('container') as HTMLElement;
+  const code = JSON.stringify([
+    {
+      start: '2021-01-01',
+      end: '2022-01-01',
+      title: 'Refinement Verification Event',
+      category: 'Engineering',
+    },
+  ]);
+
+  renderTimelineBlock(code, container);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  const wrapper = container.querySelector('.timeline-wrapper') as HTMLElement;
+  assert.ok(wrapper, 'Wrapper should exist');
+
+  const eventGroup = wrapper.querySelector('.event-group') as SVGElement;
+  assert.ok(eventGroup, 'Event group should exist');
+
+  const eventBar = eventGroup.querySelector('.event-bar') as SVGRectElement;
+  assert.ok(eventBar, 'Event bar should exist');
+  assert.equal(eventBar.getAttribute('fill-opacity'), '0.4', 'Event bar should have refined default opacity 0.4');
+  assert.equal(eventBar.getAttribute('rx'), '3', 'Event bar should have refined rounded corner radius 3');
+
+  const eventLabel = eventGroup.querySelector('.event-label') as SVGTextElement;
+  assert.ok(eventLabel, 'Event label should exist');
+  assert.equal(eventLabel.getAttribute('fill'), 'var(--text-normal, #222222)', 'Event label fill should use Obsidian text-normal variable');
+
+  // Verify mouseenter increases opacity to 0.7
+  const mouseEnterEvt = new dom.window.MouseEvent('mouseenter', {
+    bubbles: true,
+    cancelable: true,
+    clientX: 120,
+    clientY: 120,
+  });
+  eventGroup.dispatchEvent(mouseEnterEvt);
+  assert.equal(eventBar.getAttribute('fill-opacity'), '0.7', 'Event bar should have refined hover opacity 0.7');
+
+  const mouseLeaveEvt = new dom.window.MouseEvent('mouseleave', {
+    bubbles: true,
+    cancelable: true,
+  });
+  eventGroup.dispatchEvent(mouseLeaveEvt);
+  assert.equal(eventBar.getAttribute('fill-opacity'), '0.4', 'Event bar should restore to 0.4 on mouseleave');
+
+  const legendText = wrapper.querySelector('.legend-text') as SVGTextElement;
+  assert.ok(legendText, 'Legend text should have .legend-text class');
+  assert.equal(legendText.getAttribute('fill'), 'var(--text-muted, #64748b)', 'Legend text should use Obsidian text-muted variable');
+});

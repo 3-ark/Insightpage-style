@@ -19,6 +19,8 @@ export function getTimeGranularity(durationMs: number): TimeGranularity {
   return 'year';
 }
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 function formatEraYear(year: number): string {
   if (year < 0) {
     return `${Math.abs(year)} BC`;
@@ -51,30 +53,28 @@ export function createAdaptiveTickFormatter(
 
     switch (granularity) {
       case 'second': {
-        const monthStr = d3.timeFormat('%b')(dateVal);
+        const monthStr = MONTH_NAMES[dateVal.getMonth()];
         const day = dateVal.getDate();
-        const timeStr = d3.timeFormat('%H:%M:%S')(dateVal);
-        return `${monthStr} ${day}, ${timeStr}`;
+        const h = String(dateVal.getHours()).padStart(2, '0');
+        const m = String(dateVal.getMinutes()).padStart(2, '0');
+        const s = String(dateVal.getSeconds()).padStart(2, '0');
+        return `${monthStr} ${day}, ${h}:${m}:${s}`;
       }
-      case 'minute': {
-        const monthStr = d3.timeFormat('%b')(dateVal);
-        const day = dateVal.getDate();
-        const timeStr = d3.timeFormat('%H:%M')(dateVal);
-        return `${monthStr} ${day}, ${timeStr}`;
-      }
+      case 'minute':
       case 'hour': {
-        const monthStr = d3.timeFormat('%b')(dateVal);
+        const monthStr = MONTH_NAMES[dateVal.getMonth()];
         const day = dateVal.getDate();
-        const timeStr = d3.timeFormat('%H:%M')(dateVal);
-        return `${monthStr} ${day}, ${timeStr}`;
+        const h = String(dateVal.getHours()).padStart(2, '0');
+        const m = String(dateVal.getMinutes()).padStart(2, '0');
+        return `${monthStr} ${day}, ${h}:${m}`;
       }
       case 'day': {
-        const monthStr = d3.timeFormat('%b')(dateVal);
+        const monthStr = MONTH_NAMES[dateVal.getMonth()];
         const day = dateVal.getDate();
         return `${monthStr} ${day}, ${eraYear}`;
       }
       case 'month': {
-        const monthStr = d3.timeFormat('%b')(dateVal);
+        const monthStr = MONTH_NAMES[dateVal.getMonth()];
         return `${monthStr} ${eraYear}`;
       }
       case 'year':
@@ -95,30 +95,28 @@ export function formatCursorDate(date: Date, durationMs: number): string {
 
   switch (granularity) {
     case 'second': {
-      const monthStr = d3.timeFormat('%b')(date);
+      const monthStr = MONTH_NAMES[date.getMonth()];
       const day = date.getDate();
-      const timeStr = d3.timeFormat('%H:%M:%S')(date);
-      return `${monthStr} ${day}, ${eraYear} ${timeStr}`;
+      const h = String(date.getHours()).padStart(2, '0');
+      const m = String(date.getMinutes()).padStart(2, '0');
+      const s = String(date.getSeconds()).padStart(2, '0');
+      return `${monthStr} ${day}, ${eraYear} ${h}:${m}:${s}`;
     }
     case 'minute':
     case 'hour': {
-      const monthStr = d3.timeFormat('%b')(date);
+      const monthStr = MONTH_NAMES[date.getMonth()];
       const day = date.getDate();
-      const timeStr = d3.timeFormat('%H:%M')(date);
-      return `${monthStr} ${day}, ${eraYear} ${timeStr}`;
+      const h = String(date.getHours()).padStart(2, '0');
+      const m = String(date.getMinutes()).padStart(2, '0');
+      return `${monthStr} ${day}, ${eraYear} ${h}:${m}`;
     }
-    case 'day': {
-      const monthStr = d3.timeFormat('%b')(date);
-      const day = date.getDate();
-      return `${monthStr} ${day}, ${eraYear}`;
-    }
-    case 'month': {
-      const monthStr = d3.timeFormat('%b')(date);
-      return `${monthStr} ${eraYear}`;
-    }
+    case 'day':
+    case 'month':
     case 'year':
     default: {
-      return eraYear;
+      const monthStr = MONTH_NAMES[date.getMonth()];
+      const day = date.getDate();
+      return `${monthStr} ${day}, ${eraYear}`;
     }
   }
 }
@@ -154,41 +152,45 @@ export function calculateOptimalTickCount(innerWidth: number, durationMs: number
 /**
  * Post-processes rendered D3 axis SVG group to hide overlapping tick labels
  */
+// Performance optimization: Cache text measurement on text element property (_cachedWidth)
+// and check text content (_cachedText) to eliminate getComputedTextLength() layout thrashing
+// on continuous zoom/pan animation ticks. Iterate DOM nodes directly in single-pass index loop
+// without intermediate heap array allocations and redundant sort calls.
 export function preventTickOverlap(axisGNode: SVGGElement | null, minGapPx = 12): void {
   if (!axisGNode) return;
   const tickNodes = axisGNode.querySelectorAll<SVGGElement>('.tick');
   if (!tickNodes || tickNodes.length === 0) return;
 
-  const ticks: { el: SVGGElement; x: number; width: number }[] = [];
-
-  tickNodes.forEach((el) => {
-    const transformAttr = el.getAttribute('transform') || '';
-    const match = /translate\(\s*([-\d.]+)/.exec(transformAttr);
-    const x = match ? parseFloat(match[1]) : NaN;
-    if (isNaN(x)) return;
-
-    const textEl = el.querySelector('text');
-    if (!textEl) return;
-
-    const text = textEl.textContent || '';
-    let width = 0;
-    if (typeof (textEl as any).getComputedTextLength === 'function') {
-      try {
-        width = (textEl as any).getComputedTextLength();
-      } catch {}
-    }
-    if (!width || width <= 0) {
-      width = text.length * 7.5;
-    }
-
-    ticks.push({ el, x, width });
-  });
-
-  ticks.sort((a, b) => a.x - b.x);
-
   let lastRight = -Infinity;
 
-  ticks.forEach(({ el, x, width }) => {
+  for (let i = 0; i < tickNodes.length; i++) {
+    const el = tickNodes[i];
+    const transformAttr = el.getAttribute('transform') || '';
+    const match = /translate\(\s*([-\d.]+)/.exec(transformAttr);
+    if (!match) continue;
+    const x = parseFloat(match[1]);
+    if (isNaN(x)) continue;
+
+    const textEl = el.querySelector('text');
+    if (!textEl) continue;
+
+    const text = textEl.textContent || '';
+    let width = (textEl as any)._cachedWidth as number | undefined;
+
+    if (width === undefined || (textEl as any)._cachedText !== text) {
+      width = 0;
+      if (typeof (textEl as any).getComputedTextLength === 'function') {
+        try {
+          width = (textEl as any).getComputedTextLength();
+        } catch {}
+      }
+      if (!width || width <= 0) {
+        width = text.length * 7.5;
+      }
+      (textEl as any)._cachedText = text;
+      (textEl as any)._cachedWidth = width;
+    }
+
     const left = x - width / 2;
     const right = x + width / 2;
 
@@ -198,5 +200,5 @@ export function preventTickOverlap(axisGNode: SVGGElement | null, minGapPx = 12)
       el.style.display = '';
       lastRight = right;
     }
-  });
+  }
 }

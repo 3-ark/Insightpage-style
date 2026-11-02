@@ -174,19 +174,19 @@ const COPY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12
 const CHECK_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 const DOWNLOAD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x1="12" y1="15" y2="3"/></svg>`;
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 function formatDisplayDate(date: Date): string {
   if (!date || isNaN(date.getTime())) return '';
   const year = date.getFullYear();
-  const d3 = getD3();
+  const monthStr = MONTH_NAMES[date.getMonth()];
   if (year < 0) {
-    const monthStr = d3.timeFormat('%b')(date);
     return `${monthStr} ${Math.abs(year)} BC`;
   }
   if (year < 1000) {
-    const monthStr = d3.timeFormat('%b')(date);
     return `${monthStr} ${year} AD`;
   }
-  return d3.timeFormat('%b %Y')(date);
+  return `${monthStr} ${year}`;
 }
 
 function renderCollectionsNode(
@@ -977,15 +977,24 @@ export async function renderTimelineBlockAsync(
     const targetTicks = getOptimalTicks();
     const gridTicks = Math.max(targetTicks * 2, Math.floor(innerWidth / 45));
 
-    const formatTick = (d: Date | d3.NumberValue): string => {
+    // Performance optimization: Precompute active tick formatter once per zoom or layout frame
+    // instead of calling activeScaleX.ticks() and createAdaptiveTickFormatter() inside every individual
+    // tickFormat callback across both top and bottom axes (20-30 times per frame).
+    let activeTickFormatter: (d: Date | d3.NumberValue) => string = () => '';
+    const updateActiveTickFormatter = (ticksCount: number) => {
       const dom = activeScaleX.domain() as [Date, Date];
       const spanMs = dom && dom[0] && dom[1] ? Math.abs(dom[1].getTime() - dom[0].getTime()) : initialSpanMs;
-      const ticks = activeScaleX.ticks ? activeScaleX.ticks(getOptimalTicks()) : [];
-      let intervalMs = spanMs / Math.max(1, targetTicks);
+      const ticks = activeScaleX.ticks ? activeScaleX.ticks(ticksCount) : [];
+      let intervalMs = spanMs / Math.max(1, ticksCount);
       if (ticks.length >= 2) {
         intervalMs = Math.abs(ticks[1].getTime() - ticks[0].getTime());
       }
-      return createAdaptiveTickFormatter(intervalMs)(d);
+      activeTickFormatter = createAdaptiveTickFormatter(intervalMs);
+    };
+
+    updateActiveTickFormatter(targetTicks);
+    const formatTick = (d: Date | d3.NumberValue): string => {
+      return activeTickFormatter(d);
     };
 
     const chartG = d3Svg.append('g').attr('class', 'chart-main');
@@ -1044,11 +1053,12 @@ export async function renderTimelineBlockAsync(
         .attr('fill', color);
 
       const textNode = itemG.append('text')
+        .attr('class', 'legend-text')
         .attr('x', 18)
         .attr('y', 10)
         .attr('font-size', '12px')
         .attr('font-style', 'italic')
-        .attr('fill', 'var(--text-muted, #475569)')
+        .attr('fill', 'var(--text-muted, #64748b)')
         .text(catVal);
 
       const textNodeEl = textNode.node() as SVGTextElement | null;
@@ -1126,6 +1136,123 @@ export async function renderTimelineBlockAsync(
       nowLabelNode = nowLabel.node() as SVGTextElement | null;
     }
 
+    // High-performance needle cursor indicator
+    const needleG = chartG.append('g')
+      .attr('class', 'needle-indicator')
+      .style('pointer-events', 'none')
+      .style('display', 'none');
+
+    const needleLine = needleG.append('line')
+      .attr('class', 'needle-line')
+      .attr('y1', margin.top - 24)
+      .attr('y2', margin.top + innerHeight + padding.top + 12)
+      .attr('stroke', '#f97316')
+      .attr('stroke-width', 1.5);
+
+    const needleBadgeG = needleG.append('g').attr('class', 'needle-badge');
+
+    const needleBadgeRect = needleBadgeG.append('rect')
+      .attr('class', 'needle-badge-rect')
+      .attr('y', margin.top - 38)
+      .attr('height', 22)
+      .attr('rx', 5)
+      .attr('fill', '#f97316')
+      .attr('stroke', '#c2410c')
+      .attr('stroke-width', 1);
+
+    const needleBadgeText = needleBadgeG.append('text')
+      .attr('class', 'needle-badge-text')
+      .attr('y', margin.top - 23)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '11px')
+      .attr('font-weight', '700')
+      .attr('font-family', 'monospace')
+      .attr('fill', '#ffffff');
+
+    let rafNeedleId: number | null = null;
+    let lastNeedleText = '';
+
+    const updateNeedle = (mouseX: number) => {
+      rafNeedleId = null;
+      const xPos = mouseX - margin.left;
+      if (xPos < 0 || xPos > innerWidth || svg.classList.contains('is-zooming')) {
+        needleG.style('display', 'none');
+        return;
+      }
+
+      const cursorDate = activeScaleX.invert(xPos);
+      const dom = activeScaleX.domain() as [Date, Date];
+      const durationMs = dom && dom[0] && dom[1] ? Math.abs(dom[1].getTime() - dom[0].getTime()) : initialSpanMs;
+      const dateStr = formatCursorDate(cursorDate, durationMs);
+
+      const needleBadgeRectNode = needleBadgeRect.node();
+      const needleBadgeTextNode = needleBadgeText.node();
+      const needleGNode = needleG.node();
+      const needleBadgeGNode = needleBadgeG.node();
+
+      if (needleGNode) {
+        needleGNode.style.display = '';
+        needleGNode.setAttribute('transform', `translate(${margin.left + xPos}, 0)`);
+      }
+
+      if (dateStr !== lastNeedleText) {
+        lastNeedleText = dateStr;
+        if (needleBadgeTextNode) {
+          needleBadgeTextNode.textContent = dateStr;
+          const measuredWidth = typeof needleBadgeTextNode.getComputedTextLength === 'function' ? needleBadgeTextNode.getComputedTextLength() : 0;
+          const textWidth = measuredWidth > 0 ? measuredWidth : dateStr.length * 7;
+          const badgeWidth = textWidth + 16;
+
+          if (needleBadgeRectNode) {
+            needleBadgeRectNode.setAttribute('x', String(-badgeWidth / 2));
+            needleBadgeRectNode.setAttribute('width', String(badgeWidth));
+          }
+
+          if (needleBadgeGNode) {
+            const totalX = margin.left + xPos;
+            let badgeOffset = 0;
+            if (totalX - badgeWidth / 2 < 5) {
+              badgeOffset = 5 - (totalX - badgeWidth / 2);
+            } else if (totalX + badgeWidth / 2 > width - 5) {
+              badgeOffset = (width - 5) - (totalX + badgeWidth / 2);
+            }
+            needleBadgeGNode.setAttribute('transform', `translate(${badgeOffset}, 0)`);
+          }
+        }
+      } else if (needleBadgeGNode && needleBadgeRectNode) {
+        const badgeWidth = parseFloat(needleBadgeRectNode.getAttribute('width') || '100');
+        const totalX = margin.left + xPos;
+        let badgeOffset = 0;
+        if (totalX - badgeWidth / 2 < 5) {
+          badgeOffset = 5 - (totalX - badgeWidth / 2);
+        } else if (totalX + badgeWidth / 2 > width - 5) {
+          badgeOffset = (width - 5) - (totalX + badgeWidth / 2);
+        }
+        needleBadgeGNode.setAttribute('transform', `translate(${badgeOffset}, 0)`);
+      }
+    };
+
+    d3Svg
+      .on('mousemove.needle', (event: MouseEvent) => {
+        const [ptX] = d3.pointer(event, svg);
+        if (rafNeedleId === null) {
+          if (typeof requestAnimationFrame !== 'undefined') {
+            rafNeedleId = requestAnimationFrame(() => updateNeedle(ptX));
+          } else {
+            updateNeedle(ptX);
+          }
+        }
+      })
+      .on('mouseleave.needle', () => {
+        if (rafNeedleId !== null) {
+          if (typeof cancelAnimationFrame !== 'undefined') {
+            cancelAnimationFrame(rafNeedleId);
+          }
+          rafNeedleId = null;
+        }
+        needleG.style('display', 'none');
+      });
+
     processedEvents.forEach((evt) => {
       const color = scaleColor(evt.categoryVal);
       const yPos = scaleY(evt.id) || 0;
@@ -1136,8 +1263,8 @@ export async function renderTimelineBlockAsync(
         .attr('class', 'event-bar')
         .attr('height', eventHeight)
         .attr('fill', color)
-        .attr('fill-opacity', 0.35)
-        .attr('rx', 2);
+        .attr('fill-opacity', 0.4)
+        .attr('rx', 3);
 
       const leaderLine = evtG.append('line')
         .attr('class', 'leader')
@@ -1153,7 +1280,7 @@ export async function renderTimelineBlockAsync(
         .attr('text-anchor', 'start')
         .attr('font-size', '13px')
         .attr('font-weight', '600')
-        .attr('fill', 'var(--text-normal, #0f172a)')
+        .attr('fill', 'var(--text-normal, #222222)')
         .text(stripWikilinks(evt.title));
 
       let colsGSelection: d3.Selection<SVGGElement, any, null, undefined> | null = null;
@@ -1190,7 +1317,7 @@ export async function renderTimelineBlockAsync(
       });
 
       evtG.on('mouseenter', (event: MouseEvent) => {
-        rectBarNode?.setAttribute('fill-opacity', '0.65');
+        rectBarNode?.setAttribute('fill-opacity', '0.7');
 
         const startStr = formatDisplayDate(evt.startDate);
         const endStr = evt.isOngoing ? 'Present' : formatDisplayDate(evt.endDate);
@@ -1206,7 +1333,7 @@ export async function renderTimelineBlockAsync(
         positionTooltip(event.clientX, event.clientY);
       })
       .on('mouseleave', () => {
-        rectBarNode?.setAttribute('fill-opacity', '0.35');
+        rectBarNode?.setAttribute('fill-opacity', '0.4');
         hideTooltip();
       });
     });
@@ -1227,6 +1354,8 @@ export async function renderTimelineBlockAsync(
       activeScaleX = transform.rescaleX(timeScale);
       const currentTicks = getOptimalTicks();
       const currentGridTicks = Math.max(currentTicks * 2, Math.floor(innerWidth / 45));
+
+      updateActiveTickFormatter(currentTicks);
 
       timeAxisTop.scale(activeScaleX).ticks(currentTicks);
       timeAxisBottom.scale(activeScaleX).ticks(currentTicks);
@@ -1322,6 +1451,7 @@ export async function renderTimelineBlockAsync(
       .on('start', () => {
         svg.classList.add('is-zooming');
         eventsG.style('pointer-events', 'none');
+        needleG.style('display', 'none');
         hideTooltip(true);
       })
       .on('zoom', ({ transform }) => {

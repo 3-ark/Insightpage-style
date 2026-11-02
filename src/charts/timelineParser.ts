@@ -506,6 +506,12 @@ export function mapRawRowsToTimelineData(
 
   const categoryKeysSet = new Set(categoryKeys);
 
+  // Performance optimization: Precompute other non-reserved custom property keys once outside the row loop
+  // to avoid allocating an Object.keys(row) heap array and performing O(R * K) Set lookups on every row.
+  const otherKeys = keys.filter(
+    (k) => k !== titleKey && k !== startKey && k !== endKey && !collectionKeysSet.has(k) && !categoryKeysSet.has(k)
+  );
+
   // Performance optimization: Pre-allocate target events array and use direct index loops instead of
   // higher-order rows.map() and forEach() closures to minimize GC pressure during dataset transformation.
   const events: TimelineEvent[] = new Array(rows.length);
@@ -545,10 +551,9 @@ export function mapRawRowsToTimelineData(
       }
     }
 
-    const rowKeys = Object.keys(row);
-    for (let i = 0; i < rowKeys.length; i++) {
-      const k = rowKeys[i];
-      if (k !== titleKey && k !== startKey && k !== endKey && !collectionKeysSet.has(k) && !categoryKeysSet.has(k)) {
+    for (let i = 0; i < otherKeys.length; i++) {
+      const k = otherKeys[i];
+      if (row[k] !== undefined) {
         evtObj[k] = row[k];
       }
     }
