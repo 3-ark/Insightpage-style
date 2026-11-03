@@ -112,35 +112,41 @@ export function parseMarkdownTable(tableString: string, layout: 'columns' | 'row
 }
 
 export function generateTableData(table: string, layout: 'columns' | 'rows', selected?: string[]) {
+    // Performance optimization: Run our optimized native parseMarkdownTable on the primary path
+    // instead of attempting getExtractor().extractObject() first. The external library always throws
+    // exceptions on modern runtimes or tables with block IDs, forcing an expensive exception catch
+    // and secondary parse on every call. We fall back to getExtractor() only if our primary parser fails.
     let fields: any;
     try {
-        fields = getExtractor().extractObject(table, layout, false);
-    } catch (error) {
+        fields = parseMarkdownTable(table, layout);
+    } catch (parseError) {
         try {
-            fields = parseMarkdownTable(table, layout);
+            fields = getExtractor().extractObject(table, layout, false);
         } catch (fallbackError) {
             new Notice('Table malformed');
-            throw error;
+            throw parseError;
         }
     }
-    if (!fields || typeof fields !== 'object' || Object.keys(fields).length === 0) {
-        try {
-            fields = parseMarkdownTable(table, layout);
-        } catch (e) {
-            throw new Error('Table is empty or invalid');
-        }
+    if (!fields || typeof fields !== 'object') {
+        throw new Error('Table is empty or invalid');
     }
-    const firstVal = Object.values(fields)[0] as Record<string, any>;
+    const fieldKeys = Object.keys(fields);
+    if (fieldKeys.length === 0) {
+        throw new Error('Table is empty or invalid');
+    }
+    const firstVal = fields[fieldKeys[0]] as Record<string, any>;
     if (!firstVal || typeof firstVal !== 'object') {
         throw new Error('Table data structure is invalid');
     }
     const labels = Object.keys(firstVal);
-    let dataFields: DataField[] = Object.keys(fields).map((key) => {
-        return {
+    let dataFields: DataField[] = new Array(fieldKeys.length);
+    for (let i = 0; i < fieldKeys.length; i++) {
+        const key = fieldKeys[i];
+        dataFields[i] = {
             dataTitle: key,
             data: Object.values(fields[key]) as string[]
         };
-    });
+    }
 
     if (selected) {
         // Performance optimization: Precompute an O(1) Set lookup for selected titles
