@@ -63,3 +63,5 @@ minimumReleaseAgeExclude:
   - d3-transition@3.0.2
   - d3-zoom@3.0.1
   - d3@7.9.1
+  - '@observablehq/plot@0.6.19'
+  - jsdom@31.0.0

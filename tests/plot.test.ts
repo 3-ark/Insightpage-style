@@ -412,3 +412,287 @@ Plot.plot({
   assert.notEqual(tipGroup, null, 'Plot SVG should contain g[aria-label="tip"] element');
   assert.equal(tipGroup?.getAttribute('fill'), 'var(--plot-background)', 'Tip group fill should be var(--plot-background)');
 });
+
+test('renders text mark with dynamic frameAnchor, dx, and dy channel accessors', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: mockApp,
+  };
+
+  const renderer = new Renderer(mockPlugin);
+  const container = document.createElement('div');
+
+  const cornerBadgeCode = `
+Plot.plot({
+  marks: [
+    Plot.text([
+      { text: "↖ High Density / Small Land", frameAnchor: "top-left", dx: 10, dy: 10 },
+      { text: "↗ Large States (High Pop & Land)", frameAnchor: "top-right", dx: -10, dy: 10 },
+      { text: "↙ Microstates & Territories", frameAnchor: "bottom-left", dx: 10, dy: -10 },
+      { text: "↘ Large Land / Low Pop", frameAnchor: "bottom-right", dx: -10, dy: -10 }
+    ], {
+      frameAnchor: "frameAnchor",
+      text: "text",
+      fill: "#888",
+      fontSize: 10,
+      fontStyle: "italic",
+      dx: "dx",
+      dy: "dy"
+    })
+  ]
+})
+`;
+
+  const rendered = await renderer.renderRaw(cornerBadgeCode, container);
+  assert.notEqual(rendered, null, 'Rendered plot with corner badges should not be null');
+
+  const textNodes = Array.from(container.querySelectorAll('text'));
+  assert.equal(textNodes.length, 4, 'Should render 4 text badge nodes');
+
+  const renderedTexts = textNodes.map((n) => n.textContent);
+  assert.ok(renderedTexts.includes('↖ High Density / Small Land'));
+  assert.ok(renderedTexts.includes('↗ Large States (High Pop & Land)'));
+  assert.ok(renderedTexts.includes('↙ Microstates & Territories'));
+  assert.ok(renderedTexts.includes('↘ Large Land / Low Pop'));
+});
+
+test('renders user issue query code with dynamic frameAnchor and table parsing', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  // Mock canvas getContext for color scheme legend ramp rendering
+  (dom.window.HTMLCanvasElement.prototype as any).getContext = () => ({
+    fillStyle: '',
+    fillRect: () => {},
+    getImageData: () => ({ data: [] }),
+    putImageData: () => {},
+    createImageData: () => ({ data: [] }),
+    setTransform: () => {},
+    drawImage: () => {},
+    save: () => {},
+    fillText: () => {},
+    restore: () => {},
+    beginPath: () => {},
+    moveTo: () => {},
+    lineTo: () => {},
+    closePath: () => {},
+    stroke: () => {},
+    translate: () => {},
+    scale: () => {},
+    rotate: () => {},
+    arc: () => {},
+    fill: () => {},
+  });
+  (dom.window.HTMLCanvasElement.prototype as any).toDataURL = () => 'data:image/png;base64,mock';
+
+  // Inject a mock table into DOM as in the user query
+  const existingTable = dom.window.document.querySelector('table');
+  if (existingTable) existingTable.remove();
+
+  const tableEl = dom.window.document.createElement('table');
+  tableEl.innerHTML = `
+    <thead><tr><th>Land area</th><th>Density</th><th>Population</th><th>Area</th></tr></thead>
+    <tbody>
+      <tr><td>China</td><td>145</td><td>1,400,000,000</td><td>9,600,000</td></tr>
+      <tr><td>India</td><td>418</td><td>1,380,000,000</td><td>3,300,000</td></tr>
+      <tr><td>Singapore</td><td>8,000</td><td>5,700,000</td><td>728</td></tr>
+      <tr><td>Monaco</td><td>19,000</td><td>39,000</td><td>2.1</td></tr>
+    </tbody>
+  `;
+  dom.window.document.body.appendChild(tableEl);
+
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: mockApp,
+  };
+
+  const renderer = new Renderer(mockPlugin);
+  const container = document.createElement('div');
+
+  const userQueryCode = `
+// 1. Read and parse data dynamically from the table
+const table = Array.from(document.querySelectorAll("table")).find(t =>
+  t.textContent.includes("Land area") && t.textContent.includes("Population")
+);
+
+const data = Array.from(table ? table.querySelectorAll("tbody tr") : []).map(tr => {
+  const cells = Array.from(tr.querySelectorAll("td")).map(td => td.textContent.trim());
+  return {
+    location: cells[0],
+    density: parseFloat(cells[1].replace(/,/g, "")),
+    population: parseFloat(cells[2].replace(/,/g, "")),
+    area: parseFloat(cells[3].replace(/,/g, ""))
+  };
+}).filter(d => d.location && d.location !== "World" && !isNaN(d.population) && !isNaN(d.area) && d.area > 0 && d.population > 0);
+
+// 2. Standard Thresholds (10M Population, 100k km² Area)
+const POP_THRESHOLD = 10_000_000;
+const AREA_THRESHOLD = 100_000;
+
+// 3. Log-Log Linear Regression (Trend Line)
+const n = data.length;
+const lx = data.map(d => Math.log10(d.area));
+const ly = data.map(d => Math.log10(d.population));
+const meanX = lx.reduce((a, b) => a + b, 0) / n;
+const meanY = ly.reduce((a, b) => a + b, 0) / n;
+const num = lx.reduce((acc, x, i) => acc + (x - meanX) * (ly[i] - meanY), 0);
+const den = lx.reduce((acc, x) => acc + Math.pow(x - meanX, 2), 0);
+const slope = num / den;
+const intercept = meanY - slope * meanX;
+
+const trend = [
+  { area: 0.3, population: Math.pow(10, intercept + slope * Math.log10(0.3)) },
+  { area: 20_000_000, population: Math.pow(10, intercept + slope * Math.log10(20_000_000)) }
+];
+
+// 4. Render
+Plot.plot({
+  title: "X = Land area (km²), Y = Population, Color = Density",
+  subtitle: "Blue line: Regression trend | Yellow cross: Large state thresholds (10M pop / 100k km²)",
+  width: 860,
+  height: 580,
+  grid: true,
+  inset: 24,
+  x: {
+    type: "log",
+    label: "Land Area (km²) →",
+    tickFormat: "~s"
+  },
+  y: {
+    type: "log",
+    label: "↑ Population",
+    tickFormat: "~s"
+  },
+  color: {
+    type: "log",
+    scheme: "turbo",
+    legend: true,
+    label: "Density (/km²)"
+  },
+  marks: [
+    // --- Regression Trend Line (Blue) ---
+    Plot.line(trend, {
+      x: "area",
+      y: "population",
+      stroke: "#1d63b8",
+      strokeWidth: 3.5
+    }),
+
+    // --- Threshold Crosshair (Yellow) ---
+    Plot.ruleX([AREA_THRESHOLD], {
+      stroke: "#f59e0b",
+      strokeWidth: 2
+    }),
+    Plot.ruleY([POP_THRESHOLD], {
+      stroke: "#f59e0b",
+      strokeWidth: 2
+    }),
+
+    // --- Quadrant Corner Badges (Placed out of the way) ---
+    Plot.text([
+      { text: "↖ High Density / Small Land", frameAnchor: "top-left", dx: 10, dy: 10 },
+      { text: "↗ Large States (High Pop & Land)", frameAnchor: "top-right", dx: -10, dy: 10 },
+      { text: "↙ Microstates & Territories", frameAnchor: "bottom-left", dx: 10, dy: -10 },
+      { text: "↘ Large Land / Low Pop", frameAnchor: "bottom-right", dx: -10, dy: -10 }
+    ], {
+      frameAnchor: "frameAnchor",
+      text: "text",
+      fill: "#888",
+      fontSize: 10,
+      fontStyle: "italic",
+      dx: "dx",
+      dy: "dy"
+    }),
+
+    // --- Country Dots ---
+    Plot.dot(data, {
+      x: "area",
+      y: "population",
+      fill: "density",
+      r: 5.5,
+      stroke: "#222",
+      strokeWidth: 0.5,
+      tip: true,
+      title: d => \`\${d.location}\\nArea: \${d.area.toLocaleString()} km²\\nPopulation: \${d.population.toLocaleString()}\\nDensity: \${d.density.toLocaleString()} /km²\`
+    }),
+
+    // --- Key Country Labels (Always rendered on top with clear text) ---
+    Plot.text(
+      data.filter(d => ["China", "India", "Bangladesh", "Taiwan", "Singapore", "Monaco", "Vatican City"].includes(d.location)),
+      {
+        x: "area",
+        y: "population",
+        text: "location",
+        dy: -12,
+        fontSize: 11,
+        fontWeight: "bold",
+        fill: "#111",
+        stroke: "#fff",
+        strokeWidth: 2,
+        paintOrder: "stroke"
+      }
+    )
+  ]
+})
+`;
+
+  const rendered = await renderer.renderRaw(userQueryCode, container);
+  assert.notEqual(rendered, null, 'User query plot should render successfully');
+  assert.ok(
+    container.innerHTML.includes('High Density / Small Land'),
+    'Container should render corner badge labels'
+  );
+});
+
+test('handles frameAnchor accessor function and dot/tip marks', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: mockApp,
+  };
+
+  const renderer = new Renderer(mockPlugin);
+  const container = document.createElement('div');
+
+  const accessorFnCode = `
+Plot.plot({
+  marks: [
+    Plot.text([
+      { label: "Top Note", pos: "top" },
+      { label: "Bottom Note", pos: "bottom" }
+    ], {
+      frameAnchor: d => d.pos,
+      text: "label"
+    }),
+    Plot.dot([
+      { anchor: "top-left" },
+      { anchor: "bottom-right" }
+    ], {
+      frameAnchor: "anchor"
+    })
+  ]
+})
+`;
+
+  const rendered = await renderer.renderRaw(accessorFnCode, container);
+  assert.notEqual(rendered, null, 'Rendered plot with accessor function and dot mark should not be null');
+
+  const textNodes = Array.from(container.querySelectorAll('text'));
+  const renderedTexts = textNodes.map((n) => n.textContent);
+  assert.ok(renderedTexts.includes('Top Note'));
+  assert.ok(renderedTexts.includes('Bottom Note'));
+});

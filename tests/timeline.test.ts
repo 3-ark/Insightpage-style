@@ -105,6 +105,17 @@ test('parseEventDate correctly normalizes dates, timestamps, strings and fallbac
   assert.equal(d18.getFullYear(), -2020);
   assert.equal(d18.getMonth(), 4);
   assert.equal(d18.getDate(), 15);
+
+  // Sub-100 AD dates correctly keep two-digit year without 1900s coercion
+  const d19 = parseEventDate('50 AD 05-15', fallback);
+  assert.equal(d19.getFullYear(), 50);
+  assert.equal(d19.getMonth(), 4);
+  assert.equal(d19.getDate(), 15);
+
+  const d20 = parseEventDate('AD 50-05-15', fallback);
+  assert.equal(d20.getFullYear(), 50);
+  assert.equal(d20.getMonth(), 4);
+  assert.equal(d20.getDate(), 15);
 });
 
 test('renderTimelineBlock correctly handles negative start and end date ranges', async () => {

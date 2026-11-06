@@ -323,15 +323,18 @@ export function processCommentCallouts(container: HTMLElement): void {
 
     // Performance optimization: Short-circuit with textContent check BEFORE running isExcluded (closest checks)
     // or reading innerHTML (DOM subtree serialization). Precalculate depth to avoid O(N log N) depth lookups.
+    // When the container has no child elements (e.g. plain text leaf), skip querySelectorAll('*') entirely.
     const candidatesWithDepth: Array<{ el: HTMLElement; depth: number }> = [];
-    const allEls = container.querySelectorAll<HTMLElement>('*');
-    allEls.forEach((el) => {
-      if (el.textContent && el.textContent.includes('::cmt')) {
-        if (!isExcluded(el)) {
-          candidatesWithDepth.push({ el, depth: getDepth(el) });
+    if (container.children.length > 0) {
+      const allEls = container.querySelectorAll<HTMLElement>('*');
+      allEls.forEach((el) => {
+        if (el.textContent && el.textContent.includes('::cmt')) {
+          if (!isExcluded(el)) {
+            candidatesWithDepth.push({ el, depth: getDepth(el) });
+          }
         }
-      }
-    });
+      });
+    }
 
     if (
       candidatesWithDepth.length === 0 &&
