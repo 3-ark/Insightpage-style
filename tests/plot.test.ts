@@ -45,6 +45,19 @@ global.XMLSerializer = dom.window.XMLSerializer;
 global.Blob = dom.window.Blob;
 global.URL = dom.window.URL;
 
+// Polyfill innerText in JSDOM if needed
+if (!('innerText' in dom.window.HTMLElement.prototype)) {
+  Object.defineProperty(dom.window.HTMLElement.prototype, 'innerText', {
+    get() {
+      return this.textContent;
+    },
+    set(v) {
+      this.textContent = v;
+    },
+    configurable: true,
+  });
+}
+
 // Mock Obsidian App
 const mockApp = {
   workspace: {
@@ -695,4 +708,333 @@ Plot.plot({
   const renderedTexts = textNodes.map((n) => n.textContent);
   assert.ok(renderedTexts.includes('Top Note'));
   assert.ok(renderedTexts.includes('Bottom Note'));
+});
+
+test('renders Plot chart with title, subtitle, and caption within figure element', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: mockApp,
+  };
+
+  const renderer = new Renderer(mockPlugin);
+  const container = document.createElement('div');
+
+  const plotWithTitleSubtitleCaption = `
+Plot.plot({
+  title: "Annual Global Temperatures",
+  subtitle: "Comparison of 1991-2020 baseline with 2026 recorded anomalies",
+  caption: "Figure 1. Data sourced from climate reanalyzer daily SST records.",
+  marks: [
+    Plot.ruleY([0]),
+    Plot.line([
+      { year: 2020, value: 0.8 },
+      { year: 2022, value: 0.95 },
+      { year: 2024, value: 1.15 },
+      { year: 2026, value: 1.28 }
+    ], { x: "year", y: "value" })
+  ]
+})
+`;
+
+  const rendered = await renderer.renderRaw(plotWithTitleSubtitleCaption, container);
+  assert.notEqual(rendered, null, 'Rendered chart should not be null');
+  assert.equal(rendered?.tagName.toLowerCase(), 'figure', 'Rendered element should be a <figure>');
+
+  // Verify h2 title
+  const titleEl = container.querySelector('figure h2');
+  assert.notEqual(titleEl, null, 'Figure should contain an <h2> title');
+  assert.equal(titleEl?.textContent, 'Annual Global Temperatures');
+
+  // Verify h3 subtitle
+  const subtitleEl = container.querySelector('figure h3');
+  assert.notEqual(subtitleEl, null, 'Figure should contain an <h3> subtitle');
+  assert.equal(subtitleEl?.textContent, 'Comparison of 1991-2020 baseline with 2026 recorded anomalies');
+
+  // Verify figcaption
+  const captionEl = container.querySelector('figure figcaption');
+  assert.notEqual(captionEl, null, 'Figure should contain a <figcaption>');
+  assert.equal(captionEl?.textContent, 'Figure 1. Data sourced from climate reanalyzer daily SST records.');
+
+  // Verify SVG child within figure
+  const svgEl = container.querySelector('figure svg');
+  assert.notEqual(svgEl, null, 'Figure should contain an <svg> chart element');
+});
+
+test('renders Plot chart with only caption in figure element', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: mockApp,
+  };
+
+  const renderer = new Renderer(mockPlugin);
+  const container = document.createElement('div');
+
+  const plotWithCaptionOnly = `
+Plot.plot({
+  caption: "Source: Observation data collected at meteorological stations.",
+  marks: [
+    Plot.barY([10, 20, 30, 40], { x: (d, i) => i, y: (d) => d })
+  ]
+})
+`;
+
+  const rendered = await renderer.renderRaw(plotWithCaptionOnly, container);
+  assert.notEqual(rendered, null, 'Rendered chart should not be null');
+  assert.equal(rendered?.tagName.toLowerCase(), 'figure', 'Rendered element should be a <figure>');
+
+  assert.equal(container.querySelector('figure h2'), null, 'Figure should not contain an <h2> title');
+  assert.equal(container.querySelector('figure h3'), null, 'Figure should not contain an <h3> subtitle');
+
+  const captionEl = container.querySelector('figure figcaption');
+  assert.notEqual(captionEl, null, 'Figure should contain a <figcaption>');
+  assert.equal(captionEl?.textContent, 'Source: Observation data collected at meteorological stations.');
+});
+
+test('renders plot assigned to variable without explicit return (Plot 2 fix)', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: mockApp,
+  };
+
+  const renderer = new Renderer(mockPlugin);
+  const container = document.createElement('div');
+
+  const plotWithVarAssignment = `
+const data = [10, 20, 30, 40];
+const meanVal = d3.mean(data);
+const plot = Plot.plot({
+  title: "Test Plot Assigned to Var",
+  marks: [
+    Plot.barY(data, { x: (d, i) => i, y: (d) => d }),
+    Plot.ruleY([meanVal], { stroke: "red" })
+  ]
+});
+`;
+
+  const rendered = await renderer.renderRaw(plotWithVarAssignment, container);
+  assert.notEqual(rendered, null, 'Rendered element should not be null');
+  assert.equal(container.children.length, 1, 'Container should contain 1 rendered chart element');
+  assert.ok(container.innerHTML.includes('Test Plot Assigned to Var'));
+});
+
+test('renders plot using display() function (Plot 3 fix)', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: mockApp,
+  };
+
+  const renderer = new Renderer(mockPlugin);
+  const container = document.createElement('div');
+
+  const plotWithDisplay = `
+const data = [{ a: 1, b: 2 }, { a: 2, b: 4 }];
+const plot = display(Plot.plot({
+  title: "Displayed Plot",
+  marks: [
+    Plot.line(data, { x: "a", y: "b" })
+  ]
+}));
+`;
+
+  const rendered = await renderer.renderRaw(plotWithDisplay, container);
+  assert.notEqual(rendered, null, 'Rendered element should not be null when using display()');
+  assert.equal(container.children.length, 1, 'Container should contain 1 rendered chart element');
+  assert.ok(container.innerHTML.includes('Displayed Plot'));
+});
+
+test('renders user example note containing Plot 1, Plot 2, and Plot 3', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  // Mock canvas for color scheme turbo legend ramp
+  (dom.window.HTMLCanvasElement.prototype as any).getContext = () => ({
+    fillStyle: '',
+    fillRect: () => {},
+    getImageData: () => ({ data: [] }),
+    putImageData: () => {},
+    createImageData: () => ({ data: [] }),
+    setTransform: () => {},
+    drawImage: () => {},
+    save: () => {},
+    fillText: () => {},
+    restore: () => {},
+    beginPath: () => {},
+    moveTo: () => {},
+    lineTo: () => {},
+    closePath: () => {},
+    stroke: () => {},
+    translate: () => {},
+    scale: () => {},
+    rotate: () => {},
+    arc: () => {},
+    fill: () => {},
+  });
+  (dom.window.HTMLCanvasElement.prototype as any).toDataURL = () => 'data:image/png;base64,mock';
+
+  // Set up table in document body matching user query note
+  const existingTable = dom.window.document.querySelector('table');
+  if (existingTable) existingTable.remove();
+
+  const tableEl = dom.window.document.createElement('table');
+  tableEl.innerHTML = `
+    <thead><tr><th>Location</th><th>Density</th><th>Population</th><th>Land area (km2)</th></tr></thead>
+    <tbody>
+      <tr><td>World</td><td>55</td><td>8,231,613,070</td><td>148,940,000</td></tr>
+      <tr><td>Macau (China)</td><td>21,826</td><td>720,262</td><td>33</td></tr>
+      <tr><td>Monaco</td><td>19,428</td><td>38,857</td><td>2</td></tr>
+      <tr><td>Singapore</td><td>8,290</td><td>6,110,200</td><td>737</td></tr>
+    </tbody>
+  `;
+  dom.window.document.body.appendChild(tableEl);
+
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: mockApp,
+  };
+
+  const renderer = new Renderer(mockPlugin);
+
+  // Plot 1: Standard expression Plot.plot({...})
+  const plot1Code = `
+const table = Array.from(document.querySelectorAll("table")).find(t => 
+  t.innerText.includes("Land area") && t.innerText.includes("Population")
+);
+
+const data = Array.from(table ? table.querySelectorAll("tbody tr") : []).map(tr => {
+  const cells = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
+  return {
+    location: cells[0],
+    density: parseFloat(cells[1].replace(/,/g, "")),
+    population: parseFloat(cells[2].replace(/,/g, "")),
+    area: parseFloat(cells[3].replace(/,/g, ""))
+  };
+}).filter(d => d.location && d.location !== "World" && !isNaN(d.population) && !isNaN(d.area) && d.area > 0 && d.population > 0);
+
+const POP_THRESHOLD = 10_000_000;
+const AREA_THRESHOLD = 100_000;
+
+Plot.plot({
+  title: "Plot 1: Population vs. Land Area",
+  marks: [
+    Plot.dot(data, { x: "area", y: "population" })
+  ]
+})
+`;
+  const container1 = document.createElement('div');
+  const rendered1 = await renderer.renderRaw(plot1Code, container1);
+  assert.notEqual(rendered1, null, 'Plot 1 should render successfully');
+  assert.ok(container1.innerHTML.includes('Plot 1: Population vs. Land Area'));
+
+  // Plot 2: Variable assignment const plot = Plot.plot({...}); using d3.mean and d3.sum
+  const plot2Code = `
+const table = Array.from(document.querySelectorAll("table")).find(t =>
+  t.innerText.includes("Land area") && t.innerText.includes("Population")
+);
+
+const data = Array.from(table ? table.querySelectorAll("tbody tr") : []).map(tr => {
+  const cells = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
+  return {
+    location: cells[0],
+    density: parseFloat(cells[1].replace(/,/g, "")),
+    population: parseFloat(cells[2].replace(/,/g, "")),
+    area: parseFloat(cells[3].replace(/,/g, ""))
+  };
+}).filter(d => d.location && d.location !== "World" && !isNaN(d.population) && !isNaN(d.area) && d.area > 0 && d.population > 0);
+
+const POP_THRESHOLD = 10_000_000;
+const AREA_THRESHOLD = 100_000;
+
+const lx = data.map(d => Math.log10(d.area));
+const ly = data.map(d => Math.log10(d.population));
+const meanX = d3.mean(lx), meanY = d3.mean(ly);
+const slope = d3.sum(lx, (x, i) => (x - meanX) * (ly[i] - meanY)) / d3.sum(lx, x => (x - meanX) ** 2);
+const intercept = meanY - slope * meanX;
+
+const trend = [0.3, 20_000_000].map(area => ({
+  area,
+  population: 10 ** (intercept + slope * Math.log10(area))
+}));
+
+const plot = Plot.plot({
+  title: "Plot 2: Population vs. land area",
+  marks: [
+    Plot.line(trend, {x: "area", y: "population"}),
+    Plot.dot(data, {x: "area", y: "population"})
+  ]
+});
+`;
+  const container2 = document.createElement('div');
+  const rendered2 = await renderer.renderRaw(plot2Code, container2);
+  assert.notEqual(rendered2, null, 'Plot 2 should render successfully');
+  assert.ok(container2.innerHTML.includes('Plot 2: Population vs. land area'));
+
+  // Plot 3: const plot = display(Plot.plot({...}));
+  const plot3Code = `
+const table = Array.from(document.querySelectorAll("table")).find(t =>
+  t.innerText.includes("Land area") && t.innerText.includes("Population")
+);
+
+const data = Array.from(table ? table.querySelectorAll("tbody tr") : []).map(tr => {
+  const cells = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
+  return {
+    location: cells[0],
+    density: parseFloat(cells[1].replace(/,/g, "")),
+    population: parseFloat(cells[2].replace(/,/g, "")),
+    area: parseFloat(cells[3].replace(/,/g, ""))
+  };
+}).filter(d => d.location && d.location !== "World" && !isNaN(d.population) && !isNaN(d.area) && d.area > 0 && d.population > 0);
+
+const POP_THRESHOLD = 10_000_000;
+const AREA_THRESHOLD = 100_000;
+
+const lx = data.map(d => Math.log10(d.area));
+const ly = data.map(d => Math.log10(d.population));
+const meanX = d3.mean(lx), meanY = d3.mean(ly);
+const slope = d3.sum(lx, (x, i) => (x - meanX) * (ly[i] - meanY)) / d3.sum(lx, x => (x - meanX) ** 2);
+const intercept = meanY - slope * meanX;
+
+const trend = [0.3, 20_000_000].map(area => ({
+  area,
+  population: 10 ** (intercept + slope * Math.log10(area))
+}));
+
+const plot = display(Plot.plot({
+  title: "Plot 3: Population vs. land area",
+  marks: [
+    Plot.line(trend, {x: "area", y: "population"}),
+    Plot.dot(data, {x: "area", y: "population"})
+  ]
+}));
+`;
+  const container3 = document.createElement('div');
+  const rendered3 = await renderer.renderRaw(plot3Code, container3);
+  assert.notEqual(rendered3, null, 'Plot 3 should render successfully');
+  assert.ok(container3.innerHTML.includes('Plot 3: Population vs. land area'));
 });

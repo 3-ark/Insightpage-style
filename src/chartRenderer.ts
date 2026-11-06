@@ -527,69 +527,135 @@ export default class Renderer {
         const PlotInst = getPlot();
         const d3Inst = getD3();
 
-        let fn = new AsyncFunction('Plot', 'd3', 'el', 'container', 'app', 'obsidian', 'fetch', code);
-        let result = await fn(PlotInst, d3Inst, el, el, this.plugin.app, obsidianModule, customFetch);
-
-        // If result is undefined, try auto-prefixing 'return ' to statements backwards
-        if (result === undefined) {
-          const lines = code.split('\n');
-          for (let i = lines.length - 1; i >= 0; i--) {
-            const lineTrimmed = lines[i].trim();
-            if (!lineTrimmed || lineTrimmed.startsWith('//')) continue;
-            if (lineTrimmed.startsWith('return')) break;
-
-            const copy = [...lines];
-            copy[i] = 'return ' + copy[i];
+        const resolveToDomElement = (val: any): HTMLElement | SVGElement | null => {
+          if (!val) return null;
+          if (val instanceof HTMLElement || val instanceof SVGElement) {
+            return val;
+          }
+          if (typeof val.plot === 'function') {
             try {
-              const fn2 = new AsyncFunction('Plot', 'd3', 'el', 'container', 'app', 'obsidian', 'fetch', copy.join('\n'));
-              const res2 = await fn2(PlotInst, d3Inst, el, el, this.plugin.app, obsidianModule, customFetch);
-              if (res2 !== undefined) {
-                result = res2;
-                break;
+              const plotEl = val.plot();
+              if (plotEl instanceof HTMLElement || plotEl instanceof SVGElement) {
+                return plotEl;
               }
             } catch (e) {
-              // Ignore syntax error and try previous line
+              // Ignore plot error
+            }
+          }
+          if (Array.isArray(val) || val.marks) {
+            try {
+              const plotEl = PlotInst.plot(Array.isArray(val) ? { marks: val } : val);
+              if (plotEl instanceof HTMLElement || plotEl instanceof SVGElement) {
+                return plotEl;
+              }
+            } catch (e) {
+              // Ignore plot error
+            }
+          }
+          if (typeof val.node === 'function') {
+            try {
+              const nodeEl = val.node();
+              if (nodeEl instanceof HTMLElement || nodeEl instanceof SVGElement) {
+                return nodeEl;
+              }
+            } catch (e) {
+              // Ignore node error
+            }
+          }
+          return null;
+        };
+
+        let displayedElement: HTMLElement | SVGElement | null = null;
+        const display = (val: any) => {
+          const dom = resolveToDomElement(val);
+          if (dom) {
+            el.appendChild(dom);
+            displayedElement = dom;
+          }
+          return val;
+        };
+
+        const prevWindowDisplay = typeof window !== 'undefined' ? (window as any).display : undefined;
+        if (typeof window !== 'undefined') {
+          (window as any).display = display;
+        }
+
+        let result: any;
+        try {
+          const fn = new AsyncFunction('Plot', 'd3', 'el', 'container', 'app', 'obsidian', 'fetch', 'display', code);
+          result = await fn(PlotInst, d3Inst, el, el, this.plugin.app, obsidianModule, customFetch, display);
+
+          // If result is undefined and display() hasn't already displayed an element, try auto-prefixing 'return ' or returning assigned variables
+          if (result === undefined && !displayedElement) {
+            const lines = code.split('\n');
+
+            // First check if any statement backwards can be prefixed with 'return ' or returned as a variable
+            for (let i = lines.length - 1; i >= 0; i--) {
+              const lineTrimmed = lines[i].trim();
+              if (!lineTrimmed || lineTrimmed.startsWith('//')) continue;
+              if (lineTrimmed.startsWith('return')) break;
+
+              // If line is a variable declaration or assignment, e.g. const plot = Plot.plot(...)
+              const declMatch = lineTrimmed.match(/^(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=/);
+              const assignMatch = !declMatch && lineTrimmed.match(/^([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=/);
+              const varName = declMatch ? declMatch[1] : assignMatch ? assignMatch[1] : null;
+
+              if (varName) {
+                try {
+                  const copy = [...lines, `return ${varName};`];
+                  const fnVar = new AsyncFunction('Plot', 'd3', 'el', 'container', 'app', 'obsidian', 'fetch', 'display', copy.join('\n'));
+                  const resVar = await fnVar(PlotInst, d3Inst, el, el, this.plugin.app, obsidianModule, customFetch, display);
+                  if (resVar !== undefined) {
+                    result = resVar;
+                    break;
+                  }
+                } catch (e) {
+                  // Ignore error and continue
+                }
+              }
+
+              const copy = [...lines];
+              copy[i] = 'return ' + copy[i];
+              try {
+                const fn2 = new AsyncFunction('Plot', 'd3', 'el', 'container', 'app', 'obsidian', 'fetch', 'display', copy.join('\n'));
+                const res2 = await fn2(PlotInst, d3Inst, el, el, this.plugin.app, obsidianModule, customFetch, display);
+                if (res2 !== undefined) {
+                  result = res2;
+                  break;
+                }
+              } catch (e) {
+                // Ignore syntax error and try previous line
+              }
+            }
+          }
+        } finally {
+          if (typeof window !== 'undefined') {
+            if (prevWindowDisplay !== undefined) {
+              (window as any).display = prevWindowDisplay;
+            } else {
+              delete (window as any).display;
             }
           }
         }
 
-        let domElement: HTMLElement | SVGElement | null = null;
-
-        if (result instanceof HTMLElement || result instanceof SVGElement) {
-          domElement = result;
-        } else if (result && typeof result.plot === 'function') {
-          try {
-            const plotEl = result.plot();
-            if (plotEl instanceof HTMLElement || plotEl instanceof SVGElement) {
-              domElement = plotEl;
-            }
-          } catch (e) {
-            // Ignore plot error
-          }
-        } else if (result && (Array.isArray(result) || result.marks)) {
-          try {
-            const plotEl = PlotInst.plot(Array.isArray(result) ? { marks: result } : result);
-            if (plotEl instanceof HTMLElement || plotEl instanceof SVGElement) {
-              domElement = plotEl;
-            }
-          } catch (e) {
-            // Ignore plot error
-          }
-        } else if (result && typeof result.node === 'function') {
-          try {
-            const nodeEl = result.node();
-            if (nodeEl instanceof HTMLElement || nodeEl instanceof SVGElement) {
-              domElement = nodeEl;
-            }
-          } catch (e) {
-            // Ignore node error
-          }
+        // If display(...) was called and appended elements, return the last displayed element
+        if (displayedElement && (result === undefined || result === displayedElement)) {
+          return displayedElement;
         }
 
+        const domElement = resolveToDomElement(result);
         if (domElement) {
-          el.appendChild(domElement);
+          // Avoid appending domElement again if display() already appended it
+          if (domElement.parentElement !== el) {
+            el.appendChild(domElement);
+          }
           return domElement;
         }
+
+        if (displayedElement) {
+          return displayedElement;
+        }
+
         return null;
       }
 
