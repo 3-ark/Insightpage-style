@@ -19,10 +19,6 @@ Use these extensions in addition to standard Markdown and Mermaid.
 
 Use different fence lengths for nested code fences.
 
-## Mermaid Diagrams
-
-InsightPage supports all 15 Mermaid diagram types.
-
 ## Tabs
 
 Use `tabs` for switchable sections. Start each tab with `--- <Tab Title>`.
