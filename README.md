@@ -2,6 +2,12 @@
 
 **InsightPage Style** is an Obsidian plugin that enhances your notes with rich visual components, interactive diagrams, inline comments, music notation, zoomable timelines, and embedded maps.
 
+<p align="center">
+  <img src="assets/demo-preview.gif" alt="InsightPage Style Live Interactive Features Demo" width="100%" />
+</p>
+
+> 💡 **Quick Preview**: InsightPage Style turns Markdown code blocks into interactive ABC sheet music players, dynamic Observable Plot & charts, inline popover comments, zoomable timelines, and interactive Leaflet maps directly within Obsidian.
+
 ---
 
 ## Examples
@@ -15,6 +21,10 @@
 ### 1. ABC Sheet Music Rendering (`abc` / `abcjs`)
 
 Render musical notation directly in your notes using ABC notation. Includes interactive audio playback, playback progress bar, MIDI export, and copy source controls.
+
+<p align="center">
+  <img src="assets/feature-abc-music.png" alt="ABC Sheet Music with Audio Player" width="100%" />
+</p>
 
 #### Syntax
 Use code blocks tagged with `abc` or `abcjs`.
@@ -43,6 +53,10 @@ K: G
 ### 2. Observable Plot & Charts (`plot`, `observable`, `chart`)
 
 Create interactive, responsive charts using YAML configurations or JavaScript code leveraging [Observable Plot](https://observablehq.com/@observablehq/plot) and [D3](https://d3js.org/).
+
+<p align="center">
+  <img src="assets/feature-chart.png" alt="Observable Plot and Charts Preview" width="100%" />
+</p>
 
 #### YAML Chart Examples (`chart`)
 
@@ -241,6 +255,10 @@ Plot.plot({
 
 Add compact, non-intrusive popover comment callouts directly inside your text paragraphs.
 
+<p align="center">
+  <img src="assets/feature-comment-callout.png" alt="Inline Popover Comments Callout Preview" width="100%" />
+</p>
+
 #### Syntax
 
 Use `::cmt[Comment text]` or `::cmt{Comment text}` anywhere in markdown text:
@@ -262,6 +280,10 @@ You can also include emojis or markdown formatting: ::cmt[🚀 Important: Launch
 ### 4. Zoomable Timeline (`timeline`)
 
 Render interactive, zoomable event timelines with category filters, ongoing event tracking, collection badges, and SVG export.
+
+<p align="center">
+  <img src="assets/feature-timeline.png" alt="Zoomable Interactive Timeline" width="100%" />
+</p>
 
 #### Syntax
 Use code blocks tagged with `timeline`. Supports JSON, JavaScript object literal, or YAML format.
@@ -304,6 +326,10 @@ Use code blocks tagged with `timeline`. Supports JSON, JavaScript object literal
 ### 5. Leaflet Map Rendering (`map` / `leaflet`)
 
 Embed interactive maps with markers, popups, lines, polygons, circles, and GeoJSON support using Leaflet.
+
+<p align="center">
+  <img src="assets/feature-map.png" alt="Leaflet Map with Markers and Overlays" width="100%" />
+</p>
 
 #### Syntax
 Use code blocks tagged with `map` or `leaflet`.
