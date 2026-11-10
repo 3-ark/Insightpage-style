@@ -1,5 +1,5 @@
 ---
-title: simple abc
+title: Example ABC
 createdat: 1791083994344
 lastupdatedat: 1791898701916
 source: ""
@@ -49,47 +49,6 @@ z8|z8|
 
 ```abc
 X:1
-T:Sample Music
-M:2/4
-L:1/16
-Q:1/4=68
-%%score (Vocal Ins)
-V: Vocal clef=treble name="Vocal" snm="Voc."
-V: Ins clef=treble name="Inst." snm="Ins."
-K:Bbm
-% --- Chorus (16 bars) ---
-V: Vocal
-"Bbm"b2b2b2ab-|"Bbm"b3zf2a2|"Gb"b2b2ba2b-|"Gb"b2z2fa3|
-V: Ins
-z8|z8|z8|z8|
-V: Vocal
-"Ebm"f3e3d2|"Ebm"e2d2B2B2|"Gb"c2Bc2B2d-|"Gb"d2z2f2a2|
-V: Ins
-z8|z8|z8|z8|
-V: Vocal
-"Bbm"b2b2b2ab-|"Bbm"b3zf2a2|"Gb"b3ab2ab-|"Gb"b2z2fa3|
-V: Ins
-z8|z8|z8|z8|
-V: Vocal
-"Ebm"f3e4z|"Ebm"e2d2B4|"Gb"z4zBB2|"Gb"e2d2c2B2|
-V: Ins
-z8|z8|z8|z8|
-% --- Outro (10 bars) ---
-V: Vocal
-"Bbm"B8-|"Bbm"B4z4|"Gb"z8|"Gb"z8|
-V: Ins
-z8|z2e2f2a2|b8-|b4b2a2|
-V: Vocal
-"Ebm"z8|"Ebm"z8|"Gb"z8|"Gb"z8|
-V: Ins
-f8-|f4f2e2|B2BBd2B2|B2BBdcBA|
-V: Vocal
-"Bbm"B8-|"Bbm"B8|
-V: Ins
-B8-|B8|
-```
-```abc
-X:1
 T:The Legacy Jig
 M:6/8
 L:1/8
@@ -124,7 +83,6 @@ P:B
 w:son-nez les mâ-ti-nes, son-nez le mâ-ti-nes, dig, ding, dong, dig, ding, dong. 
 ```
 
-
 ```abc
 {"swing": 70}
 ---
@@ -139,17 +97,3 @@ V:Bass clef=bass
 [V:Bass] _E,,4 D,,4|G,,4 z4 |
 ```
 
-
-```abc
-{
-  "tablature": [{"instrument": "violin"}]
-}
----
-X:1
-T: Cooley's
-M: 4/4
-L: 1/8
-R: reel
-K: G
-|:D2|EB{c}BA B2 EB|~B2 AB dBAG|FDAD BDAD|FDAD dAFD|
-```

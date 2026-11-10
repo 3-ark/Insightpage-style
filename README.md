@@ -40,26 +40,100 @@ K: G
 
 ---
 
-### 2. Observable Plot & Charts (`plot`, `chart`)
+### 2. Observable Plot & Charts (`plot`, `observable`, `chart`)
 
 Create interactive, responsive charts using YAML configurations or JavaScript code leveraging [Observable Plot](https://observablehq.com/@observablehq/plot) and [D3](https://d3js.org/).
 
 #### YAML Chart Examples (`chart`)
 
-##### Line / Bar / Pie / Radar / Doughnut
+##### Shared / Universal DSL Configurations
+
+All chart types (`bar`, `line`, `scatter`, `pie`, `doughnut`, `radar`, `polararea`, `sankey`) support a set of unified, universal configuration options:
+
+| Option | Type | Supported In | Description |
+|---|---|---|---|
+| `title` / `chartTitle` | string | All charts | Main title displayed above chart. |
+| `subtitle` | string | All charts | Subtitle displayed below title. |
+| `caption` | string | All charts | Caption or footnote displayed below chart. |
+| `legend` | boolean | All charts | Toggle legend display (`true` or `false`). |
+| `markLines` / `markLine` | array / object | `bar`, `line`, `scatter` | Reference threshold lines with labels and custom styling. |
+| `xLog` / `yLog` / `xScale: 'log'` / `yScale: 'log'` | boolean / string | `bar`, `line`, `scatter` | Logarithmic scale on X or Y axis. |
+| `fill` | boolean / string | `line`, `scatter`, `bar` | Toggle area fill (`true`), or specify custom fill series/color. |
+| `transparency` / `fillOpacity` | number (0-1) | All charts | Control fill opacity / transparency. |
+| `showLabels` / `dataLabels` / `labelFilter` | boolean / array / string | `bar`, `line`, `scatter` | Show numeric/text data labels above bars/points, or filter specific items. |
+| `xTitle` / `yTitle` (or `x.label`, `y.label`) | string | `bar`, `line`, `scatter` | Axis label text. |
+| `xMin` / `xMax`, `yMin` / `yMax` | number | `bar`, `line`, `scatter` | Axis bounds/domains. |
+| `beginAtZero` | boolean | `bar`, `line`, `radar` | Whether numeric scale begins at zero (default: `true` for linear). |
+
+##### Line & Bar Chart with Shared Configurations
+
+````markdown
+```chart
+type: line
+title: Quarterly Performance
+subtitle: 2025 - 2026 Metrics
+caption: Source: Finance Department
+fill: true
+transparency: 0.3
+showLabels: true
+yLog: true
+labels: [Q1, Q2, Q3, Q4]
+markLines:
+  - y: 1000
+    label: Budget Limit
+    color: "#ef4444"
+    style: dashed
+series:
+  - title: Revenue
+    data: [250, 600, 1200, 2400]
+```
+````
+
+##### Bar Chart with Mark Lines and Data Labels
 
 ````markdown
 ```chart
 type: bar
+title: Monthly Sales
+showLabels: true
+markLine:
+  y: 50
+  label: Monthly Target
+  color: "#10b981"
+  style: dotted
 labels: [Jan, Feb, Mar, Apr, May]
 series:
   - title: Sales
-    data: [12, 19, 3, 5, 2]
-  - title: Revenue
-    data: [7, 11, 5, 8, 3]
+    data: [35, 62, 48, 80, 55]
 ```
 ````
-This part you can check https://charts.phib.ro/Meta/Charts/Charts+Documentation , the syntaxes are the same for basic charts.
+
+##### Scatter Chart DSL (`scatter`, `scatterplot`, or `chart` with `type: scatter`)
+
+````markdown
+```scatter
+type: scatter
+xTitle: "Height (cm)"
+yTitle: "Weight (kg)"
+trendline:
+  stroke: "#3b82f6"
+  strokeWidth: 2
+  ci: true
+markLines:
+  - axis: x
+    value: 175
+    label: Average Height
+    color: "#10b981"
+    style: dashed
+series:
+  - title: Athletes
+    data:
+      - [160, 55]
+      - [170, 68]
+      - [180, 75]
+      - [185, 82]
+```
+````
 
 ##### Sankey Diagram
 ````markdown
@@ -75,7 +149,7 @@ series:
 ```
 ````
 
-#### JavaScript Observable Plot Codeblocks (`plot`, `observable`, `js-chart`)
+#### JavaScript Observable Plot Codeblocks (`plot`, `observable`)
 
 Execute custom Observable Plot JavaScript code with full access to `Plot`, `d3`, `el`, `app`, and vault `fetch()`.
 
@@ -112,6 +186,52 @@ return Plot.plot({
     Plot.barY(data, { x: "Month", y: "Revenue", fill: "Category" })
   ]
 });
+```
+````
+
+#### Rendering from Markdown Tables in the Same Note
+
+You can use any Markdown table in the same note as the data source for Observable Plot! Simply refer to `table` directly in your `plot` block, or specify `// table: #my-table-id`:
+
+````markdown
+| Location | Density | Population | Land area (km2) |
+| --- | --- | --- | --- |
+| Monaco | 19428 | 38857 | 2 |
+| Singapore | 8290 | 6110200 | 737 |
+| Gibraltar (UK) | 5800 | 39329 | 6.8 |
+| Vatican City | 2205 | 882 | 0.44 |
+| Bahrain | 2034 | 1607049 | 790 |
+| Maldives | 1759 | 527799 | 298 |
+| Malta | 1686 | 539607 | 320 |
+| Bangladesh | 1333 | 173562364 | 130170 |
+^tablecountries
+
+```plot
+
+Plot.plot({
+  title: "Population vs. Land Area from Note Table",
+  width: 700,
+  height: 380,
+  grid: true,
+  x: { type: "log", label: "Land Area (km²) →" },
+  y: { type: "log", label: "↑ Population" },
+  marks: [
+    Plot.dot(tablecountries, {
+      x: "Land area (km2)",
+      y: "Population",
+      fill: "Density",
+      r: 6,
+      tip: true
+    }),
+    Plot.text(tablecountries, {
+      x: "Land area (km2)",
+      y: "Population",
+      text: "Location",
+      dy: -10,
+      fontSize: 10
+    })
+  ]
+})
 ```
 ````
 
