@@ -53,7 +53,6 @@ const AD_REGEX = /(?:^|\b)(?:AD|CE)(?:\b|$)/i;
 const AD_REPLACE_REGEX = /(?:^|\b)(?:AD|CE)(?:\b|$)/gi;
 const INTEGER_YEAR_REGEX = /^[+-]?\d+$/;
 const ISO_DATE_REGEX = /^([+-]?\d{1,6})[-/](\d{1,2})(?:[-/](\d{1,2}))?(?:[ T].*)?$/;
-const DIGITS_REGEX = /\b\d+\b/;
 const SEPARATOR_ROW_REGEX = /^[:\s|-]*$/;
 const BLOCK_REF_SUFFIX_REGEX = /\s*\^[a-zA-Z0-9_-]+\s*$/;
 

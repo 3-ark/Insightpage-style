@@ -509,7 +509,7 @@ export async function renderTimelineBlockAsync(
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('aria-label', 'Zoomable Event Timeline Chart');
-  svg.className.baseVal = 'timeline-svg w-full cursor-grab active:cursor-grabbing min-h-60';
+  svg.setAttribute('class', 'timeline-svg w-full cursor-grab active:cursor-grabbing min-h-60');
 
   chartContainer.appendChild(svg);
   wrapper.appendChild(chartContainer);
@@ -568,7 +568,7 @@ export async function renderTimelineBlockAsync(
       return;
     }
     controlsDiv.style.display = 'flex';
-    const radioGroupName = `timeline-category-${Math.random().toString(36).substr(2, 9)}`;
+    const radioGroupName = `timeline-category-${Math.random().toString(36).slice(2, 11)}`;
 
     parsedData.categories.forEach((catKey) => {
       const isChecked = catKey === activeCategoryState;
@@ -1041,7 +1041,7 @@ export async function renderTimelineBlockAsync(
 
     const legendHeight = 35;
     const legendY = height - legendHeight - 10;
-    const legendClipId = `legend-clip-${Math.random().toString(36).substr(2, 9)}`;
+    const legendClipId = `legend-clip-${Math.random().toString(36).slice(2, 11)}`;
 
     const defs = d3Svg.append('defs');
     defs.append('clipPath')
@@ -1167,7 +1167,7 @@ export async function renderTimelineBlockAsync(
       .style('pointer-events', 'none')
       .style('display', 'none');
 
-    const needleLine = needleG.append('line')
+    needleG.append('line')
       .attr('class', 'needle-line')
       .attr('y1', margin.top - 24)
       .attr('y2', margin.top + innerHeight + padding.top + 12)

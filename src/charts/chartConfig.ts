@@ -60,7 +60,6 @@ export interface CommonChartConfig {
 export function isLogScale(yaml: any, axis: 'x' | 'y'): boolean {
   if (!yaml || typeof yaml !== 'object') return false;
   const a = axis;
-  const CapA = a.toUpperCase();
 
   return Boolean(
     yaml[`${a}Log`] ||

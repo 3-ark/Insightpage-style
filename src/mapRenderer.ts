@@ -118,8 +118,9 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   const initialCenter = centerCoords || [0, 0];
 
   const supportsCanvas = typeof document !== 'undefined' &&
-    typeof document.createElement === 'function' &&
-    !!document.createElement('canvas').getContext?.('2d');
+    (typeof createEl === 'function'
+      ? !!createEl('canvas')?.getContext?.('2d')
+      : typeof document.createElement === 'function' && !!document.createElement('canvas')?.getContext?.('2d'));
 
   let map: any;
   try {

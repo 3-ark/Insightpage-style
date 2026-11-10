@@ -212,7 +212,7 @@ export function generateTableData(table: string, layout: 'columns' | 'rows', sel
     } catch (parseError) {
         try {
             fields = getExtractor().extractObject(table, layout, false);
-        } catch (fallbackError) {
+        } catch {
             new Notice('Table malformed');
             throw parseError;
         }
@@ -460,7 +460,7 @@ export function extractTablesFromDom(
 ) {
     // Performance optimization: Guard DOM table queries with fast tag presence check
     // to avoid allocating Array.from and CSS querySelector engine passes when no <table> elements exist.
-    if (doc.getElementsByTagName ? doc.getElementsByTagName('table').length === 0 : !doc.querySelector('table')) {
+    if (!doc.querySelector('table')) {
         return;
     }
 

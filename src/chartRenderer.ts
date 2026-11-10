@@ -953,7 +953,7 @@ export default class Renderer {
               if (plotEl instanceof HTMLElement || plotEl instanceof SVGElement) {
                 return plotEl;
               }
-            } catch (e) {
+            } catch {
               // Ignore plot error
             }
           }
@@ -963,7 +963,7 @@ export default class Renderer {
               if (plotEl instanceof HTMLElement || plotEl instanceof SVGElement) {
                 return plotEl;
               }
-            } catch (e) {
+            } catch {
               // Ignore plot error
             }
           }
@@ -973,7 +973,7 @@ export default class Renderer {
               if (nodeEl instanceof HTMLElement || nodeEl instanceof SVGElement) {
                 return nodeEl;
               }
-            } catch (e) {
+            } catch {
               // Ignore node error
             }
           }
@@ -1043,7 +1043,7 @@ export default class Renderer {
                     result = resVar;
                     break;
                   }
-                } catch (e) {
+                } catch {
                   // Ignore error and continue
                 }
               }
@@ -1056,7 +1056,7 @@ export default class Renderer {
                   result = res2;
                   break;
                 }
-              } catch (e) {
+              } catch {
                 // Ignore syntax error and try previous line
               }
             }
@@ -1415,7 +1415,7 @@ class ChartRenderChild extends MarkdownRenderChild {
             this.data.layout ?? 'columns',
             this.data.select
           );
-        } catch (error) {
+        } catch {
           throw 'There is no table at that id and/or file';
         }
 

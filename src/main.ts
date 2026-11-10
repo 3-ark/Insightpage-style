@@ -250,12 +250,12 @@ export default class ChartPlugin extends Plugin {
         id: 'creation-helper',
         name: 'Insert new Chart',
         checkCallback: (checking: boolean) => {
-          let leaf = this.app.workspace.activeLeaf;
-          if (leaf && leaf.view instanceof MarkdownView) {
+          const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+          if (view) {
             if (!checking) {
               new CreationHelperModal(
                 this.app,
-                leaf.view,
+                view,
                 this.settings,
                 this.renderer
               ).open();
