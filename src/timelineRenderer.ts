@@ -977,7 +977,12 @@ export async function renderTimelineBlockAsync(
 
     const timeScale = d3.scaleTime().domain(dateExtent).range([0, innerWidth]).nice();
 
-    const eventIds = processedEvents.map((d) => d.id);
+    // Performance optimization: Pre-allocate eventIds array and populate via direct indexed loop
+    // to avoid Array.prototype.map closure invocation and intermediate array resizing churn.
+    const eventIds: string[] = new Array(numEvents);
+    for (let idx = 0; idx < numEvents; idx++) {
+      eventIds[idx] = processedEvents[idx].id;
+    }
     const scaleY = d3.scaleBand().domain(eventIds).range([0, innerHeight]).padding(0.28);
 
     const eventHeight = scaleY.bandwidth() * 0.65;
@@ -1124,7 +1129,9 @@ export async function renderTimelineBlockAsync(
       lastIsCollapsed?: boolean;
     }
 
-    const eventNodeList: EventNodeItem[] = [];
+    // Performance optimization: Pre-allocate eventNodeList with exact size to eliminate dynamic
+    // array resizing and reallocation churn during event node instantiation.
+    const eventNodeList: EventNodeItem[] = new Array(numEvents);
 
     let nowG: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
     let nowLineNode: SVGLineElement | null = null;
@@ -1271,7 +1278,10 @@ export async function renderTimelineBlockAsync(
         needleG.style('display', 'none');
       });
 
-    processedEvents.forEach((evt) => {
+    // Performance optimization: Direct indexed loop instead of forEach closure callback,
+    // assigning directly into pre-allocated eventNodeList to avoid closure allocation and GC overhead.
+    for (let evtIdx = 0; evtIdx < numEvents; evtIdx++) {
+      const evt = processedEvents[evtIdx];
       const color = scaleColor(evt.categoryVal);
       const yPos = scaleY(evt.id) || 0;
       const evtG = eventsG.append('g').attr('class', 'event-group').datum(evt).style('cursor', 'pointer');
@@ -1320,7 +1330,7 @@ export async function renderTimelineBlockAsync(
       const baseXStart = timeScale(evt.startDate);
       const baseXEnd = timeScale(evt.endDate);
 
-      eventNodeList.push({
+      eventNodeList[evtIdx] = {
         gNode,
         evt,
         rectBarNode,
@@ -1332,7 +1342,7 @@ export async function renderTimelineBlockAsync(
         isHidden: false,
         baseXStart,
         baseXEnd,
-      });
+      };
 
       evtG.on('mouseenter', (event: MouseEvent) => {
         rectBarNode?.setAttribute('fill-opacity', '0.7');
@@ -1354,7 +1364,7 @@ export async function renderTimelineBlockAsync(
         rectBarNode?.setAttribute('fill-opacity', '0.4');
         hideTooltip();
       });
-    });
+    }
 
     let zoomRafId: number | null = null;
     let pendingTransform: d3.ZoomTransform | null = null;

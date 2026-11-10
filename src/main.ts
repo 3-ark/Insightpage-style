@@ -54,8 +54,32 @@ export default class ChartPlugin extends Plugin {
       renderError(error, el);
       return;
     }
-    if (!data.id) {
-      if (!data || !data.type || !data.labels || !data.series) {
+    const hasExternalData = typeof data?.data === 'string' && data.data.trim() !== '';
+    if (!data.id && !hasExternalData) {
+      const chartType = String(data?.type ?? '').toLowerCase().trim().replace(/[-_\s]/g, '');
+      const isScatter = ['scatter', 'point', 'points', 'scatterplot'].includes(chartType);
+      const isSankey = chartType === 'sankey';
+
+      if (!data || !data.type) {
+        renderError('Missing chart type', el);
+        return;
+      }
+
+      if (isScatter) {
+        const hasSeries = (Array.isArray(data.series) && data.series.length > 0) ||
+                          (Array.isArray(data.datasets) && data.datasets.length > 0);
+        const hasData = Array.isArray(data.data) && data.data.length > 0;
+        if (!hasSeries && !hasData) {
+          renderError('Scatter chart requires series or data', el);
+          return;
+        }
+      } else if (isSankey) {
+        const hasFlows = Array.isArray(data.links) || Array.isArray(data.flows) || Array.isArray(data.series);
+        if (!hasFlows) {
+          renderError('Missing links or series for sankey diagram', el);
+          return;
+        }
+      } else if (!data.labels || !data.series) {
         renderError('Missing type, labels or series', el);
         return;
       }
@@ -174,6 +198,8 @@ export default class ChartPlugin extends Plugin {
     });
 
     this.registerMarkdownCodeBlockProcessor('chart', this.postprocessor);
+    this.registerMarkdownCodeBlockProcessor('scatter', this.postprocessor);
+    this.registerMarkdownCodeBlockProcessor('scatterplot', this.postprocessor);
 
     this.registerMarkdownCodeBlockProcessor(
       'advanced-chart',
@@ -188,12 +214,12 @@ export default class ChartPlugin extends Plugin {
     );
 
     const renderJsChart = async (code: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
-      await this.renderer.renderRaw(code, el, ctx?.sourcePath ?? '');
+      await this.renderer.renderPlotJs(code, el, ctx);
     };
 
     this.registerMarkdownCodeBlockProcessor('plot', renderJsChart);
     this.registerMarkdownCodeBlockProcessor('observable', renderJsChart);
-    this.registerMarkdownCodeBlockProcessor('js-chart', renderJsChart);
+    this.registerMarkdownCodeBlockProcessor('observableplot', renderJsChart);
 
     const renderAbc = (source: string, el: HTMLElement) => {
       renderAbcBlock(source, el);

@@ -26,6 +26,34 @@ export function renderPieChart(
   container.style.alignItems = 'center';
   container.style.width = '100%';
 
+  // Unified Title, Subtitle, Caption support matching figure[class*="plot"] styling
+  const title = yaml.title ?? yaml.chartTitle;
+  const subtitle = yaml.subtitle;
+  const caption = yaml.caption;
+
+  if (title) {
+    const titleEl = document.createElement('h2');
+    titleEl.textContent = String(title);
+    titleEl.style.margin = '0 0 4px 0';
+    titleEl.style.fontSize = '1.15em';
+    titleEl.style.fontWeight = '600';
+    titleEl.style.color = textColor;
+    titleEl.style.textAlign = 'center';
+    container.appendChild(titleEl);
+  }
+
+  if (subtitle) {
+    const subEl = document.createElement('h3');
+    subEl.textContent = String(subtitle);
+    subEl.style.margin = '0 0 8px 0';
+    subEl.style.fontSize = '0.9em';
+    subEl.style.fontWeight = 'normal';
+    subEl.style.opacity = '0.75';
+    subEl.style.color = textColor;
+    subEl.style.textAlign = 'center';
+    container.appendChild(subEl);
+  }
+
   const svgNs = 'http://www.w3.org/2000/svg';
   const size = 300;
   const radius = size / 2 - 20;
@@ -124,6 +152,17 @@ export function renderPieChart(
       legendDiv.appendChild(itemDiv);
     });
     container.appendChild(legendDiv);
+  }
+
+  if (caption) {
+    const capEl = document.createElement('div');
+    capEl.textContent = String(caption);
+    capEl.style.marginTop = '6px';
+    capEl.style.fontSize = '0.85em';
+    capEl.style.opacity = '0.7';
+    capEl.style.color = textColor;
+    capEl.style.textAlign = 'center';
+    container.appendChild(capEl);
   }
 
   return { plotOptions: null, customElement: container, width: widthStr };

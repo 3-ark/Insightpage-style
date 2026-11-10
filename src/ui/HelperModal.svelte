@@ -92,6 +92,7 @@ bestFitNumber: ${bestFitNumber}`;
               >
                 <option value="bar">Bar</option>
                 <option value="line">Line</option>
+                <option value="scatter">Scatter</option>
                 <option value="pie">Pie</option>
                 <option value="doughnut">Doughnut</option>
                 <option value="radar">Radar</option>

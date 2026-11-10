@@ -845,7 +845,7 @@ test('renderTimelineBlock tooltip positions correctly with scroll and viewport c
   eventGroup.dispatchEvent(mouseEnterEvt);
 
   // targetX = 150 + 12 = 162. clampX = 162 - 100 = 62px. targetY = 250 + 12 = 262. clampY = 262 - 200 = 62px.
-  assert.equal(tooltip.style.transform, 'translate3d(62px, 62px, 0)');
+  assert.match(tooltip.style.transform, /^translate3d\(62px,\s*62px,\s*0(?:px)?\)$/);
 
   // Dispatch scroll on window to trigger scroll invalidation listener
   dom.window.dispatchEvent(new dom.window.Event('scroll'));
@@ -859,7 +859,7 @@ test('renderTimelineBlock tooltip positions correctly with scroll and viewport c
   });
   eventGroup.dispatchEvent(mouseMoveEvt);
 
-  assert.equal(tooltip.style.transform, 'translate3d(568px, 403px, 0)');
+  assert.match(tooltip.style.transform, /^translate3d\(568px,\s*403px,\s*0(?:px)?\)$/);
 });
 
 test('renderTimelineBlock scales axis ticks on zoom-out (k < 1.0)', async () => {

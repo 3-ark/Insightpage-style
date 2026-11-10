@@ -3,11 +3,58 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import Module from 'node:module';
 
-// Mock 'obsidian' module for Node runtime
+// Mock 'obsidian' and '.svelte' modules for Node runtime
 const originalRequire = Module.prototype.require;
 Module.prototype.require = function (id: string) {
+  if (id.endsWith('.svelte')) {
+    return {};
+  }
   if (id === 'obsidian') {
     return {
+      Modal: class {
+        app: any;
+        contentEl: any;
+        constructor(app: any) {
+          this.app = app;
+          this.contentEl = document.createElement('div');
+        }
+        open() {}
+        close() {}
+      },
+      Plugin: class {
+        app: any;
+        manifest: any;
+        constructor(app: any, manifest: any) {
+          this.app = app;
+          this.manifest = manifest;
+        }
+        addSettingTab() {}
+        addCommand() {}
+        registerMarkdownPostProcessor() {}
+        registerMarkdownCodeBlockProcessor() {}
+        registerEvent() {}
+        loadData() { return Promise.resolve({}); }
+        saveData() { return Promise.resolve(); }
+      },
+      PluginSettingTab: class {
+        app: any;
+        plugin: any;
+        containerEl: any;
+        constructor(app: any, plugin: any) {
+          this.app = app;
+          this.plugin = plugin;
+          this.containerEl = document.createElement('div');
+        }
+      },
+      Setting: class {
+        setName() { return this; }
+        setDesc() { return this; }
+        addToggle() { return this; }
+        addButton() { return this; }
+        addExtraButton() { return this; }
+      },
+      MarkdownView: class {},
+      addIcon: () => {},
       MarkdownRenderChild: class {
         el: any;
         containerEl: any;
@@ -923,7 +970,7 @@ test('renders user example note containing Plot 1, Plot 2, and Plot 3', async ()
 
   // Plot 1: Standard expression Plot.plot({...})
   const plot1Code = `
-const table = Array.from(document.querySelectorAll("table")).find(t => 
+const table = Array.from(document.querySelectorAll("table")).find(t =>
   t.innerText.includes("Land area") && t.innerText.includes("Population")
 );
 
@@ -1037,4 +1084,330 @@ const plot = display(Plot.plot({
   const rendered3 = await renderer.renderRaw(plot3Code, container3);
   assert.notEqual(rendered3, null, 'Plot 3 should render successfully');
   assert.ok(container3.innerHTML.includes('Plot 3: Population vs. land area'));
+});
+
+test('renders Plot chart directly referencing table ID as data source (^tablecountries)', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  const noteMarkdown = `
+### 3. Rendering from Markdown Tables in the Same Note
+
+| Location | Density | Population | Land area (km2) |
+| --- | --- | --- | --- |
+| Monaco | 19428 | 38857 | 2 |
+| Singapore | 8290 | 6110200 | 737 |
+| Gibraltar (UK) | 5800 | 39329 | 6.8 |
+| Vatican City | 2205 | 882 | 0.44 |
+| Bahrain | 2034 | 1607049 | 790 |
+| Maldives | 1759 | 527799 | 298 |
+| Malta | 1686 | 539607 | 320 |
+| Bangladesh | 1333 | 173562364 | 130170 |
+^tablecountries
+`;
+
+  const mockNoteFile = { path: 'notes/countries.md', basename: 'countries' };
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: {
+      workspace: {
+        onLayoutReady: (cb: () => void) => cb(),
+        on: () => {},
+        getActiveFile: () => mockNoteFile,
+      },
+      vault: {
+        getAbstractFileByPath: (p: string) => (p === mockNoteFile.path ? mockNoteFile : null),
+        cachedRead: async (f: any) => (f.path === mockNoteFile.path ? noteMarkdown : ''),
+      },
+      metadataCache: {
+        getFileCache: () => null,
+        getFirstLinkpathDest: () => null,
+      },
+    },
+  };
+
+  const renderer = new Renderer(mockPlugin);
+  const container = document.createElement('div');
+
+  const plotCode = `
+Plot.plot({
+  title: "Population vs. Land Area from Note Table",
+  width: 700,
+  height: 380,
+  grid: true,
+  x: { type: "log", label: "Land Area (km²) →" },
+  y: { type: "log", label: "↑ Population" },
+  marks: [
+    Plot.dot(tablecountries, {
+      x: "Land area (km2)",
+      y: "Population",
+      fill: "Density",
+      r: 6,
+      tip: true
+    }),
+    Plot.text(tablecountries, {
+      x: "Land area (km2)",
+      y: "Population",
+      text: "Location",
+      dy: -10,
+      fontSize: 10
+    })
+  ]
+})
+`;
+
+  const rendered = await renderer.renderRaw(plotCode, container, mockNoteFile.path);
+  assert.notEqual(rendered, null, 'Chart should render successfully from table ID');
+  assert.equal(container.children.length, 1);
+  assert.ok(container.innerHTML.includes('Population vs. Land Area from Note Table'));
+  assert.ok(container.innerHTML.includes('Monaco'));
+  assert.ok(container.innerHTML.includes('Singapore'));
+});
+
+test('renders Plot chart referring to `table` with explicit // table: #my-table-id comment', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  const noteMarkdown = `
+| City | Population |
+| --- | --- |
+| Tokyo | 37400000 |
+| Delhi | 30290000 |
+^table-cities
+
+| Country | Code |
+| --- | --- |
+| Japan | JP |
+| India | IN |
+^table-countries
+`;
+
+  const mockNoteFile = { path: 'notes/cities.md', basename: 'cities' };
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: {
+      workspace: {
+        onLayoutReady: (cb: () => void) => cb(),
+        on: () => {},
+        getActiveFile: () => mockNoteFile,
+      },
+      vault: {
+        getAbstractFileByPath: (p: string) => (p === mockNoteFile.path ? mockNoteFile : null),
+        cachedRead: async (f: any) => (f.path === mockNoteFile.path ? noteMarkdown : ''),
+      },
+      metadataCache: {
+        getFileCache: () => null,
+        getFirstLinkpathDest: () => null,
+      },
+    },
+  };
+
+  const renderer = new Renderer(mockPlugin);
+  const container = document.createElement('div');
+
+  const plotCode = `
+// table: #table-cities
+
+Plot.plot({
+  marks: [
+    Plot.barX(table, { x: "Population", y: "City" })
+  ]
+})
+`;
+
+  const rendered = await renderer.renderRaw(plotCode, container, mockNoteFile.path);
+  assert.notEqual(rendered, null, 'Chart should render using table from // table: #table-cities');
+  assert.ok(container.innerHTML.includes('Tokyo'));
+  assert.ok(container.innerHTML.includes('Delhi'));
+});
+
+test('renders Plot chart directly referencing kebab-case table ID (^table-countries) as table-countries or tablecountries', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  const noteMarkdown = `
+| Country | Density | Population |
+| --- | --- | --- |
+| Monaco | 19428 | 38857 |
+| Singapore | 8290 | 6110200 |
+^table-countries
+`;
+
+  const mockNoteFile = { path: 'notes/countries.md', basename: 'countries' };
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: {
+      workspace: {
+        onLayoutReady: (cb: () => void) => cb(),
+        on: () => {},
+        getActiveFile: () => mockNoteFile,
+      },
+      vault: {
+        getAbstractFileByPath: (p: string) => (p === mockNoteFile.path ? mockNoteFile : null),
+        cachedRead: async (f: any) => (f.path === mockNoteFile.path ? noteMarkdown : ''),
+      },
+      metadataCache: {
+        getFileCache: () => null,
+        getFirstLinkpathDest: () => null,
+      },
+    },
+  };
+
+  const renderer = new Renderer(mockPlugin);
+
+  // 1. User writes Plot.dot(table-countries, ...)
+  const containerKebab = document.createElement('div');
+  const plotCodeKebab = `
+Plot.plot({
+  marks: [
+    Plot.dot(table-countries, {
+      x: "Density",
+      y: "Population"
+    })
+  ]
+})
+`;
+
+  const renderedKebab = await renderer.renderRaw(plotCodeKebab, containerKebab, mockNoteFile.path);
+  assert.notEqual(renderedKebab, null, 'Chart should render successfully using table-countries');
+  assert.equal(containerKebab.children.length, 1);
+  assert.ok(containerKebab.innerHTML.includes('svg'));
+
+  // 2. User writes Plot.dot(tablecountries, ...)
+  const containerStripped = document.createElement('div');
+  const plotCodeStripped = `
+Plot.plot({
+  marks: [
+    Plot.dot(tablecountries, {
+      x: "Density",
+      y: "Population"
+    })
+  ]
+})
+`;
+
+  const renderedStripped = await renderer.renderRaw(plotCodeStripped, containerStripped, mockNoteFile.path);
+  assert.notEqual(renderedStripped, null, 'Chart should render successfully using tablecountries');
+  assert.equal(containerStripped.children.length, 1);
+  assert.ok(containerStripped.innerHTML.includes('svg'));
+});
+
+test('codeblock processor is registered on plugin', async () => {
+  const PluginModule = await import('../src/main');
+  const ChartPlugin = PluginModule.default;
+
+  const registeredCodeblocks: string[] = [];
+  const mockObsidianApp: any = {
+    workspace: {
+      onLayoutReady: (cb: () => void) => cb(),
+      on: () => {},
+      getActiveFile: () => null,
+    },
+    settings: {
+      colors: ['#3b82f6'],
+      themeable: false,
+    },
+  };
+
+  const plugin = new ChartPlugin(mockObsidianApp, {
+    manifest: { id: 'insightpage-style', version: '1.0.0' },
+  } as any);
+
+  plugin.registerMarkdownCodeBlockProcessor = (name: string, _fn: any) => {
+    registeredCodeblocks.push(name);
+  };
+  plugin.registerMarkdownPostProcessor = () => {};
+
+  await plugin.onload();
+
+  assert.ok(registeredCodeblocks.includes('plot'), 'plot processor should be registered');
+  assert.ok(registeredCodeblocks.includes('observableplot'), 'observableplot processor should be registered');
+});
+
+test('PlotJsRenderChild reloads on metadataCache change when note table changes', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+
+  let currentMarkdown = `
+| Location | Value |
+| --- | --- |
+| Alpha | 100 |
+^mydata
+`;
+
+  const mockNoteFile = { path: 'notes/test-reload.md', basename: 'test-reload' };
+  let changeListener: any = null;
+
+  const mockPlugin: any = {
+    settings: {
+      colors: ['#3b82f6', '#ef4444'],
+      themeable: false,
+    },
+    app: {
+      workspace: {
+        onLayoutReady: (cb: () => void) => cb(),
+        on: () => {},
+        getActiveFile: () => mockNoteFile,
+      },
+      vault: {
+        getAbstractFileByPath: (p: string) => (p === mockNoteFile.path ? mockNoteFile : null),
+        cachedRead: async () => currentMarkdown,
+      },
+      metadataCache: {
+        getFileCache: () => null,
+        getFirstLinkpathDest: () => null,
+        on: (event: string, cb: any) => {
+          if (event === 'changed') changeListener = cb;
+        },
+        off: () => {},
+      },
+    },
+  };
+
+  const renderer = new Renderer(mockPlugin);
+  const container = document.createElement('div');
+
+  const plotCode = `
+Plot.plot({
+  marks: [
+    Plot.dot(mydata, { x: "Value", y: "Location" })
+  ]
+})
+`;
+
+  let renderChild: any = null;
+  await renderer.renderPlotJs(plotCode, container, {
+    sourcePath: mockNoteFile.path,
+    addChild: (child: any) => {
+      renderChild = child;
+    },
+  } as any);
+
+  assert.notEqual(renderChild, null);
+  await renderChild.onload();
+  assert.ok(container.innerHTML.includes('Alpha'), 'Container should render initial table value');
+
+  // Update markdown content and trigger change
+  currentMarkdown = `
+| Location | Value |
+| --- | --- |
+| Beta | 200 |
+^mydata
+`;
+  if (changeListener) {
+    changeListener(mockNoteFile);
+  }
+  // Wait a microtask tick
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  assert.ok(container.innerHTML.includes('Beta'), 'Container should update with new table data on change');
 });

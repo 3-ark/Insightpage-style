@@ -55,7 +55,7 @@ const INTEGER_YEAR_REGEX = /^[+-]?\d+$/;
 const ISO_DATE_REGEX = /^([+-]?\d{1,6})[-/](\d{1,2})(?:[-/](\d{1,2}))?(?:[ T].*)?$/;
 const DIGITS_REGEX = /\b\d+\b/;
 const SEPARATOR_ROW_REGEX = /^[:\s|-]*$/;
-const BLOCK_REF_SUFFIX_REGEX = /\s*\^\w+\s*$/;
+const BLOCK_REF_SUFFIX_REGEX = /\s*\^[a-zA-Z0-9_-]+\s*$/;
 
 // Performance optimization: Hoist JS reserved literal keyword set to module scope to avoid
 // allocating temporary arrays inside regex replace callbacks during loose object parsing.

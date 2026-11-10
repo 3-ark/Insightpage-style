@@ -20,6 +20,34 @@ export function renderRadarChart(
   container.style.alignItems = 'center';
   container.style.width = '100%';
 
+  // Unified Title, Subtitle, Caption support
+  const title = yaml.title ?? yaml.chartTitle;
+  const subtitle = yaml.subtitle;
+  const caption = yaml.caption;
+
+  if (title) {
+    const titleEl = document.createElement('h2');
+    titleEl.textContent = String(title);
+    titleEl.style.margin = '0 0 4px 0';
+    titleEl.style.fontSize = '1.15em';
+    titleEl.style.fontWeight = '600';
+    titleEl.style.color = textColor;
+    titleEl.style.textAlign = 'center';
+    container.appendChild(titleEl);
+  }
+
+  if (subtitle) {
+    const subEl = document.createElement('h3');
+    subEl.textContent = String(subtitle);
+    subEl.style.margin = '0 0 8px 0';
+    subEl.style.fontSize = '0.9em';
+    subEl.style.fontWeight = 'normal';
+    subEl.style.opacity = '0.75';
+    subEl.style.color = textColor;
+    subEl.style.textAlign = 'center';
+    container.appendChild(subEl);
+  }
+
   const svgNs = 'http://www.w3.org/2000/svg';
   const size = 320;
   const center = size / 2;
@@ -100,10 +128,13 @@ export function renderRadarChart(
     seriesMap.get(pt.series)!.push(pt);
   });
 
+  const isPolarArea = type !== 'radar';
+  const isSingleSeriesPolarArea = isPolarArea && seriesMap.size <= 1;
+
   let sIdx = 0;
   seriesMap.forEach((pts, seriesName) => {
-    const color = baseColors[sIdx % baseColors.length];
-    const innerColor = innerColors[sIdx % innerColors.length];
+    const seriesColor = baseColors[sIdx % baseColors.length];
+    const seriesInnerColor = innerColors[sIdx % innerColors.length];
 
     const ptMap = new Map<string, (typeof pts)[0]>();
     pts.forEach((pt) => ptMap.set(String(pt.x), pt));
@@ -122,8 +153,8 @@ export function renderRadarChart(
 
       const path = document.createElementNS(svgNs, 'path');
       path.setAttribute('d', pathD);
-      path.setAttribute('fill', innerColor);
-      path.setAttribute('stroke', color);
+      path.setAttribute('fill', seriesInnerColor);
+      path.setAttribute('stroke', seriesColor);
       path.setAttribute('stroke-width', '2');
       path.style.cursor = 'pointer';
       path.style.transition = 'opacity 0.2s';
@@ -143,7 +174,7 @@ export function renderRadarChart(
         dot.setAttribute('cx', `${p[0]}`);
         dot.setAttribute('cy', `${p[1]}`);
         dot.setAttribute('r', '4');
-        dot.setAttribute('fill', color);
+        dot.setAttribute('fill', seriesColor);
         dot.style.cursor = 'pointer';
         bindPlotStyleTooltip(dot, container, () => `${seriesName}\n${catLabel}: ${pt.y}`);
         g.appendChild(dot);
@@ -151,6 +182,13 @@ export function renderRadarChart(
     } else {
       // Polar Area
       categoryLabels.forEach((catLabel, cIdx) => {
+        const color = isSingleSeriesPolarArea
+          ? baseColors[cIdx % baseColors.length]
+          : seriesColor;
+        const innerColor = isSingleSeriesPolarArea
+          ? innerColors[cIdx % innerColors.length]
+          : seriesInnerColor;
+
         const startAngle = (2 * Math.PI * cIdx) / numCategories - Math.PI / 2;
         const endAngle = (2 * Math.PI * (cIdx + 1)) / numCategories - Math.PI / 2;
         const pt = ptMap.get(String(catLabel)) || { y: 0 };
@@ -175,7 +213,10 @@ export function renderRadarChart(
           path.addEventListener('mouseenter', () => (path.style.opacity = '0.7'));
           path.addEventListener('mouseleave', () => (path.style.opacity = '1'));
 
-          bindPlotStyleTooltip(path, container, () => `${seriesName}\n${catLabel}: ${pt.y}`);
+          const tooltipPrefix = isSingleSeriesPolarArea && (seriesName.startsWith('Series ') || !seriesName)
+            ? ''
+            : `${seriesName}\n`;
+          bindPlotStyleTooltip(path, container, () => `${tooltipPrefix}${catLabel}: ${pt.y}`);
           g.appendChild(path);
         }
       });
@@ -197,28 +238,62 @@ export function renderRadarChart(
     legendDiv.style.fontSize = '12px';
     legendDiv.style.color = textColor;
 
-    let lIdx = 0;
-    seriesMap.forEach((_, name) => {
-      const itemDiv = document.createElement('div');
-      itemDiv.style.display = 'flex';
-      itemDiv.style.alignItems = 'center';
-      itemDiv.style.gap = '4px';
+    if (isSingleSeriesPolarArea) {
+      // For single top-category polar area chart, show each category in the legend
+      categoryLabels.forEach((label, lIdx) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.style.display = 'flex';
+        itemDiv.style.alignItems = 'center';
+        itemDiv.style.gap = '4px';
 
-      const swatch = document.createElement('span');
-      swatch.style.width = '12px';
-      swatch.style.height = '12px';
-      swatch.style.borderRadius = '2px';
-      swatch.style.backgroundColor = baseColors[lIdx % baseColors.length];
+        const swatch = document.createElement('span');
+        swatch.style.width = '12px';
+        swatch.style.height = '12px';
+        swatch.style.borderRadius = '2px';
+        swatch.style.backgroundColor = baseColors[lIdx % baseColors.length];
 
-      const textSpan = document.createElement('span');
-      textSpan.textContent = name;
+        const textSpan = document.createElement('span');
+        textSpan.textContent = String(label);
 
-      itemDiv.appendChild(swatch);
-      itemDiv.appendChild(textSpan);
-      legendDiv.appendChild(itemDiv);
-      lIdx++;
-    });
+        itemDiv.appendChild(swatch);
+        itemDiv.appendChild(textSpan);
+        legendDiv.appendChild(itemDiv);
+      });
+    } else {
+      let lIdx = 0;
+      seriesMap.forEach((_, name) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.style.display = 'flex';
+        itemDiv.style.alignItems = 'center';
+        itemDiv.style.gap = '4px';
+
+        const swatch = document.createElement('span');
+        swatch.style.width = '12px';
+        swatch.style.height = '12px';
+        swatch.style.borderRadius = '2px';
+        swatch.style.backgroundColor = baseColors[lIdx % baseColors.length];
+
+        const textSpan = document.createElement('span');
+        textSpan.textContent = name;
+
+        itemDiv.appendChild(swatch);
+        itemDiv.appendChild(textSpan);
+        legendDiv.appendChild(itemDiv);
+        lIdx++;
+      });
+    }
     container.appendChild(legendDiv);
+  }
+
+  if (caption) {
+    const capEl = document.createElement('div');
+    capEl.textContent = String(caption);
+    capEl.style.marginTop = '6px';
+    capEl.style.fontSize = '0.85em';
+    capEl.style.opacity = '0.7';
+    capEl.style.color = textColor;
+    capEl.style.textAlign = 'center';
+    container.appendChild(capEl);
   }
 
   return { plotOptions: null, customElement: container, width: widthStr };

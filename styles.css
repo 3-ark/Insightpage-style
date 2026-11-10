@@ -19,7 +19,66 @@ div.chart-error pre > code {
   color: crimson !important;
 }
 
-/* Observable Plot Tooltip & Theme Styling */
+/* Observable Plot Figure, Title, Subtitle, Caption & Tooltip Styling */
+.block-language-chart figure,
+.block-language-plot figure,
+.block-language-observable figure,
+.block-language-js-chart figure,
+.block-language-advanced-chart figure,
+figure[class*="plot"] {
+  margin: 0.5rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-normal, #222222);
+  font-family: var(--font-interface, var(--default-font, sans-serif));
+}
+
+.block-language-chart figure h2,
+.block-language-plot figure h2,
+.block-language-observable figure h2,
+.block-language-js-chart figure h2,
+.block-language-advanced-chart figure h2,
+figure[class*="plot"] h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-normal, #222222);
+  margin: 0 0 0.25rem 0;
+  padding: 0;
+  border-bottom: none;
+  letter-spacing: -0.01em;
+}
+
+.block-language-chart figure h3,
+.block-language-plot figure h3,
+.block-language-observable figure h3,
+.block-language-js-chart figure h3,
+.block-language-advanced-chart figure h3,
+figure[class*="plot"] h3 {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--text-muted, #757575);
+  margin: 0 0 0.5rem 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+.block-language-chart figure figcaption,
+.block-language-plot figure figcaption,
+.block-language-observable figure figcaption,
+.block-language-js-chart figure figcaption,
+.block-language-advanced-chart figure figcaption,
+figure[class*="plot"] figcaption {
+  font-size: 0.775rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-muted, #757575);
+  margin: 0.4rem 0 0 0;
+  padding: 0;
+}
+
 .block-language-chart svg,
 .block-language-plot svg,
 .block-language-observable svg,
