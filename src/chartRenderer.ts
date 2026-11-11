@@ -741,8 +741,10 @@ export default class Renderer {
   ): Promise<HTMLElement | SVGElement | null> {
     if (typeof (el as any).empty === 'function') {
       (el as any).empty();
+    } else if (typeof el.replaceChildren === 'function') {
+      el.replaceChildren();
     } else {
-      el.innerHTML = '';
+      el.textContent = '';
     }
 
     if (!data) return null;
@@ -1210,8 +1212,10 @@ class PlotJsRenderChild extends MarkdownRenderChild {
     this.renderer.plugin.app?.workspace?.off?.('css-change', this.reload);
     if (typeof (this.containerEl as any).empty === 'function') {
       (this.containerEl as any).empty();
+    } else if (typeof this.containerEl.replaceChildren === 'function') {
+      this.containerEl.replaceChildren();
     } else {
-      this.containerEl.innerHTML = '';
+      this.containerEl.textContent = '';
     }
     this.chartEl = null;
   }
@@ -1487,8 +1491,10 @@ class ChartRenderChild extends MarkdownRenderChild {
     this.renderer.plugin.app?.workspace?.off?.('css-change', this.reload);
     if (typeof this.el.empty === 'function') {
       this.el.empty();
+    } else if (typeof this.el.replaceChildren === 'function') {
+      this.el.replaceChildren();
     } else {
-      this.el.innerHTML = '';
+      this.el.textContent = '';
     }
     this.chartEl = null;
   }

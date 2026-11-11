@@ -19,6 +19,34 @@ export function extractEmojiAndTitle(rawText: string): { emoji: string; title: s
   return { emoji, title: content };
 }
 
+function parseSafeHtmlFragment(rawHtml: string, doc?: Document): DocumentFragment | null {
+  if (!rawHtml) return null;
+  let obsidian: any;
+  try {
+    obsidian = require('obsidian');
+  } catch {}
+  if (obsidian && typeof obsidian.sanitizeHTMLToDom === 'function') {
+    return obsidian.sanitizeHTMLToDom(rawHtml);
+  }
+  const documentObj = doc || (typeof document !== 'undefined' ? document : null);
+  if (!documentObj) return null;
+  const parser = new (documentObj.defaultView?.DOMParser || DOMParser)();
+  const parsed = parser.parseFromString(rawHtml, 'text/html');
+  const fragment = documentObj.createDocumentFragment();
+  while (parsed.body.firstChild) {
+    fragment.appendChild(parsed.body.firstChild);
+  }
+  return fragment;
+}
+
+function setHtmlSafely(targetEl: HTMLElement, rawHtml: string): void {
+  targetEl.replaceChildren();
+  const fragment = parseSafeHtmlFragment(rawHtml, targetEl.ownerDocument);
+  if (fragment) {
+    targetEl.appendChild(fragment);
+  }
+}
+
 export function bindPopoverToTrigger(triggerBtn: HTMLButtonElement, content: string, emoji: string) {
   let popoverEl: HTMLElement | null = null;
   let outsideClickListener: ((e: MouseEvent) => void) | null = null;
@@ -85,7 +113,7 @@ export function bindPopoverToTrigger(triggerBtn: HTMLButtonElement, content: str
 
     const body = document.createElement('div');
     body.className = 'comment-callout-popover-body thin-scrollbar';
-    body.innerHTML = content;
+    setHtmlSafely(body, content);
     popoverContent.appendChild(body);
 
     popoverEl.appendChild(popoverContent);
@@ -225,7 +253,7 @@ export function createCommentElement(rawContent: string): HTMLElement {
 
   const printBody = document.createElement('span');
   printBody.className = 'comment-callout-print-body';
-  printBody.innerHTML = ' ' + content;
+  setHtmlSafely(printBody, ' ' + content);
   printSpan.appendChild(printBody);
 
   containerSpan.appendChild(printSpan);
@@ -258,8 +286,10 @@ export function transformCommentHtml(html: string): string {
   if (!html || !html.includes('::cmt')) {
     return html;
   }
+  const fragment = parseSafeHtmlFragment(html);
+  if (!fragment) return html;
   const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
+  tempDiv.appendChild(fragment);
   processCommentCallouts(tempDiv);
   return tempDiv.innerHTML;
 }
@@ -404,41 +434,37 @@ export function processCommentCallouts(container: HTMLElement): void {
         if (!hasExcludedChildren) {
           hasValidMatchInHtml = true;
         } else {
-          const tempCheck = document.createElement('div');
-          tempCheck.innerHTML = parentEl.innerHTML;
+          const tempCheck = parentEl.cloneNode(true) as HTMLElement;
           tempCheck.querySelectorAll('code, pre, script, style, svg, .math, .comment-callout-wrapper').forEach((excluded) => {
             excluded.textContent = '';
           });
-          hasValidMatchInHtml = tempCheck.innerHTML.includes('::cmt');
+          hasValidMatchInHtml = (tempCheck.textContent || '').includes('::cmt');
         }
 
         if (hasValidMatchInHtml) {
-          const html = parentEl.innerHTML;
-          const matches = findBalancedCmtMatches(html);
+          const htmlContent = parentEl.innerHTML;
+          const matches = findBalancedCmtMatches(htmlContent);
           if (matches.length > 0) {
             const fragment = document.createDocumentFragment();
             let lastIdx = 0;
             for (const m of matches) {
               if (m.startIndex > lastIdx) {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = html.slice(lastIdx, m.startIndex);
-                while (tempDiv.firstChild) {
-                  fragment.appendChild(tempDiv.firstChild);
+                const sliceFrag = parseSafeHtmlFragment(htmlContent.slice(lastIdx, m.startIndex), parentEl.ownerDocument);
+                if (sliceFrag) {
+                  fragment.appendChild(sliceFrag);
                 }
               }
               const commentEl = createCommentElement(m.rawContent);
               fragment.appendChild(commentEl);
               lastIdx = m.endIndex;
             }
-            if (lastIdx < html.length) {
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = html.slice(lastIdx);
-              while (tempDiv.firstChild) {
-                fragment.appendChild(tempDiv.firstChild);
+            if (lastIdx < htmlContent.length) {
+              const sliceFrag = parseSafeHtmlFragment(htmlContent.slice(lastIdx), parentEl.ownerDocument);
+              if (sliceFrag) {
+                fragment.appendChild(sliceFrag);
               }
             }
-            parentEl.innerHTML = '';
-            parentEl.appendChild(fragment);
+            parentEl.replaceChildren(fragment);
           }
         }
       }

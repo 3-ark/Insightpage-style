@@ -37,9 +37,13 @@ export class ChartSettingTab extends PluginSettingTab {
 
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Settings - Charts' });
+    new Setting(containerEl)
+      .setName('Settings - Charts')
+      .setHeading();
 
-    containerEl.createEl('h3', { text: 'General' });
+    new Setting(containerEl)
+      .setName('General')
+      .setHeading();
 
     new Setting(containerEl)
       .setName('Show Button in Context Menu')
@@ -55,12 +59,9 @@ export class ChartSettingTab extends PluginSettingTab {
         );
       });
 
-    containerEl.createEl('h3', {
-      text: 'Colors',
-      attr: {
-        style: 'margin-bottom: 0',
-      },
-    });
+    new Setting(containerEl)
+      .setName('Colors')
+      .setHeading();
     const desc = containerEl.createEl('p', { cls: 'setting-item-description' });
     desc.append(
       'Set the Colors for your Charts. This will set the border Color and the inner Color will be the same, but with less opacity. This ensures better compatibility with Dark and Light Mode. ',

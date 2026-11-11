@@ -104,6 +104,19 @@ export function processSubscriptSuperscript(container: HTMLElement): void {
   const html = container.innerHTML;
   const transformed = transformSubscriptSuperscriptHtml(html);
   if (transformed !== html) {
-    container.innerHTML = transformed;
+    container.replaceChildren();
+    let obsidian: any;
+    try {
+      obsidian = require('obsidian');
+    } catch {}
+    if (obsidian && typeof obsidian.sanitizeHTMLToDom === 'function') {
+      container.appendChild(obsidian.sanitizeHTMLToDom(transformed));
+    } else {
+      const parser = new (container.ownerDocument?.defaultView?.DOMParser || DOMParser)();
+      const parsed = parser.parseFromString(transformed, 'text/html');
+      while (parsed.body.firstChild) {
+        container.appendChild(parsed.body.firstChild);
+      }
+    }
   }
 }

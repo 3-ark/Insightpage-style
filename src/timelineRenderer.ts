@@ -116,6 +116,38 @@ export function parseWikilinksToHtml(text: string): string {
   return result;
 }
 
+export function renderWikilinksToDom(text: string, targetEl: HTMLElement): void {
+  targetEl.replaceChildren();
+  if (typeof text !== 'string' || !text) return;
+  if (!text.includes('[[')) {
+    targetEl.appendChild(document.createTextNode(text));
+    return;
+  }
+  WIKILINK_PARSE_REGEX.lastIndex = 0;
+  let lastIdx = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = WIKILINK_PARSE_REGEX.exec(text)) !== null) {
+    if (match.index > lastIdx) {
+      targetEl.appendChild(document.createTextNode(text.slice(lastIdx, match.index)));
+    }
+    const target = match[1].trim();
+    const alias = match[2] ? match[2].trim() : target;
+    const a = document.createElement('a');
+    a.className = 'internal-link';
+    a.setAttribute('data-href', target);
+    a.setAttribute('href', target);
+    a.setAttribute('style', 'color: var(--link-color, #3b82f6); text-decoration: underline; cursor: pointer;');
+    a.textContent = alias;
+    targetEl.appendChild(a);
+    lastIdx = WIKILINK_PARSE_REGEX.lastIndex;
+  }
+
+  if (lastIdx < text.length) {
+    targetEl.appendChild(document.createTextNode(text.slice(lastIdx)));
+  }
+}
+
 // Polyfill Element.prototype.isShown if missing (Obsidian defines it on HTMLElement.prototype,
 // but SVG elements inherit from Element/SVGElement, causing TypeError when e.isShown() is called).
 function ensureIsShownPolyfill() {
@@ -170,9 +202,58 @@ interface SVGColsGroupElement extends SVGGElement {
   };
 }
 
-const COPY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
-const CHECK_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-const DOWNLOAD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x1="12" y1="15" y2="3"/></svg>`;
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function createTlSvgIcon(
+  attrs: Record<string, string>,
+  children: Array<{ tag: string; attrs: Record<string, string> }>
+): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('xmlns', SVG_NS);
+  for (const [k, v] of Object.entries(attrs)) {
+    svg.setAttribute(k, v);
+  }
+  for (const child of children) {
+    const el = document.createElementNS(SVG_NS, child.tag);
+    for (const [k, v] of Object.entries(child.attrs)) {
+      el.setAttribute(k, v);
+    }
+    svg.appendChild(el);
+  }
+  return svg;
+}
+
+function createTlCopyIcon(): SVGSVGElement {
+  return createTlSvgIcon(
+    { width: '12', height: '12', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    [
+      { tag: 'rect', attrs: { width: '14', height: '14', x: '8', y: '8', rx: '2', ry: '2' } },
+      { tag: 'path', attrs: { d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' } },
+    ]
+  );
+}
+
+function createTlCheckIcon(): SVGSVGElement {
+  return createTlSvgIcon(
+    { width: '12', height: '12', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    [{ tag: 'polyline', attrs: { points: '20 6 9 17 4 12' } }]
+  );
+}
+
+function createTlDownloadIcon(): SVGSVGElement {
+  return createTlSvgIcon(
+    { width: '12', height: '12', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    [
+      { tag: 'path', attrs: { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' } },
+      { tag: 'polyline', attrs: { points: '7 10 12 15 17 10' } },
+      { tag: 'line', attrs: { x1: '12', x2: '12', y1: '15', y2: '3' } },
+    ]
+  );
+}
+
+function setTlButtonIcon(btn: HTMLElement, iconEl: Node): void {
+  btn.replaceChildren(iconEl);
+}
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -520,20 +601,20 @@ export async function renderTimelineBlockAsync(
   const copyBtn = document.createElement('button');
   copyBtn.className = 'timeline-btn timeline-copy-btn p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/20 transition-colors';
   copyBtn.title = 'Copy timeline data';
-  copyBtn.innerHTML = COPY_ICON;
+  setTlButtonIcon(copyBtn, createTlCopyIcon());
   copyBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(code);
-      copyBtn.innerHTML = CHECK_ICON;
-      setTimeout(() => { copyBtn.innerHTML = COPY_ICON; }, 1500);
+      setTlButtonIcon(copyBtn, createTlCheckIcon());
+      setTimeout(() => { setTlButtonIcon(copyBtn, createTlCopyIcon()); }, 1500);
     } catch {}
   });
 
   const downloadBtn = document.createElement('button');
   downloadBtn.className = 'timeline-btn timeline-download-btn p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/20 transition-colors';
   downloadBtn.title = 'Download SVG';
-  downloadBtn.innerHTML = DOWNLOAD_ICON;
+  setTlButtonIcon(downloadBtn, createTlDownloadIcon());
   downloadBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     try {
@@ -562,7 +643,7 @@ export async function renderTimelineBlockAsync(
   controlsDiv.className = 'timeline-category-controls flex items-center gap-4 mt-3 px-2 pt-2 border-t border-border/10 text-xs font-medium text-muted-foreground select-none';
 
   function renderCategoryRadioGroup() {
-    controlsDiv.innerHTML = '';
+    controlsDiv.replaceChildren();
     if (parsedData.categories.length <= 1) {
       controlsDiv.style.display = 'none';
       return;
@@ -780,7 +861,7 @@ export async function renderTimelineBlockAsync(
     // Only update DOM if the content has genuinely changed (avoids reflow and garbage generation)
     if (lastTooltipKey !== contentKey) {
       lastTooltipKey = contentKey;
-      ttTitle.innerHTML = parseWikilinksToHtml(title);
+      renderWikilinksToDom(title, ttTitle);
 
       if (typeof details === 'object' && details !== null) {
         ttSub.style.display = 'none';
@@ -801,7 +882,7 @@ export async function renderTimelineBlockAsync(
         }
 
         if (details.items && details.items.length > 0) {
-          ttList.innerHTML = '';
+          ttList.replaceChildren();
           details.items.forEach((it) => {
             const badge = document.createElement('span');
             badge.className = 'px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-[10px]';
