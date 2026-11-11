@@ -24,7 +24,9 @@ function parseSafeHtmlFragment(rawHtml: string, doc?: Document): DocumentFragmen
   let obsidian: any;
   try {
     obsidian = require('obsidian');
-  } catch {}
+  } catch {
+    /* ignore */
+  }
   if (obsidian && typeof obsidian.sanitizeHTMLToDom === 'function') {
     return obsidian.sanitizeHTMLToDom(rawHtml);
   }
@@ -143,7 +145,7 @@ export function bindPopoverToTrigger(triggerBtn: HTMLButtonElement, content: str
       }
     };
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       if (outsideClickListener) {
         document.addEventListener('click', outsideClickListener, true);
       }

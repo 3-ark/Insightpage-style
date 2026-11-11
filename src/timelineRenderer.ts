@@ -156,7 +156,7 @@ function ensureIsShownPolyfill() {
       value: function (this: Element) {
         const isHtml = typeof (this as any).instanceOf === 'function'
           ? (this as any).instanceOf(HTMLElement)
-          : this instanceof HTMLElement;
+          : (this.ownerDocument?.defaultView ? this instanceof this.ownerDocument.defaultView.HTMLElement : this instanceof HTMLElement);
         if (typeof (HTMLElement.prototype as any)?.isShown === 'function' && isHtml) {
           return (HTMLElement.prototype as any).isShown.call(this);
         }
@@ -448,7 +448,9 @@ async function resolveTimelineData(
   if (typeof require === 'function') {
     try {
       obsidianModule = require('obsidian');
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }
 
   const customFetch = createCustomFetch(app, obsidianModule, ctx?.sourcePath || '');
@@ -605,13 +607,17 @@ export async function renderTimelineBlockAsync(
   copyBtn.className = 'timeline-btn timeline-copy-btn p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/20 transition-colors';
   copyBtn.title = 'Copy timeline data';
   setTlButtonIcon(copyBtn, createTlCopyIcon());
-  copyBtn.addEventListener('click', async (e) => {
+  copyBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(code);
-      setTlButtonIcon(copyBtn, createTlCheckIcon());
-      setTimeout(() => { setTlButtonIcon(copyBtn, createTlCopyIcon()); }, 1500);
-    } catch {}
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(code);
+        setTlButtonIcon(copyBtn, createTlCheckIcon());
+        window.setTimeout(() => { setTlButtonIcon(copyBtn, createTlCopyIcon()); }, 1500);
+      } catch {
+        /* ignore */
+      }
+    })();
   });
 
   const downloadBtn = document.createElement('button');
@@ -837,8 +843,8 @@ export async function renderTimelineBlockAsync(
     pendingClientX = clientX;
     pendingClientY = clientY;
     if (rafId === null) {
-      if (typeof requestAnimationFrame !== 'undefined') {
-        rafId = requestAnimationFrame(() => {
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame !== 'undefined') {
+        rafId = window.requestAnimationFrame(() => {
           updateTooltipPosition();
         });
         if (rafId === undefined) {
@@ -922,8 +928,8 @@ export async function renderTimelineBlockAsync(
     clearHideTimeout();
     if (immediate) {
       if (rafId !== null) {
-        if (typeof cancelAnimationFrame !== 'undefined') {
-          cancelAnimationFrame(rafId);
+        if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame !== 'undefined') {
+          window.cancelAnimationFrame(rafId);
         }
         rafId = null;
       }
@@ -934,7 +940,7 @@ export async function renderTimelineBlockAsync(
         tooltip.style.pointerEvents = 'none';
       }
     } else {
-      hideTimeout = setTimeout(() => {
+      hideTimeout = window.setTimeout(() => {
         hideTooltip(true);
       }, 200);
     }
@@ -1345,8 +1351,8 @@ export async function renderTimelineBlockAsync(
       .on('mousemove.needle', (event: MouseEvent) => {
         const [ptX] = d3.pointer(event, svg);
         if (rafNeedleId === null) {
-          if (typeof requestAnimationFrame !== 'undefined') {
-            rafNeedleId = requestAnimationFrame(() => updateNeedle(ptX));
+          if (typeof window !== 'undefined' && typeof window.requestAnimationFrame !== 'undefined') {
+            rafNeedleId = window.requestAnimationFrame(() => updateNeedle(ptX));
           } else {
             updateNeedle(ptX);
           }
@@ -1354,8 +1360,8 @@ export async function renderTimelineBlockAsync(
       })
       .on('mouseleave.needle', () => {
         if (rafNeedleId !== null) {
-          if (typeof cancelAnimationFrame !== 'undefined') {
-            cancelAnimationFrame(rafNeedleId);
+          if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame !== 'undefined') {
+            window.cancelAnimationFrame(rafNeedleId);
           }
           rafNeedleId = null;
         }
@@ -1544,8 +1550,8 @@ export async function renderTimelineBlockAsync(
     const updateZoom = (transform: d3.ZoomTransform) => {
       pendingTransform = transform;
       if (zoomRafId === null) {
-        if (typeof requestAnimationFrame !== 'undefined') {
-          zoomRafId = requestAnimationFrame(() => {
+        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame !== 'undefined') {
+          zoomRafId = window.requestAnimationFrame(() => {
             const t = pendingTransform;
             zoomRafId = null;
             pendingTransform = null;
@@ -1578,8 +1584,8 @@ export async function renderTimelineBlockAsync(
     updateZoom(d3.zoomIdentity);
   }
 
-  if (typeof requestAnimationFrame !== 'undefined') {
-    requestAnimationFrame(() => {
+  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame !== 'undefined') {
+    window.requestAnimationFrame(() => {
       renderChart();
     });
   } else {

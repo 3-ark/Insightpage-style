@@ -182,7 +182,9 @@ export function preventTickOverlap(axisGNode: SVGGElement | null, minGapPx = 12)
       if (typeof (textEl as any).getComputedTextLength === 'function') {
         try {
           width = (textEl as any).getComputedTextLength();
-        } catch {}
+        } catch {
+          /* ignore */
+        }
       }
       if (!width || width <= 0) {
         width = text.length * 7.5;

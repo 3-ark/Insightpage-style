@@ -614,7 +614,9 @@ export function parseTimelineConfig(code: string): TimelineConfig {
   let yamlParsed: any = null;
   try {
     yamlParsed = safeParseYaml(cleaned);
-  } catch {}
+  } catch {
+    /* ignore */
+  }
 
   if (yamlParsed && typeof yamlParsed === 'object' && (yamlParsed.data || yamlParsed.id || yamlParsed.events || yamlParsed.schemas || yamlParsed.schema)) {
     if (yamlParsed.data) {
@@ -713,7 +715,9 @@ export function parseTimelineCode(code: string): ParsedTimelineData {
 
   try {
     rawParsed = JSON.parse(cleaned);
-  } catch {}
+  } catch {
+    /* ignore */
+  }
 
   if (!rawParsed) {
     let wrapped = cleaned;
@@ -728,14 +732,18 @@ export function parseTimelineCode(code: string): ParsedTimelineData {
     }
     try {
       rawParsed = JSON.parse(wrapped);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }
 
   const isBracketed = cleaned.startsWith('{') || cleaned.startsWith('[') || cleaned.startsWith('{{');
   if (!rawParsed && isBracketed) {
     try {
       rawParsed = parseLooseObjectLiteral(cleaned);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }
 
   if (!rawParsed) {
@@ -745,7 +753,9 @@ export function parseTimelineCode(code: string): ParsedTimelineData {
   if (!rawParsed || typeof rawParsed !== 'object') {
     try {
       rawParsed = parseLooseObjectLiteral(cleaned);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }
 
   if (!rawParsed || typeof rawParsed !== 'object') {

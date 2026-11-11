@@ -108,7 +108,9 @@ export function processSubscriptSuperscript(container: HTMLElement): void {
     let obsidian: any;
     try {
       obsidian = require('obsidian');
-    } catch {}
+    } catch {
+      /* ignore */
+    }
     if (obsidian && typeof obsidian.sanitizeHTMLToDom === 'function') {
       container.appendChild(obsidian.sanitizeHTMLToDom(transformed));
     } else {

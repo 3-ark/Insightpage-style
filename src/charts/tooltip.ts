@@ -85,7 +85,7 @@ export function bindPlotStyleTooltip(
     cachedRect = container.getBoundingClientRect();
     cachedWidth = tooltip.offsetWidth;
     cachedHeight = tooltip.offsetHeight;
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       tooltip.style.opacity = '1';
     });
     positionTooltip(e);

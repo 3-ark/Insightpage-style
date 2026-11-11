@@ -1215,7 +1215,7 @@ class PlotJsRenderChild extends MarkdownRenderChild {
     this.renderer.plugin.app?.workspace?.on?.('css-change', this.reload);
   }
 
-  changeHandler(file?: TFile) {
+  changeHandler = (file?: TFile) => {
     if (!file) return;
     if (
       this.referencedFiles.has(file.path) ||
@@ -1224,12 +1224,12 @@ class PlotJsRenderChild extends MarkdownRenderChild {
     ) {
       this.reload();
     }
-  }
+  };
 
-  reload() {
+  reload = () => {
     this.onunload();
     void this.onload();
-  }
+  };
 
   onunload() {
     this.renderer.plugin.app?.metadataCache?.off?.(
@@ -1281,7 +1281,9 @@ class ChartRenderChild extends MarkdownRenderChild {
         if (typeof require === 'function') {
           try {
             obsidianModule = require('obsidian');
-          } catch {}
+          } catch {
+            /* ignore */
+          }
         }
 
         const app = this.renderer.plugin.app;
@@ -1491,7 +1493,7 @@ class ChartRenderChild extends MarkdownRenderChild {
     this.renderer.plugin.app?.workspace?.on?.('css-change', this.reload);
   }
 
-  changeHandler(file?: TFile) {
+  changeHandler = (file?: TFile) => {
     if (!file) return;
     const isTargetFile =
       (this.data.file && (file.basename === this.data.file || file.name === this.data.file)) ||
@@ -1503,12 +1505,12 @@ class ChartRenderChild extends MarkdownRenderChild {
     if (isTargetFile) {
       this.reload();
     }
-  }
+  };
 
-  reload() {
+  reload = () => {
     this.onunload();
     void this.onload();
-  }
+  };
 
   onunload() {
     this.renderer.plugin.app?.metadataCache?.off?.(

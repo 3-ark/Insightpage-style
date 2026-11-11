@@ -381,15 +381,13 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   };
 
   // Immediate and staggered frame/timeout passes to adapt as container is inserted and styled
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(triggerInvalidate);
-  } else if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
     window.requestAnimationFrame(triggerInvalidate);
   }
 
   // Staggered timeouts help catch layout transitions in Obsidian reading view
   [0, 50, 150, 300, 600].forEach((delay) => {
-    const tid = setTimeout(triggerInvalidate, delay);
+    const tid = window.setTimeout(triggerInvalidate, delay);
     timeoutIds.push(tid);
   });
 
@@ -450,7 +448,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
     child.onload = () => {
       triggerInvalidate();
       // Delay check in case layout settling occurs right after onload
-      setTimeout(triggerInvalidate, 100);
+      window.setTimeout(triggerInvalidate, 100);
     };
     child.onunload = cleanup;
     ctx.addChild(child);

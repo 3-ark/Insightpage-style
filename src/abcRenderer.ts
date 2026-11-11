@@ -161,7 +161,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
     playbackState = 'idle';
     updateControlsUI();
     if (animId) {
-      cancelAnimationFrame(animId);
+      window.cancelAnimationFrame(animId);
       animId = null;
     }
   };
@@ -258,17 +258,19 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   copyBtn.title = 'Copy ABC source';
   setButtonIcon(copyBtn, createCopyIcon());
 
-  copyBtn.addEventListener('click', async (e) => {
+  copyBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(source.trim());
-      setButtonIcon(copyBtn, createCheckIcon());
-      setTimeout(() => {
-        setButtonIcon(copyBtn, createCopyIcon());
-      }, 1500);
-    } catch {
-      // ignore
-    }
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(source.trim());
+        setButtonIcon(copyBtn, createCheckIcon());
+        window.setTimeout(() => {
+          setButtonIcon(copyBtn, createCopyIcon());
+        }, 1500);
+      } catch {
+        // ignore
+      }
+    })();
   });
 
   rightBtns.appendChild(copyBtn);
@@ -324,7 +326,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       progressSlider.value = curTime.toString();
     }
     if (playbackState === 'playing') {
-      animId = requestAnimationFrame(syncProgress);
+      animId = window.requestAnimationFrame(syncProgress);
     }
   };
 
@@ -370,7 +372,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
         clearHighlights();
         playbackState = 'idle';
         updateControlsUI();
-        if (animId) cancelAnimationFrame(animId);
+        if (animId) window.cancelAnimationFrame(animId);
       },
     };
 
@@ -387,7 +389,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
     return sc;
   };
 
-  playPauseBtn.addEventListener('click', async (e) => {
+  playPauseBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!visualObj) return;
 
@@ -398,7 +400,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       }
       playbackState = 'paused';
       updateControlsUI();
-      if (animId) cancelAnimationFrame(animId);
+      if (animId) window.cancelAnimationFrame(animId);
       return;
     }
 
@@ -406,31 +408,33 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       playbackState = 'playing';
       updateControlsUI();
       synthController.play();
-      animId = requestAnimationFrame(syncProgress);
+      animId = window.requestAnimationFrame(syncProgress);
       return;
     }
 
     // Idle: Initialize and play
     playbackState = 'loading';
     updateControlsUI();
-    try {
-      const sc = await initSynth();
-      if (!sc) {
-        playbackState = 'idle';
+    void (async () => {
+      try {
+        const sc = await initSynth();
+        if (!sc) {
+          playbackState = 'idle';
+          updateControlsUI();
+          return;
+        }
+        playbackState = 'playing';
         updateControlsUI();
-        return;
+        await sc.play();
+        totalDuration = sc.midiBuffer?.duration || totalDuration;
+        durationEl.textContent = formatTime(totalDuration);
+        progressSlider.max = totalDuration.toString();
+        animId = window.requestAnimationFrame(syncProgress);
+      } catch (err) {
+        console.error('AbcJS playback error:', err);
+        stopPlayback();
       }
-      playbackState = 'playing';
-      updateControlsUI();
-      await sc.play();
-      totalDuration = sc.midiBuffer?.duration || totalDuration;
-      durationEl.textContent = formatTime(totalDuration);
-      progressSlider.max = totalDuration.toString();
-      animId = requestAnimationFrame(syncProgress);
-    } catch (err) {
-      console.error('AbcJS playback error:', err);
-      stopPlayback();
-    }
+    })();
   });
 
   stopBtn.addEventListener('click', (e) => {
@@ -449,7 +453,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
         playbackState = 'playing';
         updateControlsUI();
         synthController.play();
-        animId = requestAnimationFrame(syncProgress);
+        animId = window.requestAnimationFrame(syncProgress);
       }
     }
   });
