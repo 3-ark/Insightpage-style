@@ -5,6 +5,7 @@ import {
   App,
   PluginSettingTab,
   Setting,
+  type SettingDefinitionItem,
 } from 'obsidian';
 import type ChartPlugin from '../main';
 
@@ -28,22 +29,44 @@ export class ChartSettingTab extends PluginSettingTab {
   refresh(): void {
     if (typeof (this as any).update === 'function') {
       (this as any).update();
+    } else {
+      this.display();
     }
-    this.display();
+  }
+
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    const definitions: SettingDefinitionItem[] = [
+      {
+        name: 'Show button in context menu',
+        desc: 'If enabled, you will see a button in your editor context menu to open the chart creator.',
+        control: {
+          type: 'toggle',
+          key: 'contextMenu',
+        },
+      },
+      {
+        type: 'group',
+        heading: 'Colors',
+        items: [
+          {
+            name: 'Enable theme colors',
+            desc: 'If your Obsidian theme (or snippet) provides colors you can use them instead.',
+            control: {
+              type: 'toggle',
+              key: 'themeable',
+            },
+          },
+        ],
+      },
+    ];
+
+    return definitions;
   }
 
   display(): void {
     let { containerEl, plugin } = this;
 
     containerEl.empty();
-
-    new Setting(containerEl)
-      .setName('Settings - Charts')
-      .setHeading();
-
-    new Setting(containerEl)
-      .setName('General')
-      .setHeading();
 
     new Setting(containerEl)
       .setName('Show Button in Context Menu')

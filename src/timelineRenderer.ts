@@ -154,7 +154,10 @@ function ensureIsShownPolyfill() {
   if (typeof Element !== 'undefined' && !('isShown' in Element.prototype)) {
     Object.defineProperty(Element.prototype, 'isShown', {
       value: function (this: Element) {
-        if (typeof (HTMLElement.prototype as any)?.isShown === 'function' && this instanceof HTMLElement) {
+        const isHtml = typeof (this as any).instanceOf === 'function'
+          ? (this as any).instanceOf(HTMLElement)
+          : this instanceof HTMLElement;
+        if (typeof (HTMLElement.prototype as any)?.isShown === 'function' && isHtml) {
           return (HTMLElement.prototype as any).isShown.call(this);
         }
         if (this.getAttribute && this.getAttribute('display') === 'none') return false;
@@ -738,7 +741,7 @@ export async function renderTimelineBlockAsync(
 
   function clearHideTimeout() {
     if (hideTimeout !== null) {
-      clearTimeout(hideTimeout);
+      window.clearTimeout(hideTimeout);
       hideTimeout = null;
     }
   }
@@ -1591,5 +1594,5 @@ export function renderTimelineBlock(
   ctx?: any,
   app?: any
 ): void {
-  renderTimelineBlockAsync(code, container, ctx, app);
+  void renderTimelineBlockAsync(code, container, ctx, app);
 }

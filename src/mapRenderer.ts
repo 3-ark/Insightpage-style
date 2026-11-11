@@ -120,6 +120,8 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   const supportsCanvas = typeof document !== 'undefined' &&
     (typeof createEl === 'function'
       ? !!createEl('canvas')?.getContext?.('2d')
+      : typeof mapDiv.createEl === 'function'
+      ? !!mapDiv.createEl('canvas')?.getContext?.('2d')
       : typeof document.createElement === 'function' && !!document.createElement('canvas')?.getContext?.('2d'));
 
   let map: any;
@@ -424,7 +426,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   const cleanup = () => {
     if (isCleanedUp) return;
     isCleanedUp = true;
-    timeoutIds.forEach((id) => clearTimeout(id));
+    timeoutIds.forEach((id) => window.clearTimeout(id));
     timeoutIds.length = 0;
     if (resizeObserver) {
       resizeObserver.disconnect();

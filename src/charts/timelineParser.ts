@@ -309,7 +309,7 @@ export function parseLooseObjectLiteral(code: string): any {
     return `${prefix}"${trimmedVal}"`;
   });
 
-  cleaned = cleaned.replace(/(\[\s*|\,\s*)([^"'\s\d\.,{\}\[\]][^{}\[\]]*?)(?=\s*[,\]])/g, (match, prefix, val) => {
+  cleaned = cleaned.replace(/(\[\s*|,\s*)([^"'\s\d.,{}\[\]][^{}\[\]]*?)(?=\s*[,\]])/g, (match, prefix, val) => {
     const trimmedVal = val.trim();
     if (!trimmedVal) return match;
     if (JS_KEYWORDS_SET.has(trimmedVal)) return prefix + trimmedVal;
@@ -654,21 +654,21 @@ export function parseTimelineConfig(code: string): TimelineConfig {
     const parseSchemasBlock = (text: string): TimelineSchemaMapping => {
       const mapping: TimelineSchemaMapping = {};
 
-      const titleMatch = text.match(/\btitle\s*[:=]\s*["']?([^"'\n,\]\}]+)["']?/i);
+      const titleMatch = text.match(/\btitle\s*[:=]\s*["']?([^"'\n,\]}]+)["']?/i);
       if (titleMatch) mapping.title = titleMatch[1].trim();
 
-      const startMatch = text.match(/\bstart\s*[:=]\s*["']?([^"'\n,\]\}]+)["']?/i);
+      const startMatch = text.match(/\bstart\s*[:=]\s*["']?([^"'\n,\]}]+)["']?/i);
       if (startMatch) mapping.start = startMatch[1].trim();
 
-      const endMatch = text.match(/\bend\s*[:=]\s*["']?([^"'\n,\]\}]+)["']?/i);
+      const endMatch = text.match(/\bend\s*[:=]\s*["']?([^"'\n,\]}]+)["']?/i);
       if (endMatch) mapping.end = endMatch[1].trim();
 
-      const collectionMatch = text.match(/\bcollection\s*[:=]\s*[\{\[]?([^\}\]\n]+)[\}\]]?/i);
+      const collectionMatch = text.match(/\bcollection\s*[:=]\s*[{[]?([^}\]\n]+)[}\]]?/i);
       if (collectionMatch) {
         mapping.collection = collectionMatch[1].split(',').map((s) => s.trim().replace(/^["']|["']$/g, '').replace(/^- /, '')).filter(Boolean);
       }
 
-      const categoriesMatch = text.match(/\bcategories\s*[:=]\s*[\{\[]?([^\}\]\n]+)[\}\]]?/i);
+      const categoriesMatch = text.match(/\bcategories\s*[:=]\s*[{[]?([^}\]\n]+)[}\]]?/i);
       if (categoriesMatch) {
         mapping.categories = categoriesMatch[1].split(',').map((s) => s.trim().replace(/^["']|["']$/g, '').replace(/^- /, '')).filter(Boolean);
       }

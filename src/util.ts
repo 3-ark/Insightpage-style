@@ -13,7 +13,7 @@ function getChroma(): any {
 const innerColorCache = new Map<string, string>();
 
 export function generateInnerColors(colors: string[], alpha = 0.25) {
-    if (typeof alpha !== 'number') throw "Provided alpha value is not a number";
+    if (typeof alpha !== 'number') throw new TypeError('Provided alpha value is not a number');
     return colors.map((color: string) => {
         const trimmed = color.trim();
         const cacheKey = `${trimmed}_${alpha}`;

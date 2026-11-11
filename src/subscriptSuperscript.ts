@@ -1,6 +1,6 @@
 const BLOCK_REGEX = /<(code|pre|script|style|svg|span[^>]*class="[^"]*math[^"]*")[^>]*>[\s\S]*?<\/\1>|<span[^>]*class="[^"]*math[^"]*"[^>]*>[\s\S]*?<\/span>/gi;
 const TAG_REGEX = /<[^>]+>/g;
-const SUPERSCRIPT_REGEX = /(?<![\\^])\^([^\^\r\n]+?)\^(?!\^)/g;
+const SUPERSCRIPT_REGEX = /(?<![\\^])\^([^^\r\n]+?)\^(?!\^)/g;
 const SUBSCRIPT_REGEX = /(?<![\\~])~(?![~\s])([^~\r\n]+?)(?<!\s)~(?![~])/g;
 const RESTORE_TAG_REGEX = /___HTML_TAG_(\d+)___/g;
 const RESTORE_BLOCK_REGEX = /___PROTECTED_BLOCK_(\d+)___/g;

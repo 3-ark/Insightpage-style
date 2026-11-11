@@ -51,8 +51,8 @@ const FRAME_ANCHOR_MARKS = new Set([
   'image',
 ]);
 
-// Performance optimization: Hoist comment directive matching and identifier regexes to module scope
-// to avoid re-compilation on every chart codeblock render.
+// Performance optimization: Hoist comment directive matching, identifier regexes, and date parsing regexes to module scope
+// to avoid re-compilation on every chart codeblock render and dataset preparation pass.
 const TABLE_COMMENT_REGEX1 = /^\/\/\s*table\s*:\s*(.+)$/i;
 const TABLE_COMMENT_REGEX2 = /^\/\*\s*table\s*:\s*(.+)\s*\*\/$/i;
 const ID_COMMENT_REGEX1 = /^\/\/\s*id\s*:\s*(.+)$/i;
@@ -60,6 +60,29 @@ const ID_COMMENT_REGEX2 = /^\/\*\s*id\s*:\s*(.+)\s*\*\/$/i;
 const FILE_COMMENT_REGEX1 = /^\/\/\s*file\s*:\s*(.+)$/i;
 const FILE_COMMENT_REGEX2 = /^\/\*\s*file\s*:\s*(.+)\s*\*\/$/i;
 const VALID_IDENTIFIER_REGEX = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+const ISO_DATE_REGEX = /^\d{4}[-/]\d{1,2}(?:[-/]\d{1,2})?(?:[T ].*)?$/;
+const DIGITS_ONLY_REGEX = /^\d+$/;
+
+function tryParseDate(v: any): any {
+  if (v instanceof Date) return isNaN(v.getTime()) ? v : v;
+  if (typeof v === 'string') {
+    const s = v.trim();
+    // Guard regex tests with delimiter check to fast-path standard strings without dashes or slashes
+    if ((s.includes('-') || s.includes('/')) && ISO_DATE_REGEX.test(s)) {
+      const d = new Date(s.includes('/') ? s.replace(/\//g, '-') : s);
+      if (!isNaN(d.getTime())) return d;
+    }
+    // Also support standard date strings (e.g. from toString or ISO formatted dates)
+    if (s.length >= 10 && !DIGITS_ONLY_REGEX.test(s)) {
+      const parsed = Date.parse(s);
+      if (!isNaN(parsed)) {
+        const d = new Date(parsed);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+  }
+  return v;
+}
 
 /**
  * Wraps an Observable Plot instance so marks supporting frameAnchor can accept
@@ -307,28 +330,29 @@ export default class Renderer {
     const labels: any[] = Array.isArray(rawLabels) ? rawLabels : [];
     const rawSeries: any[] = yaml.series ?? [];
 
-    // Helper to coerce potential date strings or Date objects to valid Date objects
-    const tryParseDate = (v: any) => {
-      if (v instanceof Date) return isNaN(v.getTime()) ? v : v;
-      if (typeof v === 'string') {
-        const s = v.trim();
-        if (/^\d{4}[-/]\d{1,2}(?:[-/]\d{1,2})?(?:[T ].*)?$/.test(s)) {
-          const d = new Date(s.replace(/\//g, '-'));
-          if (!isNaN(d.getTime())) return d;
-        }
-        // Also support standard date strings (e.g. from toString or ISO formatted dates)
-        if (s.length >= 10 && !/^\d+$/.test(s)) {
-          const parsed = Date.parse(s);
-          if (!isNaN(parsed)) {
-            const d = new Date(parsed);
-            if (!isNaN(d.getTime())) return d;
-          }
-        }
-      }
-      return v;
-    };
+    // Performance optimization: Pre-allocate parsedLabels and track hasDateLabels in a single pass.
+    // This avoids redundant tryParseDate calls and eliminates subsequent labels.some() and labels.every() passes.
+    const numLabels = labels.length;
+    const parsedLabels = new Array(numLabels);
+    let hasDateLabels = false;
 
-    const parsedLabels = labels.map(tryParseDate);
+    for (let idx = 0; idx < numLabels; idx++) {
+      const parsed = tryParseDate(labels[idx]);
+      parsedLabels[idx] = parsed;
+      if (!hasDateLabels && parsed instanceof Date) {
+        hasDateLabels = true;
+      }
+    }
+
+    // Performance optimization: Pre-allocate dataPoints array capacity using total series count
+    // and assign by index directly instead of dataPoints.push() to eliminate array buffer reallocations.
+    let totalPoints = 0;
+    for (let i = 0; i < rawSeries.length; i++) {
+      const sData = rawSeries[i]?.data;
+      if (Array.isArray(sData)) {
+        totalPoints += sData.length;
+      }
+    }
 
     const dataPoints: Array<{
       x: any;
@@ -336,25 +360,27 @@ export default class Renderer {
       series: string;
       index: number;
       seriesIndex: number;
-    }> = [];
+    }> = new Array(totalPoints);
+    let dpIdx = 0;
 
     for (let i = 0; i < rawSeries.length; i++) {
       const s = rawSeries[i];
       const seriesTitle = s.title ?? `Series ${i + 1}`;
       const seriesData = s.data ?? [];
-      for (let j = 0; j < seriesData.length; j++) {
-        const rawX = parsedLabels[j] !== undefined ? parsedLabels[j] : j;
-        const xVal = tryParseDate(rawX);
+      const sLen = seriesData.length;
+      for (let j = 0; j < sLen; j++) {
+        // Since parsedLabels[j] was already parsed during the label pre-pass, avoid redundant tryParseDate calls
+        const xVal = j < numLabels ? parsedLabels[j] : j;
         const val = seriesData[j];
         const numVal = typeof val === 'number' ? val : Number(val);
         const yVal = isNaN(numVal) ? 0 : numVal;
-        dataPoints.push({
+        dataPoints[dpIdx++] = {
           x: xVal,
           y: yVal,
           series: seriesTitle,
           index: j,
           seriesIndex: i,
-        });
+        };
       }
     }
 
@@ -615,7 +641,6 @@ export default class Renderer {
     // Auto-adaptive tick calculation based on width to prevent overcrowded tick labels
     let defaultXTicks: any = undefined;
     const explicitXTicks = yaml.xTicks ?? yaml.ticks ?? yaml.x?.ticks ?? yaml.scales?.x?.ticks;
-    const hasDateLabels = labels.some((l) => tryParseDate(l) instanceof Date);
 
     if (explicitXTicks !== undefined) {
       defaultXTicks = explicitXTicks;
@@ -640,7 +665,9 @@ export default class Renderer {
 
       // If x represents discrete string labels and they are dense, downsample ticks adaptively.
       // For horizontal charts (indexAxis === 'y'), x is the numeric value axis, so keep targetTickCount.
-      if (!isHorizontal && labels.length > targetTickCount && labels.every((l) => typeof l === 'string' && !(tryParseDate(l) instanceof Date))) {
+      // Performance optimization: hasDateLabels was already determined during the initial label pass,
+      // avoiding redundant tryParseDate re-evaluations across every label element.
+      if (!isHorizontal && labels.length > targetTickCount && !hasDateLabels && labels.every((l) => typeof l === 'string')) {
         const step = Math.ceil(labels.length / targetTickCount);
         defaultXTicks = labels.filter((_, idx) => idx % step === 0);
       } else if (!hasDateLabels && !isHorizontal && labels.length > 0) {
@@ -1201,7 +1228,7 @@ class PlotJsRenderChild extends MarkdownRenderChild {
 
   reload() {
     this.onunload();
-    this.onload();
+    void this.onload();
   }
 
   onunload() {
@@ -1322,7 +1349,7 @@ class ChartRenderChild extends MarkdownRenderChild {
             ) ?? activeFile) as TFile | null;
 
         if (!fileToRead) {
-          throw 'Invalid id and/or file';
+          throw new Error('Invalid id and/or file');
         }
 
         const fileCache =
@@ -1409,7 +1436,7 @@ class ChartRenderChild extends MarkdownRenderChild {
         }
 
         if (!tableString || !tableString.includes('|')) {
-          throw 'Invalid id and/or file';
+          throw new Error('Invalid id and/or file');
         }
 
         let tableData;
@@ -1420,7 +1447,7 @@ class ChartRenderChild extends MarkdownRenderChild {
             this.data.select
           );
         } catch {
-          throw 'There is no table at that id and/or file';
+          throw new Error('There is no table at that id and/or file');
         }
 
         let tableRows: any[] = [];
@@ -1480,7 +1507,7 @@ class ChartRenderChild extends MarkdownRenderChild {
 
   reload() {
     this.onunload();
-    this.onload();
+    void this.onload();
   }
 
   onunload() {

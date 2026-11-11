@@ -281,7 +281,7 @@ export default class ChartPlugin extends Plugin {
             selection.split('|').length >= 2
           ) {
             if (!checking) {
-              chartFromTable(editor, 'columns');
+              void chartFromTable(editor, 'columns');
             }
             return true;
           }
@@ -303,7 +303,7 @@ export default class ChartPlugin extends Plugin {
             editor.getSelection().split('|').length >= 2
           ) {
             if (!checking) {
-              chartFromTable(editor, 'rows');
+              void chartFromTable(editor, 'rows');
             }
             return true;
           }
