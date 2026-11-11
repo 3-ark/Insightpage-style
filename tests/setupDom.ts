@@ -80,21 +80,38 @@ export function setupDomPolyfills(win?: any) {
           this.appendChild(el);
           return el;
         };
+        proto.empty = function () {
+          while (this.firstChild) {
+            this.removeChild(this.firstChild);
+          }
+        };
       }
     }
 
-    if (w.DocumentFragment?.prototype && !w.DocumentFragment.prototype.createEl) {
-      w.DocumentFragment.prototype.createEl = function (tag: string, o?: any, cb?: (el: any) => void) {
-        const el = (globalThis as any).createEl(tag, o, cb);
-        this.appendChild(el);
-        return el;
-      };
-      w.DocumentFragment.prototype.createDiv = function (o?: any, cb?: (el: any) => void) {
-        return this.createEl('div', o, cb);
-      };
-      w.DocumentFragment.prototype.createSpan = function (o?: any, cb?: (el: any) => void) {
-        return this.createEl('span', o, cb);
-      };
+    if (w.DocumentFragment?.prototype) {
+      if (!w.DocumentFragment.prototype.createEl) {
+        w.DocumentFragment.prototype.createEl = function (tag: string, o?: any, cb?: (el: any) => void) {
+          const el = (globalThis as any).createEl(tag, o, cb);
+          this.appendChild(el);
+          return el;
+        };
+      }
+      if (!w.DocumentFragment.prototype.createDiv) {
+        w.DocumentFragment.prototype.createDiv = function (o?: any, cb?: (el: any) => void) {
+          return this.createEl('div', o, cb);
+        };
+      }
+      if (!w.DocumentFragment.prototype.createSpan) {
+        w.DocumentFragment.prototype.createSpan = function (o?: any, cb?: (el: any) => void) {
+          return this.createEl('span', o, cb);
+        };
+      }
+      if (!w.DocumentFragment.prototype.appendText) {
+        w.DocumentFragment.prototype.appendText = function (text: string) {
+          this.appendChild((w.document || getActiveDocument()).createTextNode(text));
+          return this;
+        };
+      }
     }
   };
 
