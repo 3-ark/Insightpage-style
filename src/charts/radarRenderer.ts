@@ -13,7 +13,7 @@ export function renderRadarChart(
   getD3: () => typeof import('d3')
 ) {
   const type = String(yaml.type ?? 'bar').trim().toLowerCase();
-  const container = document.createElement('div');
+  const container = createDiv();
   container.style.position = 'relative';
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
@@ -26,7 +26,7 @@ export function renderRadarChart(
   const caption = yaml.caption;
 
   if (title) {
-    const titleEl = document.createElement('h2');
+    const titleEl = createEl('h2');
     titleEl.textContent = String(title);
     titleEl.style.margin = '0 0 4px 0';
     titleEl.style.fontSize = '1.15em';
@@ -37,7 +37,7 @@ export function renderRadarChart(
   }
 
   if (subtitle) {
-    const subEl = document.createElement('h3');
+    const subEl = createEl('h3');
     subEl.textContent = String(subtitle);
     subEl.style.margin = '0 0 8px 0';
     subEl.style.fontSize = '0.9em';
@@ -229,7 +229,7 @@ export function renderRadarChart(
 
   // Legend
   if (yaml.legend !== false && seriesMap.size > 0) {
-    const legendDiv = document.createElement('div');
+    const legendDiv = createDiv();
     legendDiv.style.display = 'flex';
     legendDiv.style.flexWrap = 'wrap';
     legendDiv.style.justifyContent = 'center';
@@ -241,18 +241,18 @@ export function renderRadarChart(
     if (isSingleSeriesPolarArea) {
       // For single top-category polar area chart, show each category in the legend
       categoryLabels.forEach((label, lIdx) => {
-        const itemDiv = document.createElement('div');
+        const itemDiv = createDiv();
         itemDiv.style.display = 'flex';
         itemDiv.style.alignItems = 'center';
         itemDiv.style.gap = '4px';
 
-        const swatch = document.createElement('span');
+        const swatch = createSpan();
         swatch.style.width = '12px';
         swatch.style.height = '12px';
         swatch.style.borderRadius = '2px';
         swatch.style.backgroundColor = baseColors[lIdx % baseColors.length];
 
-        const textSpan = document.createElement('span');
+        const textSpan = createSpan();
         textSpan.textContent = String(label);
 
         itemDiv.appendChild(swatch);
@@ -262,18 +262,18 @@ export function renderRadarChart(
     } else {
       let lIdx = 0;
       seriesMap.forEach((_, name) => {
-        const itemDiv = document.createElement('div');
+        const itemDiv = createDiv();
         itemDiv.style.display = 'flex';
         itemDiv.style.alignItems = 'center';
         itemDiv.style.gap = '4px';
 
-        const swatch = document.createElement('span');
+        const swatch = createSpan();
         swatch.style.width = '12px';
         swatch.style.height = '12px';
         swatch.style.borderRadius = '2px';
         swatch.style.backgroundColor = baseColors[lIdx % baseColors.length];
 
-        const textSpan = document.createElement('span');
+        const textSpan = createSpan();
         textSpan.textContent = name;
 
         itemDiv.appendChild(swatch);
@@ -286,7 +286,7 @@ export function renderRadarChart(
   }
 
   if (caption) {
-    const capEl = document.createElement('div');
+    const capEl = createDiv();
     capEl.textContent = String(caption);
     capEl.style.marginTop = '6px';
     capEl.style.fontSize = '0.85em';

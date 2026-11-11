@@ -93,7 +93,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   const height = config.height ? (typeof config.height === 'number' ? `${config.height}px` : String(config.height)) : '400px';
   const width = config.width ? (typeof config.width === 'number' ? `${config.width}px` : String(config.width)) : '100%';
 
-  const mapDiv = document.createElement('div');
+  const mapDiv = createDiv();
   mapDiv.className = 'leaflet-map-wrapper';
   mapDiv.style.height = height;
   mapDiv.style.width = width;
@@ -122,7 +122,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
       ? !!createEl('canvas')?.getContext?.('2d')
       : typeof mapDiv.createEl === 'function'
       ? !!mapDiv.createEl('canvas')?.getContext?.('2d')
-      : typeof document.createElement === 'function' && !!document.createElement('canvas')?.getContext?.('2d'));
+      : !!createEl('canvas')?.getContext?.('2d'));
 
   let map: any;
   try {

@@ -33,7 +33,7 @@ export function renderError(error: any, el: HTMLElement) {
         errorEl.createEl("b", { text: "Couldn't render Chart:" });
         errorEl.createEl("pre").createEl("code", { text: error?.stack ?? error?.toString?.() ?? error });
         errorEl.createEl("hr");
-        const span = errorEl.createEl("span");
+        const span = errorEl.createSpan();
         span.appendText("You might also want to look for further Errors in the Console: Press ");
         span.createEl("kbd", { text: "CTRL" });
         span.appendText(" + ");
@@ -42,13 +42,13 @@ export function renderError(error: any, el: HTMLElement) {
         span.createEl("kbd", { text: "I" });
         span.appendText(" to open it.");
     } else {
-        const errorEl = document.createElement("div");
+        const errorEl = createDiv();
         errorEl.className = "chart-error";
-        const b = document.createElement("b");
+        const b = createEl("b");
         b.textContent = "Couldn't render Chart:";
         errorEl.appendChild(b);
-        const pre = document.createElement("pre");
-        const code = document.createElement("code");
+        const pre = createEl("pre");
+        const code = createEl("code");
         code.textContent = String(error?.stack ?? error?.toString?.() ?? error);
         pre.appendChild(code);
         errorEl.appendChild(pre);

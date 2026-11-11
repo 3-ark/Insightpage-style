@@ -107,13 +107,13 @@ export function bindPopoverToTrigger(triggerBtn: HTMLButtonElement, content: str
       return;
     }
 
-    popoverEl = document.createElement('div');
+    popoverEl = createDiv();
     popoverEl.className = 'comment-callout-popover';
 
-    const popoverContent = document.createElement('div');
+    const popoverContent = createDiv();
     popoverContent.className = 'comment-callout-popover-content';
 
-    const body = document.createElement('div');
+    const body = createDiv();
     body.className = 'comment-callout-popover-body thin-scrollbar';
     setHtmlSafely(body, content);
     popoverContent.appendChild(body);
@@ -236,24 +236,24 @@ export function findBalancedCmtMatches(
 export function createCommentElement(rawContent: string): HTMLElement {
   const { emoji, content } = extractEmojiAndContent(rawContent);
 
-  const wrapper = document.createElement('span');
+  const wrapper = createSpan();
   wrapper.className = 'callout comment-callout-wrapper';
   wrapper.setAttribute('data-callout', 'comment');
   wrapper.setAttribute('data-comment-processed', 'true');
 
-  const containerSpan = document.createElement('span');
+  const containerSpan = createSpan();
   containerSpan.className = 'comment-callout-container';
 
   // Print element
-  const printSpan = document.createElement('span');
+  const printSpan = createSpan();
   printSpan.className = 'comment-callout-print';
 
-  const printEmoji = document.createElement('span');
+  const printEmoji = createSpan();
   printEmoji.className = 'comment-callout-emoji';
   printEmoji.textContent = emoji;
   printSpan.appendChild(printEmoji);
 
-  const printBody = document.createElement('span');
+  const printBody = createSpan();
   printBody.className = 'comment-callout-print-body';
   setHtmlSafely(printBody, ' ' + content);
   printSpan.appendChild(printBody);
@@ -261,16 +261,16 @@ export function createCommentElement(rawContent: string): HTMLElement {
   containerSpan.appendChild(printSpan);
 
   // Screen element (trigger button)
-  const screenSpan = document.createElement('span');
+  const screenSpan = createSpan();
   screenSpan.className = 'comment-callout-screen';
 
-  const triggerBtn = document.createElement('button');
+  const triggerBtn = createEl('button');
   triggerBtn.className = 'comment-callout-trigger';
   triggerBtn.setAttribute('role', 'button');
   triggerBtn.setAttribute('type', 'button');
   triggerBtn.setAttribute('aria-label', 'view comment');
 
-  const emojiSpan = document.createElement('span');
+  const emojiSpan = createSpan();
   emojiSpan.className = 'comment-callout-emoji';
   emojiSpan.textContent = emoji;
   triggerBtn.appendChild(emojiSpan);
@@ -290,7 +290,7 @@ export function transformCommentHtml(html: string): string {
   }
   const fragment = parseSafeHtmlFragment(html);
   if (!fragment) return html;
-  const tempDiv = document.createElement('div');
+  const tempDiv = createDiv();
   tempDiv.appendChild(fragment);
   processCommentCallouts(tempDiv);
   return tempDiv.innerHTML;
@@ -408,7 +408,7 @@ export function processCommentCallouts(container: HTMLElement): void {
         const pNode = node.parentNode;
         if (!pNode) continue;
 
-        const fragment = document.createDocumentFragment();
+        const fragment = createFragment();
         let lastIdx = 0;
         for (const m of matches) {
           if (m.startIndex > lastIdx) {
@@ -447,7 +447,7 @@ export function processCommentCallouts(container: HTMLElement): void {
           const htmlContent = parentEl.innerHTML;
           const matches = findBalancedCmtMatches(htmlContent);
           if (matches.length > 0) {
-            const fragment = document.createDocumentFragment();
+            const fragment = createFragment();
             let lastIdx = 0;
             for (const m of matches) {
               if (m.startIndex > lastIdx) {

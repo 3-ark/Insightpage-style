@@ -1,6 +1,6 @@
 import type * as Plot from '@observablehq/plot';
-import type { MarkdownPostProcessorContext, TFile } from 'obsidian';
-import { MarkdownRenderChild } from 'obsidian';
+import type { MarkdownPostProcessorContext } from 'obsidian';
+import { MarkdownRenderChild, TFile } from 'obsidian';
 import { generateInnerColors, renderError } from 'src/util';
 import type ChartPlugin from 'src/main';
 import {
@@ -63,6 +63,14 @@ const VALID_IDENTIFIER_REGEX = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 const ISO_DATE_REGEX = /^\d{4}[-/]\d{1,2}(?:[-/]\d{1,2})?(?:[T ].*)?$/;
 const DIGITS_ONLY_REGEX = /^\d+$/;
 
+function toTFile(item: unknown): TFile | null {
+  if (typeof TFile === 'function' && item instanceof TFile) return item;
+  if (item && typeof item === 'object' && typeof (item as { path?: unknown }).path === 'string' && !('children' in item)) {
+    return item as any;
+  }
+  return null;
+}
+
 function tryParseDate(v: any): any {
   if (v instanceof Date) return isNaN(v.getTime()) ? v : v;
   if (typeof v === 'string') {
@@ -91,7 +99,7 @@ function tryParseDate(v: any): any {
  * marks without throwing "invalid frameAnchor" errors.
  */
 function wrapPlotInstance(originalPlot: any): any {
-  if (!originalPlot || (originalPlot as any).__isWrapped) {
+  if (!originalPlot || originalPlot.__isWrapped) {
     return originalPlot;
   }
 
@@ -172,7 +180,7 @@ function wrapPlotInstance(originalPlot: any): any {
   };
 
   const proxy = new Proxy(originalPlot, handler);
-  (proxy as any).__isWrapped = true;
+  proxy.__isWrapped = true;
   return proxy;
 }
 
@@ -216,7 +224,7 @@ export function createCustomFetch(app: any, obsidianModule: any, sourcePath: str
         ? input
         : input instanceof URL
         ? input.toString()
-        : (input as Request).url;
+        : input.url;
 
     if (/^https?:\/\//i.test(urlString)) {
       if (obsidianModule && typeof obsidianModule.requestUrl === 'function') {
@@ -247,10 +255,10 @@ export function createCustomFetch(app: any, obsidianModule: any, sourcePath: str
 
     if (app?.vault) {
       if (typeof app.vault.getAbstractFileByPath === 'function') {
-        file = app.vault.getAbstractFileByPath(normalizedPath) as TFile;
+        file = toTFile(app.vault.getAbstractFileByPath(normalizedPath));
       }
       if (!file && app.metadataCache && typeof app.metadataCache.getFirstLinkpathDest === 'function') {
-        file = app.metadataCache.getFirstLinkpathDest(normalizedPath, sourcePath) as TFile;
+        file = toTFile(app.metadataCache.getFirstLinkpathDest(normalizedPath, sourcePath));
       }
 
       if (file) {
@@ -880,18 +888,18 @@ export default class Renderer {
         if (app) {
           if (explicitFileRef) {
             if (app.metadataCache?.getFirstLinkpathDest) {
-              targetFile = app.metadataCache.getFirstLinkpathDest(explicitFileRef, sourcePath) as TFile;
+              targetFile = toTFile(app.metadataCache.getFirstLinkpathDest(explicitFileRef, sourcePath));
             }
             if (!targetFile && app.vault?.getAbstractFileByPath) {
-              targetFile = app.vault.getAbstractFileByPath(
+              targetFile = toTFile(app.vault.getAbstractFileByPath(
                 explicitFileRef.endsWith('.md') ? explicitFileRef : `${explicitFileRef}.md`
-              ) as TFile;
+              ));
             }
           } else if (sourcePath && app.vault?.getAbstractFileByPath) {
-            targetFile = app.vault.getAbstractFileByPath(sourcePath) as TFile;
+            targetFile = toTFile(app.vault.getAbstractFileByPath(sourcePath));
           }
           if (!targetFile && app.workspace?.getActiveFile) {
-            targetFile = app.workspace.getActiveFile() as TFile;
+            targetFile = toTFile(app.workspace.getActiveFile());
           }
         }
 
@@ -1339,16 +1347,20 @@ class ChartRenderChild extends MarkdownRenderChild {
         let activeFile = this.renderer.plugin.app?.workspace?.getActiveFile() ?? null;
         let activePath = activeFile ? activeFile.path : '';
         let linkDest: TFile | null = this.data.file
-          ? (this.renderer.plugin.app?.metadataCache?.getFirstLinkpathDest(
-              this.data.file,
-              activePath
-            ) ?? null)
+          ? toTFile(
+              this.renderer.plugin.app?.metadataCache?.getFirstLinkpathDest(
+                this.data.file,
+                activePath
+              )
+            )
           : null;
-        const fileToRead = (this.data.file
-          ? linkDest
-          : this.renderer.plugin.app?.vault?.getAbstractFileByPath(
-              this.ownPath
-            ) ?? activeFile) as TFile | null;
+        const fileToRead = toTFile(
+          this.data.file
+            ? linkDest
+            : this.renderer.plugin.app?.vault?.getAbstractFileByPath(
+                this.ownPath
+              ) ?? activeFile
+        );
 
         if (!fileToRead) {
           throw new Error('Invalid id and/or file');

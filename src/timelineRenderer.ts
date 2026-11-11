@@ -133,7 +133,7 @@ export function renderWikilinksToDom(text: string, targetEl: HTMLElement): void 
     }
     const target = match[1].trim();
     const alias = match[2] ? match[2].trim() : target;
-    const a = document.createElement('a');
+    const a = createEl('a');
     a.className = 'internal-link';
     a.setAttribute('data-href', target);
     a.setAttribute('href', target);
@@ -154,9 +154,10 @@ function ensureIsShownPolyfill() {
   if (typeof Element !== 'undefined' && !('isShown' in Element.prototype)) {
     Object.defineProperty(Element.prototype, 'isShown', {
       value: function (this: Element) {
+        const Ctor = this.ownerDocument?.defaultView?.HTMLElement;
         const isHtml = typeof (this as any).instanceOf === 'function'
           ? (this as any).instanceOf(HTMLElement)
-          : (this.ownerDocument?.defaultView ? this instanceof this.ownerDocument.defaultView.HTMLElement : this instanceof HTMLElement);
+          : (Ctor ? this instanceof Ctor : (typeof HTMLElement !== 'undefined' && (this as any).constructor?.name === 'HTMLElement'));
         if (typeof (HTMLElement.prototype as any)?.isShown === 'function' && isHtml) {
           return (HTMLElement.prototype as any).isShown.call(this);
         }
@@ -284,7 +285,7 @@ function renderCollectionsNode(
   showTooltip: (event: MouseEvent, title: string, details?: any) => void,
   hideTooltip: () => void
 ) {
-  const node = colsG.node() as SVGColsGroupElement | null;
+  const node: SVGColsGroupElement | null = colsG.node();
   const requiredWidth = evt.collections.length * circleRadius * 2.3;
   const isCollapsed = evt.collections.length > 1 && barWidth < requiredWidth + 10;
 
@@ -566,7 +567,7 @@ export async function renderTimelineBlockAsync(
   app?: any
 ): Promise<void> {
   ensureIsShownPolyfill();
-  const wrapper = document.createElement('div');
+  const wrapper = createDiv();
   // Replaced backdrop-blur-md and transition-all with solid bg-card and transition-shadow
   // to prevent heavy rasterization/paint cycles during mouse interaction.
   wrapper.className = 'timeline-wrapper relative group/chart w-full my-4 p-4 rounded-xl border border-border/20 bg-card shadow-sm transition-shadow duration-200 hover:shadow-md overflow-x-auto thin-scrollbar';
@@ -575,11 +576,11 @@ export async function renderTimelineBlockAsync(
   try {
     parsedData = await resolveTimelineData(code, ctx, app);
   } catch (err: any) {
-    const errorNotice = document.createElement('div');
+    const errorNotice = createDiv();
     errorNotice.className = 'chart-error my-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm';
     errorNotice.textContent = `Unable to render timeline chart: ${err?.message || err}`;
 
-    const rawCode = document.createElement('pre');
+    const rawCode = createEl('pre');
     rawCode.className = 'p-3 bg-muted rounded text-xs overflow-x-auto font-mono';
     rawCode.textContent = code;
 
@@ -590,20 +591,20 @@ export async function renderTimelineBlockAsync(
 
   let activeCategoryState = parsedData.activeCategory;
 
-  const chartContainer = document.createElement('div');
+  const chartContainer = createDiv();
   chartContainer.className = 'timeline-chart-container w-full flex flex-col justify-center items-center relative overflow-x-auto';
 
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const svg = createSvg('svg');
   svg.setAttribute('aria-label', 'Zoomable Event Timeline Chart');
   svg.setAttribute('class', 'timeline-svg w-full cursor-grab active:cursor-grabbing min-h-60');
 
   chartContainer.appendChild(svg);
   wrapper.appendChild(chartContainer);
 
-  const actionBtnsGroup = document.createElement('div');
+  const actionBtnsGroup = createDiv();
   actionBtnsGroup.className = 'timeline-action-btns absolute right-3 top-3 z-10 opacity-0 group-hover/chart:opacity-100 group-focus-within/chart:opacity-100 transition-opacity duration-200 flex items-center gap-1';
 
-  const copyBtn = document.createElement('button');
+  const copyBtn = createEl('button');
   copyBtn.className = 'timeline-btn timeline-copy-btn p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/20 transition-colors';
   copyBtn.title = 'Copy timeline data';
   setTlButtonIcon(copyBtn, createTlCopyIcon());
@@ -620,7 +621,7 @@ export async function renderTimelineBlockAsync(
     })();
   });
 
-  const downloadBtn = document.createElement('button');
+  const downloadBtn = createEl('button');
   downloadBtn.className = 'timeline-btn timeline-download-btn p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/20 transition-colors';
   downloadBtn.title = 'Download SVG';
   setTlButtonIcon(downloadBtn, createTlDownloadIcon());
@@ -632,7 +633,7 @@ export async function renderTimelineBlockAsync(
       const svgData = new XMLSerializer().serializeToString(svgCloned);
       const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = createEl('a');
       a.href = url;
       a.download = 'timeline.svg';
       document.body.appendChild(a);
@@ -648,7 +649,7 @@ export async function renderTimelineBlockAsync(
   actionBtnsGroup.appendChild(downloadBtn);
   chartContainer.appendChild(actionBtnsGroup);
 
-  const controlsDiv = document.createElement('div');
+  const controlsDiv = createDiv();
   controlsDiv.className = 'timeline-category-controls flex items-center gap-4 mt-3 px-2 pt-2 border-t border-border/10 text-xs font-medium text-muted-foreground select-none';
 
   function renderCategoryRadioGroup() {
@@ -662,10 +663,10 @@ export async function renderTimelineBlockAsync(
 
     parsedData.categories.forEach((catKey) => {
       const isChecked = catKey === activeCategoryState;
-      const label = document.createElement('label');
+      const label = createEl('label');
       label.className = `inline-flex items-center gap-1.5 cursor-pointer transition-colors hover:text-foreground ${isChecked ? 'text-primary font-semibold' : ''}`;
 
-      const input = document.createElement('input');
+      const input = createEl('input');
       input.type = 'radio';
       input.name = radioGroupName;
       input.value = catKey;
@@ -678,7 +679,7 @@ export async function renderTimelineBlockAsync(
         renderChart();
       });
 
-      const span = document.createElement('span');
+      const span = createSpan();
       span.textContent = catKey;
 
       label.appendChild(input);
@@ -700,7 +701,7 @@ export async function renderTimelineBlockAsync(
   let ttSub: HTMLDivElement;
 
   if (!tooltip) {
-    tooltip = document.createElement('div');
+    tooltip = createDiv();
     tooltip.className = 'timeline-tooltip absolute opacity-0 transition-opacity duration-100 z-30 px-3 py-2 text-xs rounded-lg shadow-xl bg-popover text-popover-foreground border border-border/30 max-w-xs';
     tooltip.style.position = 'absolute';
     tooltip.style.pointerEvents = 'none';
@@ -709,26 +710,26 @@ export async function renderTimelineBlockAsync(
     tooltip.style.top = '0px';
     tooltip.style.willChange = 'transform, opacity';
 
-    ttTitle = document.createElement('div');
+    ttTitle = createDiv();
     ttTitle.className = 'font-bold text-sm mb-1 text-foreground tt-title';
     tooltip.appendChild(ttTitle);
 
-    ttCat = document.createElement('div');
+    ttCat = createDiv();
     ttCat.className = 'text-xs font-semibold mb-1.5 tt-cat';
     ttCat.style.display = 'none';
     tooltip.appendChild(ttCat);
 
-    ttDate = document.createElement('div');
+    ttDate = createDiv();
     ttDate.className = 'inline-block px-2.5 py-0.5 text-[11px] font-mono rounded-md bg-muted/60 border border-border/30 text-muted-foreground mb-1 tt-date';
     ttDate.style.display = 'none';
     tooltip.appendChild(ttDate);
 
-    ttList = document.createElement('div');
+    ttList = createDiv();
     ttList.className = 'mt-1 pt-1 border-t border-border/20 text-xs font-mono text-primary flex flex-wrap gap-1 tt-items';
     ttList.style.display = 'none';
     tooltip.appendChild(ttList);
 
-    ttSub = document.createElement('div');
+    ttSub = createDiv();
     ttSub.className = 'text-xs text-muted-foreground mb-1 tt-sub';
     ttSub.style.display = 'none';
     tooltip.appendChild(ttSub);
@@ -893,7 +894,7 @@ export async function renderTimelineBlockAsync(
         if (details.items && details.items.length > 0) {
           ttList.replaceChildren();
           details.items.forEach((it) => {
-            const badge = document.createElement('span');
+            const badge = createSpan();
             badge.className = 'px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-[10px]';
             badge.textContent = String(it);
             ttList.appendChild(badge);
@@ -1126,8 +1127,8 @@ export async function renderTimelineBlockAsync(
     gridG.call(timeGrid);
     gridG.select('.domain').attr('display', 'none');
 
-    preventTickOverlap(axisTopG.node() as SVGGElement);
-    preventTickOverlap(axisBottomG.node() as SVGGElement);
+    preventTickOverlap(axisTopG.node());
+    preventTickOverlap(axisBottomG.node());
 
     const legendHeight = 35;
     const legendY = height - legendHeight - 10;
@@ -1174,7 +1175,7 @@ export async function renderTimelineBlockAsync(
         .attr('fill', 'var(--text-muted, #64748b)')
         .text(catVal);
 
-      const textNodeEl = textNode.node() as SVGTextElement | null;
+      const textNodeEl = textNode.node();
       const measured = typeof textNodeEl?.getComputedTextLength === 'function' ? textNodeEl.getComputedTextLength() : 0;
       const textWidth = measured > 0 ? measured : catVal.length * 7.5;
 
@@ -1247,8 +1248,8 @@ export async function renderTimelineBlockAsync(
         .attr('fill', '#d97706')
         .text('Today');
 
-      nowLineNode = nowLine.node() as SVGLineElement | null;
-      nowLabelNode = nowLabel.node() as SVGTextElement | null;
+      nowLineNode = nowLine.node();
+      nowLabelNode = nowLabel.node();
     }
 
     // High-performance needle cursor indicator
@@ -1483,8 +1484,8 @@ export async function renderTimelineBlockAsync(
       axisBottomG.call(timeAxisBottom);
       gridG.call(timeGrid);
 
-      preventTickOverlap(axisTopG.node() as SVGGElement);
-      preventTickOverlap(axisBottomG.node() as SVGGElement);
+      preventTickOverlap(axisTopG.node());
+      preventTickOverlap(axisBottomG.node());
 
       if (nowG && nowLineNode && nowLabelNode) {
         const nowX = k * baseNowX + tx;

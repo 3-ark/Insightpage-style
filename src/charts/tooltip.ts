@@ -6,7 +6,7 @@ export function getOrCreateTooltip(container: HTMLElement): HTMLElement {
   if (!tooltip || !container.contains(tooltip)) {
     tooltip = (container.querySelector(':scope > .chart-plot-tooltip') as HTMLElement) || undefined;
     if (!tooltip) {
-      tooltip = document.createElement('div');
+      tooltip = createDiv();
       tooltip.className = 'chart-plot-tooltip';
       tooltip.style.position = 'absolute';
       tooltip.style.pointerEvents = 'none';

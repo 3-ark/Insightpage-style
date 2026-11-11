@@ -47,7 +47,7 @@ export function createAdaptiveTickFormatter(
     const eraYear = formatEraYear(dateVal.getFullYear());
 
     if (customFormatters && customFormatters[granularity]) {
-      const fmtStr = customFormatters[granularity]!;
+      const fmtStr = customFormatters[granularity];
       return d3.timeFormat(fmtStr)(dateVal).replace('%ERA_YEAR%', eraYear);
     }
 

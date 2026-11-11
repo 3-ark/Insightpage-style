@@ -19,7 +19,7 @@ export function renderPieChart(
   getD3: () => typeof import('d3')
 ) {
   const type = String(yaml.type ?? 'bar').trim().toLowerCase();
-  const container = document.createElement('div');
+  const container = createDiv();
   container.style.position = 'relative';
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
@@ -32,7 +32,7 @@ export function renderPieChart(
   const caption = yaml.caption;
 
   if (title) {
-    const titleEl = document.createElement('h2');
+    const titleEl = createEl('h2');
     titleEl.textContent = String(title);
     titleEl.style.margin = '0 0 4px 0';
     titleEl.style.fontSize = '1.15em';
@@ -43,7 +43,7 @@ export function renderPieChart(
   }
 
   if (subtitle) {
-    const subEl = document.createElement('h3');
+    const subEl = createEl('h3');
     subEl.textContent = String(subtitle);
     subEl.style.margin = '0 0 8px 0';
     subEl.style.fontSize = '0.9em';
@@ -74,7 +74,7 @@ export function renderPieChart(
     .value((d) => Math.max(0, d.y))
     .sort(null);
 
-  const arcs = pie(pieData as any);
+  const arcs = pie(pieData);
   const arcGen = d3Inst
     .arc<any>()
     .innerRadius(isDoughnut ? radius * 0.5 : 0)
@@ -120,7 +120,7 @@ export function renderPieChart(
 
   // Legend
   if (yaml.legend !== false) {
-    const legendDiv = document.createElement('div');
+    const legendDiv = createDiv();
     legendDiv.style.display = 'flex';
     legendDiv.style.flexWrap = 'wrap';
     legendDiv.style.justifyContent = 'center';
@@ -133,18 +133,18 @@ export function renderPieChart(
     const hasMultipleSeries = dataPoints.some((d) => d.seriesIndex > 0);
 
     legendItems.forEach((item, idx) => {
-      const itemDiv = document.createElement('div');
+      const itemDiv = createDiv();
       itemDiv.style.display = 'flex';
       itemDiv.style.alignItems = 'center';
       itemDiv.style.gap = '4px';
 
-      const swatch = document.createElement('span');
+      const swatch = createSpan();
       swatch.style.width = '12px';
       swatch.style.height = '12px';
       swatch.style.borderRadius = '2px';
       swatch.style.backgroundColor = baseColors[idx % baseColors.length];
 
-      const textSpan = document.createElement('span');
+      const textSpan = createSpan();
       textSpan.textContent = hasMultipleSeries && item.series ? `${item.x} (${item.series})` : String(item.x);
 
       itemDiv.appendChild(swatch);
@@ -155,7 +155,7 @@ export function renderPieChart(
   }
 
   if (caption) {
-    const capEl = document.createElement('div');
+    const capEl = createDiv();
     capEl.textContent = String(caption);
     capEl.style.marginTop = '6px';
     capEl.style.fontSize = '0.85em';

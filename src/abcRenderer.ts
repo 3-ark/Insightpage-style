@@ -103,10 +103,10 @@ function setButtonIcon(btn: HTMLElement, iconEl: Node): void {
 
 export function renderAbcBlock(source: string, container: HTMLElement): void {
   const abcjs = getAbcjs();
-  const wrapper = document.createElement('div');
+  const wrapper = createDiv();
   wrapper.className = 'abcjs-wrapper';
 
-  const sheetContainer = document.createElement('div');
+  const sheetContainer = createDiv();
   sheetContainer.className = 'abcjs-sheet-container';
 
   let visualObj: any = null;
@@ -119,7 +119,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       visualObj = renderResult[0];
     }
   } catch (err) {
-    const errDiv = document.createElement('div');
+    const errDiv = createDiv();
     errDiv.className = 'chart-error';
     errDiv.textContent = `ABC Render Error: ${err}`;
     container.appendChild(errDiv);
@@ -166,28 +166,28 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
     }
   };
 
-  const controlsBar = document.createElement('div');
+  const controlsBar = createDiv();
   controlsBar.className = 'abcjs-controls-bar';
 
   // Left controls group (Play / Stop / Restart)
-  const leftBtns = document.createElement('div');
+  const leftBtns = createDiv();
   leftBtns.className = 'abcjs-left-controls';
 
   // Play / Pause Button
-  const playPauseBtn = document.createElement('button');
+  const playPauseBtn = createEl('button');
   playPauseBtn.className = 'abcjs-btn abcjs-play-btn';
   playPauseBtn.title = 'Play';
   setButtonIcon(playPauseBtn, createPlayIcon());
 
   // Stop Button
-  const stopBtn = document.createElement('button');
+  const stopBtn = createEl('button');
   stopBtn.className = 'abcjs-btn abcjs-stop-btn';
   stopBtn.title = 'Stop';
   setButtonIcon(stopBtn, createStopIcon());
   stopBtn.disabled = true;
 
   // Restart Button
-  const restartBtn = document.createElement('button');
+  const restartBtn = createEl('button');
   restartBtn.className = 'abcjs-btn abcjs-restart-btn';
   restartBtn.title = 'Start from beginning';
   setButtonIcon(restartBtn, createRestartIcon());
@@ -198,16 +198,16 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   leftBtns.appendChild(restartBtn);
 
   // Progress container group (Time Label / Progress Slider / Duration Label)
-  const progressContainer = document.createElement('div');
+  const progressContainer = createDiv();
   progressContainer.className = 'abcjs-progress-container';
 
   // Current Time Label
-  const currentTimeEl = document.createElement('span');
+  const currentTimeEl = createSpan();
   currentTimeEl.className = 'abcjs-time-label';
   currentTimeEl.textContent = '0:00';
 
   // Progress Bar
-  const progressSlider = document.createElement('input');
+  const progressSlider = createEl('input');
   progressSlider.type = 'range';
   progressSlider.className = 'abcjs-progress-slider';
   progressSlider.min = '0';
@@ -217,7 +217,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   progressSlider.disabled = true;
 
   // Duration Label
-  const durationEl = document.createElement('span');
+  const durationEl = createSpan();
   durationEl.className = 'abcjs-time-label';
   durationEl.textContent = '0:00';
 
@@ -226,11 +226,11 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   progressContainer.appendChild(durationEl);
 
   // Right side buttons container
-  const rightBtns = document.createElement('div');
+  const rightBtns = createDiv();
   rightBtns.className = 'abcjs-right-controls';
 
   // MIDI Download Button
-  const downloadBtn = document.createElement('button');
+  const downloadBtn = createEl('button');
   downloadBtn.className = 'abcjs-btn abcjs-download-btn';
   downloadBtn.title = 'Download MIDI';
   setButtonIcon(downloadBtn, createDownloadIcon());
@@ -241,7 +241,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       const midiData = abcjs.synth.getMidiFile(source.trim(), { midiOutputType: 'encoded' });
       if (!midiData) return;
       const dataUrl = Array.isArray(midiData) ? midiData[0] : midiData;
-      const a = document.createElement('a');
+      const a = createEl('a');
       a.href = dataUrl;
       a.download = 'sheet-music.midi';
       document.body.appendChild(a);
@@ -253,7 +253,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   });
 
   // Copy Sheet Music Button
-  const copyBtn = document.createElement('button');
+  const copyBtn = createEl('button');
   copyBtn.className = 'abcjs-btn abcjs-copy-btn';
   copyBtn.title = 'Copy ABC source';
   setButtonIcon(copyBtn, createCopyIcon());
@@ -314,8 +314,8 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   }
 
   const syncProgress = () => {
-    if (synthController && (synthController as any).midiBuffer) {
-      totalDuration = (synthController as any).midiBuffer.duration || totalDuration || 0;
+    if (synthController && synthController.midiBuffer) {
+      totalDuration = synthController.midiBuffer.duration || totalDuration || 0;
       if (totalDuration > 0) {
         progressSlider.max = totalDuration.toString();
         durationEl.textContent = formatTime(totalDuration);
@@ -376,12 +376,12 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       },
     };
 
-    (sc as any).cursorControl = cursorControl;
+    sc.cursorControl = cursorControl;
 
     await sc.setTune(visualObj, false, {});
 
     synthController = sc;
-    totalDuration = (sc as any).midiBuffer?.duration || 0;
+    totalDuration = sc.midiBuffer?.duration || 0;
     if (totalDuration > 0) {
       durationEl.textContent = formatTime(totalDuration);
       progressSlider.max = totalDuration.toString();

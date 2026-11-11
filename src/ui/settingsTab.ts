@@ -74,7 +74,7 @@ export class ChartSettingTab extends PluginSettingTab {
               );
 
               plugin.settings.colors.forEach((color, idx) => {
-                const nameEl = document.createDocumentFragment();
+                const nameEl = createFragment();
                 nameEl.createSpan({ text: '●', attr: { style: `color: ${color}` } });
                 nameEl.appendText(` Color #${idx + 1}`);
                 new Setting(containerEl)

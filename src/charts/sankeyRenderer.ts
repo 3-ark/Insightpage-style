@@ -9,7 +9,7 @@ export function renderSankeyChart(
   textColor: string,
   widthStr: string
 ) {
-  const container = document.createElement('div');
+  const container = createDiv();
   container.style.position = 'relative';
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
@@ -22,7 +22,7 @@ export function renderSankeyChart(
   const caption = yaml.caption;
 
   if (title) {
-    const titleEl = document.createElement('h2');
+    const titleEl = createEl('h2');
     titleEl.textContent = String(title);
     titleEl.style.margin = '0 0 4px 0';
     titleEl.style.fontSize = '1.15em';
@@ -33,7 +33,7 @@ export function renderSankeyChart(
   }
 
   if (subtitle) {
-    const subEl = document.createElement('h3');
+    const subEl = createEl('h3');
     subEl.textContent = String(subtitle);
     subEl.style.margin = '0 0 8px 0';
     subEl.style.fontSize = '0.9em';
@@ -396,7 +396,7 @@ export function renderSankeyChart(
   container.appendChild(svg);
 
   if (caption) {
-    const capEl = document.createElement('div');
+    const capEl = createDiv();
     capEl.textContent = String(caption);
     capEl.style.marginTop = '6px';
     capEl.style.fontSize = '0.85em';
