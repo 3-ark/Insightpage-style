@@ -80,6 +80,20 @@ export function setupDomPolyfills(win?: any) {
           this.appendChild(el);
           return el;
         };
+        proto.setCssStyles = function (styles: Partial<CSSStyleDeclaration>) {
+          if (this.style && styles) {
+            Object.assign(this.style, styles);
+          }
+        };
+        proto.setCssProps = function (props: Record<string, string>) {
+          if (this.style && props) {
+            for (const [k, v] of Object.entries(props)) {
+              if (v === null || v === '') {
+                this.style.removeProperty(k);
+              } else {
+                this.style.setProperty(k, v);
+              }
+            }
         proto.empty = function () {
           while (this.firstChild) {
             this.removeChild(this.firstChild);

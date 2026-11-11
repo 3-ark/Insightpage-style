@@ -196,10 +196,9 @@ export function preventTickOverlap(axisGNode: SVGGElement | null, minGapPx = 12)
     const left = x - width / 2;
     const right = x + width / 2;
 
-    if (left < lastRight + minGapPx) {
-      el.style.display = 'none';
-    } else {
-      el.style.display = '';
+    const shouldHide = left < lastRight + minGapPx;
+    el.classList.toggle('is-hidden', shouldHide);
+    if (!shouldHide) {
       lastRight = right;
     }
   }

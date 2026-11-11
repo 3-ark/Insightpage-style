@@ -158,8 +158,6 @@ export default class ChartPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('loading plugin: insightpage-style');
-
     await this.loadSettings();
 
     this.renderer = new Renderer(this);
@@ -338,7 +336,6 @@ export default class ChartPlugin extends Plugin {
   }
 
   onunload() {
-    console.log('unloading plugin: insightpage-style');
     try {
       delete (window as any).Plot;
       delete (window as any).d3;

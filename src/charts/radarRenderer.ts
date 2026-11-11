@@ -13,12 +13,7 @@ export function renderRadarChart(
   getD3: () => typeof import('d3')
 ) {
   const type = String(yaml.type ?? 'bar').trim().toLowerCase();
-  const container = createDiv();
-  container.style.position = 'relative';
-  container.style.display = 'flex';
-  container.style.flexDirection = 'column';
-  container.style.alignItems = 'center';
-  container.style.width = '100%';
+  const container = createDiv({ cls: 'chart-relative-container' });
 
   // Unified Title, Subtitle, Caption support
   const title = yaml.title ?? yaml.chartTitle;
@@ -26,25 +21,16 @@ export function renderRadarChart(
   const caption = yaml.caption;
 
   if (title) {
-    const titleEl = createEl('h2');
+    const titleEl = createEl('h2', { cls: 'chart-heading-title' });
     titleEl.textContent = String(title);
-    titleEl.style.margin = '0 0 4px 0';
-    titleEl.style.fontSize = '1.15em';
-    titleEl.style.fontWeight = '600';
     titleEl.style.color = textColor;
-    titleEl.style.textAlign = 'center';
     container.appendChild(titleEl);
   }
 
   if (subtitle) {
-    const subEl = createEl('h3');
+    const subEl = createEl('h3', { cls: 'chart-heading-subtitle' });
     subEl.textContent = String(subtitle);
-    subEl.style.margin = '0 0 8px 0';
-    subEl.style.fontSize = '0.9em';
-    subEl.style.fontWeight = 'normal';
-    subEl.style.opacity = '0.75';
     subEl.style.color = textColor;
-    subEl.style.textAlign = 'center';
     container.appendChild(subEl);
   }
 
@@ -74,10 +60,10 @@ export function renderRadarChart(
   const rScale = d3Inst.scaleLinear().domain([minYVal, effectiveMaxY]).range([0, maxRadius]);
 
   const svg = document.createElementNS(svgNs, 'svg');
+  svg.setAttribute('class', 'chart-interactive-svg');
   svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
   svg.setAttribute('width', `${size}`);
   svg.setAttribute('height', `${size}`);
-  svg.style.maxWidth = '100%';
 
   const g = document.createElementNS(svgNs, 'g');
   g.setAttribute('transform', `translate(${center}, ${center})`);
@@ -156,10 +142,7 @@ export function renderRadarChart(
       path.setAttribute('fill', seriesInnerColor);
       path.setAttribute('stroke', seriesColor);
       path.setAttribute('stroke-width', '2');
-      path.style.cursor = 'pointer';
-      path.style.transition = 'opacity 0.2s';
-      path.addEventListener('mouseenter', () => (path.style.opacity = '0.7'));
-      path.addEventListener('mouseleave', () => (path.style.opacity = '1'));
+      path.setAttribute('class', 'chart-interactive-path');
 
       const tooltipText = `${seriesName}\n${pts.map((p) => `${p.x}: ${p.y}`).join('\n')}`;
       bindPlotStyleTooltip(path, container, () => tooltipText);
@@ -175,7 +158,7 @@ export function renderRadarChart(
         dot.setAttribute('cy', `${p[1]}`);
         dot.setAttribute('r', '4');
         dot.setAttribute('fill', seriesColor);
-        dot.style.cursor = 'pointer';
+        dot.setAttribute('class', 'chart-interactive-dot');
         bindPlotStyleTooltip(dot, container, () => `${seriesName}\n${catLabel}: ${pt.y}`);
         g.appendChild(dot);
       });
@@ -208,10 +191,7 @@ export function renderRadarChart(
           path.setAttribute('fill', innerColor);
           path.setAttribute('stroke', color);
           path.setAttribute('stroke-width', '1');
-          path.style.cursor = 'pointer';
-          path.style.transition = 'opacity 0.2s';
-          path.addEventListener('mouseenter', () => (path.style.opacity = '0.7'));
-          path.addEventListener('mouseleave', () => (path.style.opacity = '1'));
+          path.setAttribute('class', 'chart-interactive-path');
 
           const tooltipPrefix = isSingleSeriesPolarArea && (seriesName.startsWith('Series ') || !seriesName)
             ? ''
@@ -229,27 +209,15 @@ export function renderRadarChart(
 
   // Legend
   if (yaml.legend !== false && seriesMap.size > 0) {
-    const legendDiv = createDiv();
-    legendDiv.style.display = 'flex';
-    legendDiv.style.flexWrap = 'wrap';
-    legendDiv.style.justifyContent = 'center';
-    legendDiv.style.gap = '12px';
-    legendDiv.style.marginTop = '8px';
-    legendDiv.style.fontSize = '12px';
+    const legendDiv = createDiv({ cls: 'chart-legend-container' });
     legendDiv.style.color = textColor;
 
     if (isSingleSeriesPolarArea) {
       // For single top-category polar area chart, show each category in the legend
       categoryLabels.forEach((label, lIdx) => {
-        const itemDiv = createDiv();
-        itemDiv.style.display = 'flex';
-        itemDiv.style.alignItems = 'center';
-        itemDiv.style.gap = '4px';
+        const itemDiv = createDiv({ cls: 'chart-legend-item' });
 
-        const swatch = createSpan();
-        swatch.style.width = '12px';
-        swatch.style.height = '12px';
-        swatch.style.borderRadius = '2px';
+        const swatch = createSpan({ cls: 'chart-legend-swatch' });
         swatch.style.backgroundColor = baseColors[lIdx % baseColors.length];
 
         const textSpan = createSpan();
@@ -262,15 +230,9 @@ export function renderRadarChart(
     } else {
       let lIdx = 0;
       seriesMap.forEach((_, name) => {
-        const itemDiv = createDiv();
-        itemDiv.style.display = 'flex';
-        itemDiv.style.alignItems = 'center';
-        itemDiv.style.gap = '4px';
+        const itemDiv = createDiv({ cls: 'chart-legend-item' });
 
-        const swatch = createSpan();
-        swatch.style.width = '12px';
-        swatch.style.height = '12px';
-        swatch.style.borderRadius = '2px';
+        const swatch = createSpan({ cls: 'chart-legend-swatch' });
         swatch.style.backgroundColor = baseColors[lIdx % baseColors.length];
 
         const textSpan = createSpan();
@@ -286,13 +248,9 @@ export function renderRadarChart(
   }
 
   if (caption) {
-    const capEl = createDiv();
+    const capEl = createDiv({ cls: 'chart-caption-text' });
     capEl.textContent = String(caption);
-    capEl.style.marginTop = '6px';
-    capEl.style.fontSize = '0.85em';
-    capEl.style.opacity = '0.7';
     capEl.style.color = textColor;
-    capEl.style.textAlign = 'center';
     container.appendChild(capEl);
   }
 

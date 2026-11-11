@@ -9,12 +9,7 @@ export function renderSankeyChart(
   textColor: string,
   widthStr: string
 ) {
-  const container = createDiv();
-  container.style.position = 'relative';
-  container.style.display = 'flex';
-  container.style.flexDirection = 'column';
-  container.style.alignItems = 'center';
-  container.style.width = '100%';
+  const container = createDiv({ cls: 'chart-relative-container' });
 
   // Unified Title, Subtitle, Caption support
   const title = yaml.title ?? yaml.chartTitle;
@@ -22,25 +17,16 @@ export function renderSankeyChart(
   const caption = yaml.caption;
 
   if (title) {
-    const titleEl = createEl('h2');
+    const titleEl = createEl('h2', { cls: 'chart-heading-title' });
     titleEl.textContent = String(title);
-    titleEl.style.margin = '0 0 4px 0';
-    titleEl.style.fontSize = '1.15em';
-    titleEl.style.fontWeight = '600';
     titleEl.style.color = textColor;
-    titleEl.style.textAlign = 'center';
     container.appendChild(titleEl);
   }
 
   if (subtitle) {
-    const subEl = createEl('h3');
+    const subEl = createEl('h3', { cls: 'chart-heading-subtitle' });
     subEl.textContent = String(subtitle);
-    subEl.style.margin = '0 0 8px 0';
-    subEl.style.fontSize = '0.9em';
-    subEl.style.fontWeight = 'normal';
-    subEl.style.opacity = '0.75';
     subEl.style.color = textColor;
-    subEl.style.textAlign = 'center';
     container.appendChild(subEl);
   }
 
@@ -346,8 +332,7 @@ export function renderSankeyChart(
     path.setAttribute('stroke', strokeColor);
     path.setAttribute('stroke-width', `${linkStrokeWidth}`);
     path.setAttribute('stroke-opacity', '0.5');
-    path.style.cursor = 'pointer';
-    path.style.transition = 'stroke-opacity 0.2s';
+    path.setAttribute('class', 'chart-sankey-link');
     path.addEventListener('mouseenter', () => path.setAttribute('stroke-opacity', '0.85'));
     path.addEventListener('mouseleave', () => path.setAttribute('stroke-opacity', '0.5'));
 
@@ -368,7 +353,7 @@ export function renderSankeyChart(
     rect.setAttribute('height', `${coord.height}`);
     rect.setAttribute('fill', nodeColor);
     rect.setAttribute('rx', '2');
-    rect.style.cursor = 'pointer';
+    rect.setAttribute('class', 'chart-sankey-node');
 
     bindPlotStyleTooltip(rect, container, () => `${n}\nTotal Flow: ${nodeValues[n]}`);
     svg.appendChild(rect);
@@ -396,13 +381,9 @@ export function renderSankeyChart(
   container.appendChild(svg);
 
   if (caption) {
-    const capEl = createDiv();
+    const capEl = createDiv({ cls: 'chart-caption-text' });
     capEl.textContent = String(caption);
-    capEl.style.marginTop = '6px';
-    capEl.style.fontSize = '0.85em';
-    capEl.style.opacity = '0.7';
     capEl.style.color = textColor;
-    capEl.style.textAlign = 'center';
     container.appendChild(capEl);
   }
 

@@ -217,12 +217,12 @@ test('pie/donut, radar, and sankey paths create and display Plot-style tooltip o
 
   const tooltip = donutContainer.querySelector('.chart-plot-tooltip') as HTMLElement;
   assert.notEqual(tooltip, null, 'Tooltip div should be created');
-  assert.equal(tooltip.style.display, 'block');
+  assert.ok(tooltip.classList.contains('is-visible'));
   assert.ok(tooltip.textContent?.includes('Apples: 15'));
 
   const leaveEvent = new dom.window.MouseEvent('mouseleave');
   path.dispatchEvent(leaveEvent);
-  assert.equal(tooltip.style.display, 'none');
+  assert.ok(!tooltip.classList.contains('is-visible'));
 
   // 2. Test Radar tooltip
   const radarContainer = document.createElement('div');
@@ -588,10 +588,9 @@ test('custom chart containers (pie, donut, radar, sankey) have position: relativ
   for (const chartConfig of chartTypes) {
     const prep = await renderer.datasetPrep(chartConfig, el);
     assert.ok(prep.customElement instanceof HTMLElement);
-    assert.equal(
-      prep.customElement.style.position,
-      'relative',
-      `Container for ${chartConfig.type} must have position: relative set on datasetPrep`
+    assert.ok(
+      prep.customElement.classList.contains('chart-relative-container'),
+      `Container for ${chartConfig.type} must have chart-relative-container class set on datasetPrep`
     );
   }
 });

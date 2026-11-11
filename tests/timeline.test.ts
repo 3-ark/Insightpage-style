@@ -739,7 +739,7 @@ test('renderTimelineBlock tooltips update on mouse events, parse wikilinks, and 
 
   const tooltip = wrapper.querySelector('.timeline-tooltip') as HTMLElement;
   assert.ok(tooltip, 'Tooltip element should exist');
-  assert.equal(tooltip.style.opacity, '0');
+  assert.ok(tooltip.classList.contains('timeline-tooltip-hidden'));
 
   const eventGroup = wrapper.querySelector('.event-group') as SVGElement;
   assert.ok(eventGroup, 'Event group should exist');
@@ -761,7 +761,7 @@ test('renderTimelineBlock tooltips update on mouse events, parse wikilinks, and 
   });
   eventGroup.dispatchEvent(mouseEnterEvt);
 
-  assert.equal(tooltip.style.opacity, '1', 'Tooltip should be visible on mouseenter');
+  assert.ok(tooltip.classList.contains('timeline-tooltip-visible'), 'Tooltip should be visible on mouseenter');
 
   const link = tooltip.querySelector('a.internal-link') as HTMLElement;
   assert.ok(link, 'Wikilink in tooltip title should render as HTML link');
@@ -786,7 +786,7 @@ test('renderTimelineBlock tooltips update on mouse events, parse wikilinks, and 
   // Wait for 250ms hide timeout delay
   await new Promise((resolve) => setTimeout(resolve, 250));
 
-  assert.equal(tooltip.style.opacity, '0', 'Tooltip should hide after mouseleave delay');
+  assert.ok(tooltip.classList.contains('timeline-tooltip-hidden'), 'Tooltip should hide after mouseleave delay');
 });
 
 test('renderTimelineBlock tooltip positions correctly with scroll and viewport constraints', async () => {

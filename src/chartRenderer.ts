@@ -794,8 +794,8 @@ export default class Renderer {
       // 2. Custom Element from datasetPrep
       if (data.customElement instanceof HTMLElement || data.customElement instanceof SVGElement) {
         if (data.width) {
+          data.customElement.classList.add('chart-centered');
           data.customElement.style.width = data.width;
-          data.customElement.style.margin = 'auto';
         }
         el.appendChild(data.customElement);
         return data.customElement;
@@ -805,8 +805,8 @@ export default class Renderer {
       if (data.plotOptions) {
         const plotEl = getPlot().plot(data.plotOptions);
         if (data.width) {
+          plotEl.classList.add('chart-centered');
           plotEl.style.width = data.width;
-          plotEl.style.margin = 'auto';
         }
         el.appendChild(plotEl);
         return plotEl;

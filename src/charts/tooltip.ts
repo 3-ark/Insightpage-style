@@ -6,28 +6,11 @@ export function getOrCreateTooltip(container: HTMLElement): HTMLElement {
   if (!tooltip || !container.contains(tooltip)) {
     tooltip = (container.querySelector(':scope > .chart-plot-tooltip') as HTMLElement) || undefined;
     if (!tooltip) {
-      tooltip = createDiv();
-      tooltip.className = 'chart-plot-tooltip';
-      tooltip.style.position = 'absolute';
-      tooltip.style.pointerEvents = 'none';
-      tooltip.style.display = 'none';
-      tooltip.style.zIndex = '1000';
-      tooltip.style.padding = '6px 10px';
-      tooltip.style.fontSize = '12px';
-      tooltip.style.fontFamily = 'var(--font-interface, var(--font-text, sans-serif))';
-      tooltip.style.lineHeight = '1.4';
-      tooltip.style.borderRadius = '4px';
-      tooltip.style.backgroundColor = 'var(--background-secondary, #f8f8f8)';
-      tooltip.style.color = 'var(--text-normal, #222222)';
-      tooltip.style.border = '1px solid var(--background-modifier-border, rgba(128, 128, 128, 0.35))';
-      tooltip.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.25)';
-      tooltip.style.whiteSpace = 'pre-wrap';
-      tooltip.style.transition = 'opacity 0.1s ease-in-out';
-      tooltip.style.opacity = '0';
+      tooltip = createDiv({ cls: 'chart-plot-tooltip' });
 
       const currentPos = container.style.position || (container.isConnected ? getComputedStyle(container).position : '');
       if (!currentPos || currentPos === 'static') {
-        container.style.position = 'relative';
+        container.classList.add('chart-relative-container');
       }
       container.appendChild(tooltip);
     }
@@ -81,13 +64,10 @@ export function bindPlotStyleTooltip(
     const text = getTooltipText();
     if (!text) return;
     tooltip.textContent = text;
-    tooltip.style.display = 'block';
+    tooltip.classList.add('is-visible');
     cachedRect = container.getBoundingClientRect();
     cachedWidth = tooltip.offsetWidth;
     cachedHeight = tooltip.offsetHeight;
-    window.requestAnimationFrame(() => {
-      tooltip.style.opacity = '1';
-    });
     positionTooltip(e);
   });
 
@@ -95,7 +75,6 @@ export function bindPlotStyleTooltip(
 
   targetEl.addEventListener('mouseleave', () => {
     cachedRect = null;
-    tooltip.style.opacity = '0';
-    tooltip.style.display = 'none';
+    tooltip.classList.remove('is-visible');
   });
 }

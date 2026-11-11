@@ -134,10 +134,9 @@ export function renderWikilinksToDom(text: string, targetEl: HTMLElement): void 
     const target = match[1].trim();
     const alias = match[2] ? match[2].trim() : target;
     const a = createEl('a');
-    a.className = 'internal-link';
+    a.className = 'internal-link timeline-internal-link';
     a.setAttribute('data-href', target);
     a.setAttribute('href', target);
-    a.setAttribute('style', 'color: var(--link-color, #3b82f6); text-decoration: underline; cursor: pointer;');
     a.textContent = alias;
     targetEl.appendChild(a);
     lastIdx = WIKILINK_PARSE_REGEX.lastIndex;
@@ -154,10 +153,10 @@ function ensureIsShownPolyfill() {
   if (typeof Element !== 'undefined' && !('isShown' in Element.prototype)) {
     Object.defineProperty(Element.prototype, 'isShown', {
       value: function (this: Element) {
-        const Ctor = this.ownerDocument?.defaultView?.HTMLElement;
-        const isHtml = typeof (this as any).instanceOf === 'function'
-          ? (this as any).instanceOf(HTMLElement)
-          : (Ctor ? this instanceof Ctor : (typeof HTMLElement !== 'undefined' && (this as any).constructor?.name === 'HTMLElement'));
+        const Ctor = this.ownerDocument?.defaultView?.HTMLElement || (typeof HTMLElement !== 'undefined' ? HTMLElement : null);
+        const isHtml = typeof (this as any).instanceOf === 'function' && Ctor
+          ? (this as any).instanceOf(Ctor)
+          : (typeof HTMLElement !== 'undefined' && (this as any).constructor?.name === 'HTMLElement');
         if (typeof (HTMLElement.prototype as any)?.isShown === 'function' && isHtml) {
           return (HTMLElement.prototype as any).isShown.call(this);
         }
@@ -655,10 +654,10 @@ export async function renderTimelineBlockAsync(
   function renderCategoryRadioGroup() {
     controlsDiv.replaceChildren();
     if (parsedData.categories.length <= 1) {
-      controlsDiv.style.display = 'none';
+      controlsDiv.classList.add('is-hidden');
       return;
     }
-    controlsDiv.style.display = 'flex';
+    controlsDiv.classList.remove('is-hidden');
     const radioGroupName = `timeline-category-${Math.random().toString(36).slice(2, 11)}`;
 
     parsedData.categories.forEach((catKey) => {
@@ -703,35 +702,26 @@ export async function renderTimelineBlockAsync(
   if (!tooltip) {
     tooltip = createDiv();
     tooltip.className = 'timeline-tooltip absolute opacity-0 transition-opacity duration-100 z-30 px-3 py-2 text-xs rounded-lg shadow-xl bg-popover text-popover-foreground border border-border/30 max-w-xs';
-    tooltip.style.position = 'absolute';
-    tooltip.style.pointerEvents = 'none';
-    tooltip.style.opacity = '0';
-    tooltip.style.left = '0px';
-    tooltip.style.top = '0px';
-    tooltip.style.willChange = 'transform, opacity';
+    tooltip.classList.add('timeline-tooltip-hidden');
 
     ttTitle = createDiv();
     ttTitle.className = 'font-bold text-sm mb-1 text-foreground tt-title';
     tooltip.appendChild(ttTitle);
 
     ttCat = createDiv();
-    ttCat.className = 'text-xs font-semibold mb-1.5 tt-cat';
-    ttCat.style.display = 'none';
+    ttCat.className = 'text-xs font-semibold mb-1.5 tt-cat is-hidden';
     tooltip.appendChild(ttCat);
 
     ttDate = createDiv();
-    ttDate.className = 'inline-block px-2.5 py-0.5 text-[11px] font-mono rounded-md bg-muted/60 border border-border/30 text-muted-foreground mb-1 tt-date';
-    ttDate.style.display = 'none';
+    ttDate.className = 'inline-block px-2.5 py-0.5 text-[11px] font-mono rounded-md bg-muted/60 border border-border/30 text-muted-foreground mb-1 tt-date is-hidden';
     tooltip.appendChild(ttDate);
 
     ttList = createDiv();
-    ttList.className = 'mt-1 pt-1 border-t border-border/20 text-xs font-mono text-primary flex flex-wrap gap-1 tt-items';
-    ttList.style.display = 'none';
+    ttList.className = 'mt-1 pt-1 border-t border-border/20 text-xs font-mono text-primary flex flex-wrap gap-1 tt-items is-hidden';
     tooltip.appendChild(ttList);
 
     ttSub = createDiv();
-    ttSub.className = 'text-xs text-muted-foreground mb-1 tt-sub';
-    ttSub.style.display = 'none';
+    ttSub.className = 'text-xs text-muted-foreground mb-1 tt-sub is-hidden';
     tooltip.appendChild(ttSub);
 
     wrapper.appendChild(tooltip);
@@ -874,21 +864,21 @@ export async function renderTimelineBlockAsync(
       renderWikilinksToDom(title, ttTitle);
 
       if (typeof details === 'object' && details !== null) {
-        ttSub.style.display = 'none';
+        ttSub.classList.add('is-hidden');
 
         if (details.categoryLabel && details.categoryValue) {
-          ttCat.style.display = 'block';
+          ttCat.classList.remove('is-hidden');
           ttCat.style.color = details.categoryColor || 'var(--text-muted, #eab308)';
           ttCat.textContent = `${details.categoryLabel.charAt(0).toUpperCase() + details.categoryLabel.slice(1)}: ${details.categoryValue}`;
         } else {
-          ttCat.style.display = 'none';
+          ttCat.classList.add('is-hidden');
         }
 
         if (details.dateRange) {
-          ttDate.style.display = 'inline-block';
+          ttDate.classList.remove('is-hidden');
           ttDate.textContent = details.dateRange;
         } else {
-          ttDate.style.display = 'none';
+          ttDate.classList.add('is-hidden');
         }
 
         if (details.items && details.items.length > 0) {
@@ -899,21 +889,21 @@ export async function renderTimelineBlockAsync(
             badge.textContent = String(it);
             ttList.appendChild(badge);
           });
-          ttList.style.display = 'flex';
+          ttList.classList.remove('is-hidden');
         } else {
-          ttList.style.display = 'none';
+          ttList.classList.add('is-hidden');
         }
       } else if (typeof details === 'string') {
-        ttCat.style.display = 'none';
-        ttDate.style.display = 'none';
-        ttList.style.display = 'none';
-        ttSub.style.display = 'block';
+        ttCat.classList.add('is-hidden');
+        ttDate.classList.add('is-hidden');
+        ttList.classList.add('is-hidden');
+        ttSub.classList.remove('is-hidden');
         ttSub.textContent = details;
       } else {
-        ttCat.style.display = 'none';
-        ttDate.style.display = 'none';
-        ttList.style.display = 'none';
-        ttSub.style.display = 'none';
+        ttCat.classList.add('is-hidden');
+        ttDate.classList.add('is-hidden');
+        ttList.classList.add('is-hidden');
+        ttSub.classList.add('is-hidden');
       }
 
       cachedTtWidth = tooltip.offsetWidth || 200;
@@ -921,8 +911,8 @@ export async function renderTimelineBlockAsync(
     }
 
     positionTooltip(event.clientX, event.clientY);
-    tooltip.style.pointerEvents = 'auto';
-    tooltip.style.opacity = '1';
+    tooltip.classList.remove('timeline-tooltip-hidden');
+    tooltip.classList.add('timeline-tooltip-visible');
   }
 
   function hideTooltip(immediate = false) {
@@ -937,8 +927,8 @@ export async function renderTimelineBlockAsync(
       // Do NOT null out cachedWrapperRect here; keep it so subsequent hovers do not force reflow!
       lastTooltipKey = '';
       if (tooltip) {
-        tooltip.style.opacity = '0';
-        tooltip.style.pointerEvents = 'none';
+        tooltip.classList.remove('timeline-tooltip-visible');
+        tooltip.classList.add('timeline-tooltip-hidden');
       }
     } else {
       hideTimeout = window.setTimeout(() => {
@@ -1307,7 +1297,7 @@ export async function renderTimelineBlockAsync(
       const needleBadgeGNode = needleBadgeG.node();
 
       if (needleGNode) {
-        needleGNode.style.display = '';
+        needleG.style('display', null);
         needleGNode.setAttribute('transform', `translate(${margin.left + xPos}, 0)`);
       }
 

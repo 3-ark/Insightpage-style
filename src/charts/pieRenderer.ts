@@ -19,12 +19,7 @@ export function renderPieChart(
   getD3: () => typeof import('d3')
 ) {
   const type = String(yaml.type ?? 'bar').trim().toLowerCase();
-  const container = createDiv();
-  container.style.position = 'relative';
-  container.style.display = 'flex';
-  container.style.flexDirection = 'column';
-  container.style.alignItems = 'center';
-  container.style.width = '100%';
+  const container = createDiv({ cls: 'chart-relative-container' });
 
   // Unified Title, Subtitle, Caption support matching figure[class*="plot"] styling
   const title = yaml.title ?? yaml.chartTitle;
@@ -32,25 +27,16 @@ export function renderPieChart(
   const caption = yaml.caption;
 
   if (title) {
-    const titleEl = createEl('h2');
+    const titleEl = createEl('h2', { cls: 'chart-heading-title' });
     titleEl.textContent = String(title);
-    titleEl.style.margin = '0 0 4px 0';
-    titleEl.style.fontSize = '1.15em';
-    titleEl.style.fontWeight = '600';
     titleEl.style.color = textColor;
-    titleEl.style.textAlign = 'center';
     container.appendChild(titleEl);
   }
 
   if (subtitle) {
-    const subEl = createEl('h3');
+    const subEl = createEl('h3', { cls: 'chart-heading-subtitle' });
     subEl.textContent = String(subtitle);
-    subEl.style.margin = '0 0 8px 0';
-    subEl.style.fontSize = '0.9em';
-    subEl.style.fontWeight = 'normal';
-    subEl.style.opacity = '0.75';
     subEl.style.color = textColor;
-    subEl.style.textAlign = 'center';
     container.appendChild(subEl);
   }
 
@@ -81,10 +67,10 @@ export function renderPieChart(
     .outerRadius(radius);
 
   const svg = document.createElementNS(svgNs, 'svg');
+  svg.setAttribute('class', 'chart-interactive-svg');
   svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
   svg.setAttribute('width', `${size}`);
   svg.setAttribute('height', `${size}`);
-  svg.style.maxWidth = '100%';
 
   const g = document.createElementNS(svgNs, 'g');
   g.setAttribute('transform', `translate(${size / 2}, ${size / 2})`);
@@ -97,15 +83,7 @@ export function renderPieChart(
     path.setAttribute('fill', color);
     path.setAttribute('stroke', gridColor);
     path.setAttribute('stroke-width', '1');
-    path.style.cursor = 'pointer';
-    path.style.transition = 'opacity 0.2s, transform 0.2s';
-
-    path.addEventListener('mouseenter', () => {
-      path.style.opacity = '0.8';
-    });
-    path.addEventListener('mouseleave', () => {
-      path.style.opacity = '1';
-    });
+    path.setAttribute('class', 'chart-interactive-path');
 
     const tooltipText = slice.data.series && slice.data.series !== 'Series 1'
       ? `${slice.data.series}\n${slice.data.x}: ${slice.data.y}`
@@ -120,28 +98,16 @@ export function renderPieChart(
 
   // Legend
   if (yaml.legend !== false) {
-    const legendDiv = createDiv();
-    legendDiv.style.display = 'flex';
-    legendDiv.style.flexWrap = 'wrap';
-    legendDiv.style.justifyContent = 'center';
-    legendDiv.style.gap = '12px';
-    legendDiv.style.marginTop = '8px';
-    legendDiv.style.fontSize = '12px';
+    const legendDiv = createDiv({ cls: 'chart-legend-container' });
     legendDiv.style.color = textColor;
 
     const legendItems = dataPoints.length ? dataPoints : labels.map((l) => ({ x: l, series: '' }));
     const hasMultipleSeries = dataPoints.some((d) => d.seriesIndex > 0);
 
     legendItems.forEach((item, idx) => {
-      const itemDiv = createDiv();
-      itemDiv.style.display = 'flex';
-      itemDiv.style.alignItems = 'center';
-      itemDiv.style.gap = '4px';
+      const itemDiv = createDiv({ cls: 'chart-legend-item' });
 
-      const swatch = createSpan();
-      swatch.style.width = '12px';
-      swatch.style.height = '12px';
-      swatch.style.borderRadius = '2px';
+      const swatch = createSpan({ cls: 'chart-legend-swatch' });
       swatch.style.backgroundColor = baseColors[idx % baseColors.length];
 
       const textSpan = createSpan();
@@ -155,13 +121,9 @@ export function renderPieChart(
   }
 
   if (caption) {
-    const capEl = createDiv();
+    const capEl = createDiv({ cls: 'chart-caption-text' });
     capEl.textContent = String(caption);
-    capEl.style.marginTop = '6px';
-    capEl.style.fontSize = '0.85em';
-    capEl.style.opacity = '0.7';
     capEl.style.color = textColor;
-    capEl.style.textAlign = 'center';
     container.appendChild(capEl);
   }
 

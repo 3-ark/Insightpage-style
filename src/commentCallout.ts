@@ -34,7 +34,7 @@ function parseSafeHtmlFragment(rawHtml: string, doc?: Document): DocumentFragmen
   if (!documentObj) return null;
   const parser = new (documentObj.defaultView?.DOMParser || DOMParser)();
   const parsed = parser.parseFromString(rawHtml, 'text/html');
-  const fragment = documentObj.createDocumentFragment();
+  const fragment = typeof createFragment === 'function' ? createFragment() : documentObj.createDocumentFragment();
   while (parsed.body.firstChild) {
     fragment.appendChild(parsed.body.firstChild);
   }
@@ -86,9 +86,7 @@ export function bindPopoverToTrigger(triggerBtn: HTMLButtonElement, content: str
       left = window.innerWidth - popoverWidth - 10;
     }
 
-    popover.style.position = 'fixed';
     popover.style.left = `${left}px`;
-    popover.style.zIndex = '10000';
 
     document.body.appendChild(popover);
     const popoverHeight = popover.offsetHeight;

@@ -97,7 +97,6 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   mapDiv.className = 'leaflet-map-wrapper';
   mapDiv.style.height = height;
   mapDiv.style.width = width;
-  mapDiv.style.position = 'relative';
   container.appendChild(mapDiv);
 
   // Extract center & zoom
