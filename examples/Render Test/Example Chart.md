@@ -251,14 +251,6 @@ width: 600px
 InsightPage Chart DSL can load external dataset files directly without complex data-processing grammar, just like Timeline charts:
 
 ```chart
-title: China Trade policy uncertainty
-type: line
-data: 5-Data/chinaEPU/China_Trade_policy_uncertainty.csv
-```
-
-Or for scatter charts using external CSV datasets:
-
-```chart
 type: scatter
 data: 5-Data/datasets/countries.csv
 fill: Density
@@ -279,7 +271,8 @@ trending: true
 
 Render rich data visualizations using [Observable Plot](https://github.com/observablehq/plot) (`plot` or `observableplot`). For further information: https://observablehq.github.io/plot/features/plots
 
-```
+````markdown
+```plot
 Plot.plot({
   title: "For charts, an informative title",
   subtitle: "Subtitle to follow with additional context",
@@ -290,6 +283,7 @@ Plot.plot({
   ]
 })
 ```
+````
 
 ```plot
 Plot.plot({

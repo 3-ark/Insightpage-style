@@ -100,7 +100,6 @@ E E F G | G F E D | C C D E | E3/2 D/ D2 |
 
 InsightPage separates specialized visualization formats into dedicated showcase notes for easy reference and AI code-generation:
 
-* 👉 **[[Example Mermaid]]**: Flowcharts, state diagrams, Gantt charts, and sequence diagrams.
 * 👉 **[[Example Chart]]**: Bar, line, pie, donut, sankey, radar, and scatter charts via Chart DSL & Observable Plot.
 * 👉 **[[Example Map]]**: Interactive Leaflet maps with pins, routes, and geographic shapes.
 * 👉 **[[Example Timeline]]**: Interactive zoomable timelines with YAML event schemas and table data sourcing.
