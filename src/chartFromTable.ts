@@ -189,7 +189,7 @@ export function rowsToTableData(
         const key = fieldKeys[i];
         dataFields[i] = {
             dataTitle: key,
-            data: Object.values(fields[key]) as string[]
+            data: Object.values(fields[key])
         };
     }
 
@@ -234,7 +234,7 @@ export function generateTableData(table: string, layout: 'columns' | 'rows', sel
         const key = fieldKeys[i];
         dataFields[i] = {
             dataTitle: key,
-            data: Object.values(fields[key]) as string[]
+            data: Object.values(fields[key])
         };
     }
 

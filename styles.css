@@ -99,10 +99,27 @@ g[aria-label="tip"] tspan {
 }
 
 .chart-plot-tooltip {
+  position: absolute;
+  pointer-events: none;
+  display: none;
+  z-index: 1000;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: var(--font-interface, var(--font-text, sans-serif));
+  line-height: 1.4;
+  border-radius: 4px;
   background-color: var(--background-secondary, #f8f8f8) !important;
   color: var(--text-normal, #222222) !important;
   border: 1px solid var(--background-modifier-border, rgba(128, 128, 128, 0.35)) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  white-space: pre-wrap;
+  transition: opacity 0.1s ease-in-out;
+  opacity: 0;
+}
+
+.chart-plot-tooltip.is-visible {
+  display: block;
+  opacity: 1;
 }
 
 .print .block-language-chart {
@@ -167,6 +184,8 @@ a[href="https://ko-fi.com/phibr0"] > img
 
 /* Popover Styling */
 .comment-callout-popover {
+  position: fixed;
+  z-index: 10000;
   max-width: min(280px, calc(100vw - 32px));
   min-width: 180px;
   padding: 0.6rem 0.8rem;
@@ -693,4 +712,110 @@ a[href="https://ko-fi.com/phibr0"] > img
 
 .timeline-svg .needle-badge-rect {
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+/* Custom Chart UI Utility Classes */
+.chart-centered {
+  margin: auto;
+}
+
+.chart-relative-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.chart-heading-title {
+  margin: 0 0 4px 0;
+  font-size: 1.15em;
+  font-weight: 600;
+  text-align: center;
+}
+
+.chart-heading-subtitle {
+  margin: 0 0 8px 0;
+  font-size: 0.9em;
+  font-weight: normal;
+  opacity: 0.75;
+  text-align: center;
+}
+
+.chart-caption-text {
+  margin-top: 6px;
+  font-size: 0.85em;
+  opacity: 0.7;
+  text-align: center;
+}
+
+.chart-interactive-svg {
+  max-width: 100%;
+}
+
+.chart-interactive-path {
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.chart-interactive-path:hover {
+  opacity: 0.8;
+}
+
+.chart-interactive-dot {
+  cursor: pointer;
+}
+
+.chart-sankey-link {
+  cursor: pointer;
+  transition: stroke-opacity 0.2s;
+}
+
+.chart-sankey-link:hover {
+  stroke-opacity: 0.85;
+}
+
+.chart-sankey-node {
+  cursor: pointer;
+}
+
+.chart-legend-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chart-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.timeline-tooltip-visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.timeline-tooltip-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.timeline-internal-link {
+  color: var(--link-color, #3b82f6);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.is-hidden {
+  display: none !important;
 }

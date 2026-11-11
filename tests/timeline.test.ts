@@ -1,3 +1,5 @@
+import { setupDomPolyfills } from "./setupDom";
+setupDomPolyfills();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
@@ -737,7 +739,7 @@ test('renderTimelineBlock tooltips update on mouse events, parse wikilinks, and 
 
   const tooltip = wrapper.querySelector('.timeline-tooltip') as HTMLElement;
   assert.ok(tooltip, 'Tooltip element should exist');
-  assert.equal(tooltip.style.opacity, '0');
+  assert.ok(tooltip.classList.contains('timeline-tooltip-hidden'));
 
   const eventGroup = wrapper.querySelector('.event-group') as SVGElement;
   assert.ok(eventGroup, 'Event group should exist');
@@ -759,7 +761,7 @@ test('renderTimelineBlock tooltips update on mouse events, parse wikilinks, and 
   });
   eventGroup.dispatchEvent(mouseEnterEvt);
 
-  assert.equal(tooltip.style.opacity, '1', 'Tooltip should be visible on mouseenter');
+  assert.ok(tooltip.classList.contains('timeline-tooltip-visible'), 'Tooltip should be visible on mouseenter');
 
   const link = tooltip.querySelector('a.internal-link') as HTMLElement;
   assert.ok(link, 'Wikilink in tooltip title should render as HTML link');
@@ -784,7 +786,7 @@ test('renderTimelineBlock tooltips update on mouse events, parse wikilinks, and 
   // Wait for 250ms hide timeout delay
   await new Promise((resolve) => setTimeout(resolve, 250));
 
-  assert.equal(tooltip.style.opacity, '0', 'Tooltip should hide after mouseleave delay');
+  assert.ok(tooltip.classList.contains('timeline-tooltip-hidden'), 'Tooltip should hide after mouseleave delay');
 });
 
 test('renderTimelineBlock tooltip positions correctly with scroll and viewport constraints', async () => {
@@ -818,6 +820,9 @@ test('renderTimelineBlock tooltip positions correctly with scroll and viewport c
   const wrapper = container.querySelector('.timeline-wrapper') as HTMLElement;
   const tooltip = wrapper.querySelector('.timeline-tooltip') as HTMLElement;
   const eventGroup = wrapper.querySelector('.event-group') as SVGElement;
+
+  assert.equal(tooltip.style.left, '0px', 'Tooltip should use the wrapper origin for positioning');
+  assert.equal(tooltip.style.top, '0px', 'Tooltip should use the wrapper origin for positioning');
 
   // Mock getBoundingClientRect for wrapper and tooltip
   wrapper.getBoundingClientRect = () => ({

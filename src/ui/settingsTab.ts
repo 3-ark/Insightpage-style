@@ -25,84 +25,65 @@ export class ChartSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
-  refresh(): void {
-    if (typeof (this as any).update === 'function') {
-      (this as any).update();
-    }
-    this.display();
-  }
-
   display(): void {
-    let { containerEl, plugin } = this;
-
+    const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Settings - Charts' });
-
-    containerEl.createEl('h3', { text: 'General' });
-
     new Setting(containerEl)
-      .setName('Show Button in Context Menu')
-      .setDesc(
-        'If enabled, you will se a Button in your Editor Context Menu to open the Chart Creator.'
-      )
-      .addToggle((cb) => {
-        cb.setValue(this.plugin.settings.contextMenu).onChange(
-          async (value) => {
-            plugin.settings.contextMenu = value;
-            await plugin.saveSettings();
-          }
-        );
+      .setName('Show button in context menu')
+      .setDesc('If enabled, you will see a button in your editor context menu to open the chart creator.')
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.contextMenu)
+          .onChange(async (val) => {
+            this.plugin.settings.contextMenu = val;
+            await this.plugin.saveSettings();
+          });
       });
 
-    containerEl.createEl('h3', {
-      text: 'Colors',
-      attr: {
-        style: 'margin-bottom: 0',
-      },
-    });
-    const desc = containerEl.createEl('p', { cls: 'setting-item-description' });
-    desc.append(
-      'Set the Colors for your Charts. This will set the border Color and the inner Color will be the same, but with less opacity. This ensures better compatibility with Dark and Light Mode. ',
-      'You can use any ',
-      desc.createEl('a', {
-        href: 'https://www.w3schools.com/cssref/css_colors.asp',
-        text: 'valid CSS Color.',
-      })
-    );
+    new Setting(containerEl).setName('Colors').setHeading();
 
     new Setting(containerEl)
-      .setName('Enable Theme Colors')
-      .setDesc(
-        'If your Obsidian Theme (or snippet) provides Colors you can use them instead.'
-      )
-      .addToggle((cb) => {
-        cb.setValue(plugin.settings.themeable).onChange(async (value) => {
-          plugin.settings.themeable = value;
-          await plugin.saveSettings();
-          this.refresh();
-        });
+      .setName('Enable theme colors')
+      .setDesc('If your Obsidian theme (or snippet) provides colors you can use them instead.')
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.themeable)
+          .onChange(async (val) => {
+            this.plugin.settings.themeable = val;
+            await this.plugin.saveSettings();
+            this.display();
+          });
       });
 
-    if (!plugin.settings.themeable) {
-      plugin.settings.colors.forEach((color, idx) => {
-        const nameEl = document.createDocumentFragment();
+    if (!this.plugin.settings.themeable) {
+      const descEl = containerEl.createEl('p', { cls: 'setting-item-description' });
+      descEl.append(
+        'Set the Colors for your Charts. This will set the border Color and the inner Color will be the same, but with less opacity. This ensures better compatibility with Dark and Light Mode. ',
+        'You can use any ',
+        descEl.createEl('a', {
+          href: 'https://www.w3schools.com/cssref/css_colors.asp',
+          text: 'valid CSS Color.',
+        })
+      );
+
+      this.plugin.settings.colors.forEach((color, idx) => {
+        const nameEl = createFragment();
         nameEl.createSpan({ text: '●', attr: { style: `color: ${color}` } });
         nameEl.appendText(` Color #${idx + 1}`);
+
         new Setting(containerEl)
           .setName(nameEl)
-          .setDesc(
-            'This will be the border Color used in the Charts you create.'
-          )
+          .setDesc('This will be the border Color used in the Charts you create.')
           .addButton((btn) => {
             btn.setButtonText('Change Color');
             const Picker = getPicker();
             new Picker({
               parent: btn.buttonEl,
-              onDone: async (color: any) => {
-                this.plugin.settings.colors[idx] = color.hex;
+              onDone: async (col: any) => {
+                this.plugin.settings.colors[idx] = col.hex;
                 await this.plugin.saveSettings();
-                this.refresh();
+                this.display();
               },
               popup: 'left',
               color: color,
@@ -116,7 +97,7 @@ export class ChartSettingTab extends PluginSettingTab {
               .onClick(async () => {
                 this.plugin.settings.colors.remove(color);
                 await this.plugin.saveSettings();
-                this.refresh();
+                this.display();
               });
             if (this.plugin.settings.colors.length === 1) {
               btn.setDisabled(true);
@@ -130,7 +111,7 @@ export class ChartSettingTab extends PluginSettingTab {
                 this.plugin.settings.colors[idx] =
                   DEFAULT_SETTINGS.colors[idx] ?? '#ffffff';
                 await this.plugin.saveSettings();
-                this.refresh();
+                this.display();
               });
           });
       });
@@ -139,7 +120,7 @@ export class ChartSettingTab extends PluginSettingTab {
         btn.setButtonText('Add Color').onClick(async () => {
           this.plugin.settings.colors.push('#ffffff');
           await this.plugin.saveSettings();
-          this.refresh();
+          this.display();
         });
       });
     }

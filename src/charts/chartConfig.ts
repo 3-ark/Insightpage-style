@@ -3,13 +3,13 @@ export interface MarkLineConfig {
   x?: number | string;
   y?: number | string;
   value?: number | string;
-  axis?: 'x' | 'y' | 'xAxis' | 'yAxis' | string;
+  axis?: 'x' | 'y' | 'xAxis' | 'yAxis' | (string & {});
   label?: string;
   title?: string;
   text?: string;
   color?: string;
   stroke?: string;
-  style?: 'solid' | 'dashed' | 'dotted' | string;
+  style?: 'solid' | 'dashed' | 'dotted' | (string & {});
   strokeDasharray?: string;
   strokeWidth?: number;
   width?: number;

@@ -93,11 +93,10 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   const height = config.height ? (typeof config.height === 'number' ? `${config.height}px` : String(config.height)) : '400px';
   const width = config.width ? (typeof config.width === 'number' ? `${config.width}px` : String(config.width)) : '100%';
 
-  const mapDiv = document.createElement('div');
+  const mapDiv = createDiv();
   mapDiv.className = 'leaflet-map-wrapper';
   mapDiv.style.height = height;
   mapDiv.style.width = width;
-  mapDiv.style.position = 'relative';
   container.appendChild(mapDiv);
 
   // Extract center & zoom
@@ -120,7 +119,9 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   const supportsCanvas = typeof document !== 'undefined' &&
     (typeof createEl === 'function'
       ? !!createEl('canvas')?.getContext?.('2d')
-      : typeof document.createElement === 'function' && !!document.createElement('canvas')?.getContext?.('2d'));
+      : typeof mapDiv.createEl === 'function'
+      ? !!mapDiv.createEl('canvas')?.getContext?.('2d')
+      : !!createEl('canvas')?.getContext?.('2d'));
 
   let map: any;
   try {
@@ -379,15 +380,13 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   };
 
   // Immediate and staggered frame/timeout passes to adapt as container is inserted and styled
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(triggerInvalidate);
-  } else if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
     window.requestAnimationFrame(triggerInvalidate);
   }
 
   // Staggered timeouts help catch layout transitions in Obsidian reading view
   [0, 50, 150, 300, 600].forEach((delay) => {
-    const tid = setTimeout(triggerInvalidate, delay);
+    const tid = window.setTimeout(triggerInvalidate, delay);
     timeoutIds.push(tid);
   });
 
@@ -424,7 +423,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   const cleanup = () => {
     if (isCleanedUp) return;
     isCleanedUp = true;
-    timeoutIds.forEach((id) => clearTimeout(id));
+    timeoutIds.forEach((id) => window.clearTimeout(id));
     timeoutIds.length = 0;
     if (resizeObserver) {
       resizeObserver.disconnect();
@@ -448,7 +447,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
     child.onload = () => {
       triggerInvalidate();
       // Delay check in case layout settling occurs right after onload
-      setTimeout(triggerInvalidate, 100);
+      window.setTimeout(triggerInvalidate, 100);
     };
     child.onunload = cleanup;
     ctx.addChild(child);

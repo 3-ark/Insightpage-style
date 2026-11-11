@@ -1,6 +1,6 @@
 const BLOCK_REGEX = /<(code|pre|script|style|svg|span[^>]*class="[^"]*math[^"]*")[^>]*>[\s\S]*?<\/\1>|<span[^>]*class="[^"]*math[^"]*"[^>]*>[\s\S]*?<\/span>/gi;
 const TAG_REGEX = /<[^>]+>/g;
-const SUPERSCRIPT_REGEX = /(?<![\\^])\^([^\^\r\n]+?)\^(?!\^)/g;
+const SUPERSCRIPT_REGEX = /(?<![\\^])\^([^^\r\n]+?)\^(?!\^)/g;
 const SUBSCRIPT_REGEX = /(?<![\\~])~(?![~\s])([^~\r\n]+?)(?<!\s)~(?![~])/g;
 const RESTORE_TAG_REGEX = /___HTML_TAG_(\d+)___/g;
 const RESTORE_BLOCK_REGEX = /___PROTECTED_BLOCK_(\d+)___/g;
@@ -104,6 +104,21 @@ export function processSubscriptSuperscript(container: HTMLElement): void {
   const html = container.innerHTML;
   const transformed = transformSubscriptSuperscriptHtml(html);
   if (transformed !== html) {
-    container.innerHTML = transformed;
+    container.replaceChildren();
+    let obsidian: any;
+    try {
+      obsidian = require('obsidian');
+    } catch {
+      /* ignore */
+    }
+    if (obsidian && typeof obsidian.sanitizeHTMLToDom === 'function') {
+      container.appendChild(obsidian.sanitizeHTMLToDom(transformed));
+    } else {
+      const parser = new (container.ownerDocument?.defaultView?.DOMParser || DOMParser)();
+      const parsed = parser.parseFromString(transformed, 'text/html');
+      while (parsed.body.firstChild) {
+        container.appendChild(parsed.body.firstChild);
+      }
+    }
   }
 }

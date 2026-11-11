@@ -14,20 +14,99 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-const PLAY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>`;
-const PAUSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
-const STOP_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>`;
-const RESTART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
-const DOWNLOAD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>`;
-const COPY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
-const CHECK_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function createSvgIcon(
+  attrs: Record<string, string>,
+  children: Array<{ tag: string; attrs: Record<string, string> }>
+): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('xmlns', SVG_NS);
+  for (const [k, v] of Object.entries(attrs)) {
+    svg.setAttribute(k, v);
+  }
+  for (const child of children) {
+    const el = document.createElementNS(SVG_NS, child.tag);
+    for (const [k, v] of Object.entries(child.attrs)) {
+      el.setAttribute(k, v);
+    }
+    svg.appendChild(el);
+  }
+  return svg;
+}
+
+function createPlayIcon(): SVGSVGElement {
+  return createSvgIcon(
+    { width: '16', height: '16', viewBox: '0 0 24 24', fill: 'currentColor', stroke: 'none' },
+    [{ tag: 'polygon', attrs: { points: '6 3 20 12 6 21 6 3' } }]
+  );
+}
+
+function createPauseIcon(): SVGSVGElement {
+  return createSvgIcon(
+    { width: '16', height: '16', viewBox: '0 0 24 24', fill: 'currentColor', stroke: 'none' },
+    [
+      { tag: 'rect', attrs: { x: '6', y: '4', width: '4', height: '16' } },
+      { tag: 'rect', attrs: { x: '14', y: '4', width: '4', height: '16' } },
+    ]
+  );
+}
+
+function createStopIcon(): SVGSVGElement {
+  return createSvgIcon(
+    { width: '16', height: '16', viewBox: '0 0 24 24', fill: 'currentColor', stroke: 'none' },
+    [{ tag: 'rect', attrs: { x: '5', y: '5', width: '14', height: '14', rx: '2' } }]
+  );
+}
+
+function createRestartIcon(): SVGSVGElement {
+  return createSvgIcon(
+    { width: '16', height: '16', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    [
+      { tag: 'path', attrs: { d: 'M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8' } },
+      { tag: 'path', attrs: { d: 'M3 3v5h5' } },
+    ]
+  );
+}
+
+function createDownloadIcon(): SVGSVGElement {
+  return createSvgIcon(
+    { width: '16', height: '16', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    [
+      { tag: 'path', attrs: { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' } },
+      { tag: 'polyline', attrs: { points: '7 10 12 15 17 10' } },
+      { tag: 'line', attrs: { x1: '12', x2: '12', y1: '15', y2: '3' } },
+    ]
+  );
+}
+
+function createCopyIcon(): SVGSVGElement {
+  return createSvgIcon(
+    { width: '16', height: '16', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    [
+      { tag: 'rect', attrs: { width: '14', height: '14', x: '8', y: '8', rx: '2', ry: '2' } },
+      { tag: 'path', attrs: { d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' } },
+    ]
+  );
+}
+
+function createCheckIcon(): SVGSVGElement {
+  return createSvgIcon(
+    { width: '16', height: '16', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    [{ tag: 'polyline', attrs: { points: '20 6 9 17 4 12' } }]
+  );
+}
+
+function setButtonIcon(btn: HTMLElement, iconEl: Node): void {
+  btn.replaceChildren(iconEl);
+}
 
 export function renderAbcBlock(source: string, container: HTMLElement): void {
   const abcjs = getAbcjs();
-  const wrapper = document.createElement('div');
+  const wrapper = createDiv();
   wrapper.className = 'abcjs-wrapper';
 
-  const sheetContainer = document.createElement('div');
+  const sheetContainer = createDiv();
   sheetContainer.className = 'abcjs-sheet-container';
 
   let visualObj: any = null;
@@ -40,7 +119,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       visualObj = renderResult[0];
     }
   } catch (err) {
-    const errDiv = document.createElement('div');
+    const errDiv = createDiv();
     errDiv.className = 'chart-error';
     errDiv.textContent = `ABC Render Error: ${err}`;
     container.appendChild(errDiv);
@@ -82,36 +161,36 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
     playbackState = 'idle';
     updateControlsUI();
     if (animId) {
-      cancelAnimationFrame(animId);
+      window.cancelAnimationFrame(animId);
       animId = null;
     }
   };
 
-  const controlsBar = document.createElement('div');
+  const controlsBar = createDiv();
   controlsBar.className = 'abcjs-controls-bar';
 
   // Left controls group (Play / Stop / Restart)
-  const leftBtns = document.createElement('div');
+  const leftBtns = createDiv();
   leftBtns.className = 'abcjs-left-controls';
 
   // Play / Pause Button
-  const playPauseBtn = document.createElement('button');
+  const playPauseBtn = createEl('button');
   playPauseBtn.className = 'abcjs-btn abcjs-play-btn';
   playPauseBtn.title = 'Play';
-  playPauseBtn.innerHTML = PLAY_ICON;
+  setButtonIcon(playPauseBtn, createPlayIcon());
 
   // Stop Button
-  const stopBtn = document.createElement('button');
+  const stopBtn = createEl('button');
   stopBtn.className = 'abcjs-btn abcjs-stop-btn';
   stopBtn.title = 'Stop';
-  stopBtn.innerHTML = STOP_ICON;
+  setButtonIcon(stopBtn, createStopIcon());
   stopBtn.disabled = true;
 
   // Restart Button
-  const restartBtn = document.createElement('button');
+  const restartBtn = createEl('button');
   restartBtn.className = 'abcjs-btn abcjs-restart-btn';
   restartBtn.title = 'Start from beginning';
-  restartBtn.innerHTML = RESTART_ICON;
+  setButtonIcon(restartBtn, createRestartIcon());
   restartBtn.disabled = true;
 
   leftBtns.appendChild(playPauseBtn);
@@ -119,16 +198,16 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   leftBtns.appendChild(restartBtn);
 
   // Progress container group (Time Label / Progress Slider / Duration Label)
-  const progressContainer = document.createElement('div');
+  const progressContainer = createDiv();
   progressContainer.className = 'abcjs-progress-container';
 
   // Current Time Label
-  const currentTimeEl = document.createElement('span');
+  const currentTimeEl = createSpan();
   currentTimeEl.className = 'abcjs-time-label';
   currentTimeEl.textContent = '0:00';
 
   // Progress Bar
-  const progressSlider = document.createElement('input');
+  const progressSlider = createEl('input');
   progressSlider.type = 'range';
   progressSlider.className = 'abcjs-progress-slider';
   progressSlider.min = '0';
@@ -138,7 +217,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   progressSlider.disabled = true;
 
   // Duration Label
-  const durationEl = document.createElement('span');
+  const durationEl = createSpan();
   durationEl.className = 'abcjs-time-label';
   durationEl.textContent = '0:00';
 
@@ -147,14 +226,14 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   progressContainer.appendChild(durationEl);
 
   // Right side buttons container
-  const rightBtns = document.createElement('div');
+  const rightBtns = createDiv();
   rightBtns.className = 'abcjs-right-controls';
 
   // MIDI Download Button
-  const downloadBtn = document.createElement('button');
+  const downloadBtn = createEl('button');
   downloadBtn.className = 'abcjs-btn abcjs-download-btn';
   downloadBtn.title = 'Download MIDI';
-  downloadBtn.innerHTML = DOWNLOAD_ICON;
+  setButtonIcon(downloadBtn, createDownloadIcon());
 
   downloadBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -162,7 +241,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       const midiData = abcjs.synth.getMidiFile(source.trim(), { midiOutputType: 'encoded' });
       if (!midiData) return;
       const dataUrl = Array.isArray(midiData) ? midiData[0] : midiData;
-      const a = document.createElement('a');
+      const a = createEl('a');
       a.href = dataUrl;
       a.download = 'sheet-music.midi';
       document.body.appendChild(a);
@@ -174,22 +253,24 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   });
 
   // Copy Sheet Music Button
-  const copyBtn = document.createElement('button');
+  const copyBtn = createEl('button');
   copyBtn.className = 'abcjs-btn abcjs-copy-btn';
   copyBtn.title = 'Copy ABC source';
-  copyBtn.innerHTML = COPY_ICON;
+  setButtonIcon(copyBtn, createCopyIcon());
 
-  copyBtn.addEventListener('click', async (e) => {
+  copyBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(source.trim());
-      copyBtn.innerHTML = CHECK_ICON;
-      setTimeout(() => {
-        copyBtn.innerHTML = COPY_ICON;
-      }, 1500);
-    } catch {
-      // ignore
-    }
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(source.trim());
+        setButtonIcon(copyBtn, createCheckIcon());
+        window.setTimeout(() => {
+          setButtonIcon(copyBtn, createCopyIcon());
+        }, 1500);
+      } catch {
+        // ignore
+      }
+    })();
   });
 
   rightBtns.appendChild(copyBtn);
@@ -204,25 +285,25 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
 
   function updateControlsUI() {
     if (playbackState === 'playing') {
-      playPauseBtn.innerHTML = PAUSE_ICON;
+      setButtonIcon(playPauseBtn, createPauseIcon());
       playPauseBtn.title = 'Pause';
       stopBtn.disabled = false;
       restartBtn.disabled = false;
       progressSlider.disabled = false;
     } else if (playbackState === 'paused') {
-      playPauseBtn.innerHTML = PLAY_ICON;
+      setButtonIcon(playPauseBtn, createPlayIcon());
       playPauseBtn.title = 'Play';
       stopBtn.disabled = false;
       restartBtn.disabled = false;
       progressSlider.disabled = false;
     } else if (playbackState === 'loading') {
-      playPauseBtn.innerHTML = PLAY_ICON;
+      setButtonIcon(playPauseBtn, createPlayIcon());
       playPauseBtn.title = 'Loading...';
       stopBtn.disabled = true;
       restartBtn.disabled = true;
       progressSlider.disabled = true;
     } else {
-      playPauseBtn.innerHTML = PLAY_ICON;
+      setButtonIcon(playPauseBtn, createPlayIcon());
       playPauseBtn.title = 'Play';
       stopBtn.disabled = true;
       restartBtn.disabled = true;
@@ -233,8 +314,8 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   }
 
   const syncProgress = () => {
-    if (synthController && (synthController as any).midiBuffer) {
-      totalDuration = (synthController as any).midiBuffer.duration || totalDuration || 0;
+    if (synthController && synthController.midiBuffer) {
+      totalDuration = synthController.midiBuffer.duration || totalDuration || 0;
       if (totalDuration > 0) {
         progressSlider.max = totalDuration.toString();
         durationEl.textContent = formatTime(totalDuration);
@@ -245,7 +326,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       progressSlider.value = curTime.toString();
     }
     if (playbackState === 'playing') {
-      animId = requestAnimationFrame(syncProgress);
+      animId = window.requestAnimationFrame(syncProgress);
     }
   };
 
@@ -291,16 +372,16 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
         clearHighlights();
         playbackState = 'idle';
         updateControlsUI();
-        if (animId) cancelAnimationFrame(animId);
+        if (animId) window.cancelAnimationFrame(animId);
       },
     };
 
-    (sc as any).cursorControl = cursorControl;
+    sc.cursorControl = cursorControl;
 
     await sc.setTune(visualObj, false, {});
 
     synthController = sc;
-    totalDuration = (sc as any).midiBuffer?.duration || 0;
+    totalDuration = sc.midiBuffer?.duration || 0;
     if (totalDuration > 0) {
       durationEl.textContent = formatTime(totalDuration);
       progressSlider.max = totalDuration.toString();
@@ -308,7 +389,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
     return sc;
   };
 
-  playPauseBtn.addEventListener('click', async (e) => {
+  playPauseBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!visualObj) return;
 
@@ -319,7 +400,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       }
       playbackState = 'paused';
       updateControlsUI();
-      if (animId) cancelAnimationFrame(animId);
+      if (animId) window.cancelAnimationFrame(animId);
       return;
     }
 
@@ -327,31 +408,33 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       playbackState = 'playing';
       updateControlsUI();
       synthController.play();
-      animId = requestAnimationFrame(syncProgress);
+      animId = window.requestAnimationFrame(syncProgress);
       return;
     }
 
     // Idle: Initialize and play
     playbackState = 'loading';
     updateControlsUI();
-    try {
-      const sc = await initSynth();
-      if (!sc) {
-        playbackState = 'idle';
+    void (async () => {
+      try {
+        const sc = await initSynth();
+        if (!sc) {
+          playbackState = 'idle';
+          updateControlsUI();
+          return;
+        }
+        playbackState = 'playing';
         updateControlsUI();
-        return;
+        await sc.play();
+        totalDuration = sc.midiBuffer?.duration || totalDuration;
+        durationEl.textContent = formatTime(totalDuration);
+        progressSlider.max = totalDuration.toString();
+        animId = window.requestAnimationFrame(syncProgress);
+      } catch (err) {
+        console.error('AbcJS playback error:', err);
+        stopPlayback();
       }
-      playbackState = 'playing';
-      updateControlsUI();
-      await sc.play();
-      totalDuration = sc.midiBuffer?.duration || totalDuration;
-      durationEl.textContent = formatTime(totalDuration);
-      progressSlider.max = totalDuration.toString();
-      animId = requestAnimationFrame(syncProgress);
-    } catch (err) {
-      console.error('AbcJS playback error:', err);
-      stopPlayback();
-    }
+    })();
   });
 
   stopBtn.addEventListener('click', (e) => {
@@ -370,7 +453,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
         playbackState = 'playing';
         updateControlsUI();
         synthController.play();
-        animId = requestAnimationFrame(syncProgress);
+        animId = window.requestAnimationFrame(syncProgress);
       }
     }
   });

@@ -47,7 +47,7 @@ export function createAdaptiveTickFormatter(
     const eraYear = formatEraYear(dateVal.getFullYear());
 
     if (customFormatters && customFormatters[granularity]) {
-      const fmtStr = customFormatters[granularity]!;
+      const fmtStr = customFormatters[granularity];
       return d3.timeFormat(fmtStr)(dateVal).replace('%ERA_YEAR%', eraYear);
     }
 
@@ -182,7 +182,9 @@ export function preventTickOverlap(axisGNode: SVGGElement | null, minGapPx = 12)
       if (typeof (textEl as any).getComputedTextLength === 'function') {
         try {
           width = (textEl as any).getComputedTextLength();
-        } catch {}
+        } catch {
+          /* ignore */
+        }
       }
       if (!width || width <= 0) {
         width = text.length * 7.5;
@@ -194,10 +196,9 @@ export function preventTickOverlap(axisGNode: SVGGElement | null, minGapPx = 12)
     const left = x - width / 2;
     const right = x + width / 2;
 
-    if (left < lastRight + minGapPx) {
-      el.style.display = 'none';
-    } else {
-      el.style.display = '';
+    const shouldHide = left < lastRight + minGapPx;
+    el.classList.toggle('is-hidden', shouldHide);
+    if (!shouldHide) {
       lastRight = right;
     }
   }

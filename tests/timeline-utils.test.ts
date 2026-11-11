@@ -1,3 +1,5 @@
+import { setupDomPolyfills } from "./setupDom";
+setupDomPolyfills();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
@@ -86,7 +88,7 @@ test('preventTickOverlap hides overlapping tick label elements', () => {
   preventTickOverlap(axisG, 12);
 
   const ticks = axisG.querySelectorAll<SVGGElement>('.tick');
-  assert.equal(ticks[0].style.display, '', 'First tick should be visible');
-  assert.equal(ticks[1].style.display, 'none', 'Second tick should be hidden due to overlap');
-  assert.equal(ticks[2].style.display, '', 'Third tick should be visible');
+  assert.ok(!ticks[0].classList.contains('is-hidden'), 'First tick should be visible');
+  assert.ok(ticks[1].classList.contains('is-hidden'), 'Second tick should be hidden due to overlap');
+  assert.ok(!ticks[2].classList.contains('is-hidden'), 'Third tick should be visible');
 });
