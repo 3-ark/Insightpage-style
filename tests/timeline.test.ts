@@ -821,6 +821,9 @@ test('renderTimelineBlock tooltip positions correctly with scroll and viewport c
   const tooltip = wrapper.querySelector('.timeline-tooltip') as HTMLElement;
   const eventGroup = wrapper.querySelector('.event-group') as SVGElement;
 
+  assert.equal(tooltip.style.left, '0px', 'Tooltip should use the wrapper origin for positioning');
+  assert.equal(tooltip.style.top, '0px', 'Tooltip should use the wrapper origin for positioning');
+
   // Mock getBoundingClientRect for wrapper and tooltip
   wrapper.getBoundingClientRect = () => ({
     left: 100,
