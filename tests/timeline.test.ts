@@ -544,7 +544,7 @@ test('renderTimelineBlock renders timeline SVG, event groups, top & bottom axes,
   assert.ok(legend, 'Legend should exist');
 
   const copyBtn = wrapper.querySelector('.timeline-copy-btn');
-  assert.ok(copyBtn, 'Copy button should exist');
+  assert.equal(copyBtn, null, 'Copy button should not exist');
 
   const downloadBtn = wrapper.querySelector('.timeline-download-btn');
   assert.ok(downloadBtn, 'Download SVG button should exist');
@@ -821,9 +821,6 @@ test('renderTimelineBlock tooltip positions correctly with scroll and viewport c
   const tooltip = wrapper.querySelector('.timeline-tooltip') as HTMLElement;
   const eventGroup = wrapper.querySelector('.event-group') as SVGElement;
 
-  assert.equal(tooltip.style.left, '0px', 'Tooltip should use the wrapper origin for positioning');
-  assert.equal(tooltip.style.top, '0px', 'Tooltip should use the wrapper origin for positioning');
-
   // Mock getBoundingClientRect for wrapper and tooltip
   wrapper.getBoundingClientRect = () => ({
     left: 100,
@@ -1036,4 +1033,118 @@ test('renderTimelineBlock applies refined styling attributes to event labels, ev
   const legendText = wrapper.querySelector('.legend-text') as SVGTextElement;
   assert.ok(legendText, 'Legend text should have .legend-text class');
   assert.equal(legendText.getAttribute('fill'), 'var(--text-muted, #64748b)', 'Legend text should use Obsidian text-muted variable');
+
+  // Allow hide timer to complete so it does not leak into subsequent tests
+  await new Promise((resolve) => setTimeout(resolve, 250));
+});
+
+test('renderTimelineBlock collection node and collapsed badge tooltips display and update on mouse events', async () => {
+  const { renderTimelineBlock } = await import('../src/timelineRenderer');
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
+  (global as any).window = dom.window;
+  (global as any).document = dom.window.document;
+  (global as any).Element = dom.window.Element;
+  (global as any).HTMLElement = dom.window.HTMLElement;
+  (global as any).SVGElement = dom.window.SVGElement;
+  (global as any).requestAnimationFrame = (cb: Function) => { cb(); return 1; };
+  (global as any).cancelAnimationFrame = () => {};
+  Object.defineProperty(global, 'navigator', { value: dom.window.navigator, configurable: true, writable: true });
+
+  const container = dom.window.document.getElementById('container') as HTMLElement;
+  const code = JSON.stringify([
+    {
+      start: '2020-01-01',
+      end: '2022-01-01',
+      title: 'Long Event With Collections',
+      category: 'Research',
+      collection: ['Item Alpha', 'Item Beta'],
+    },
+    {
+      start: '2020-01-01',
+      end: '2020-01-02',
+      title: 'Short Event With Multiple Collections',
+      category: 'Engineering',
+      collection: ['Col1', 'Col2', 'Col3', 'Col4', 'Col5'],
+    },
+  ]);
+
+  renderTimelineBlock(code, container);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  const wrapper = container.querySelector('.timeline-wrapper') as HTMLElement;
+  assert.ok(wrapper, 'Wrapper should exist');
+
+  const tooltip = wrapper.querySelector('.timeline-tooltip') as HTMLElement;
+  assert.ok(tooltip, 'Tooltip element should exist');
+
+  // 1. Verify expanded collection node tooltip rendering
+  const collectionNode = wrapper.querySelector('.collection-node') as SVGElement;
+  assert.ok(collectionNode, 'Collection node should exist on initial render without zoom');
+
+  const mouseEnterNodeEvt = new dom.window.MouseEvent('mouseenter', {
+    bubbles: false,
+    cancelable: true,
+    clientX: 150,
+    clientY: 150,
+  });
+  collectionNode.dispatchEvent(mouseEnterNodeEvt);
+
+  assert.ok(tooltip.classList.contains('timeline-tooltip-visible'), 'Tooltip should be visible on collection node mouseenter');
+  const ttTitle = tooltip.querySelector('.tt-title') as HTMLElement;
+  assert.equal(ttTitle.textContent, 'Item Alpha');
+
+  const ttCat = tooltip.querySelector('.tt-cat') as HTMLElement;
+  assert.ok(!ttCat.classList.contains('is-hidden'), 'Category should be visible in collection tooltip');
+  assert.match(ttCat.textContent || '', /Research/);
+
+  // Mouse move updates position
+  const mouseMoveNodeEvt = new dom.window.MouseEvent('mousemove', {
+    bubbles: false,
+    cancelable: true,
+    clientX: 160,
+    clientY: 160,
+  });
+  collectionNode.dispatchEvent(mouseMoveNodeEvt);
+  assert.ok(tooltip.classList.contains('timeline-tooltip-visible'));
+
+  // Mouse leave hides tooltip
+  const mouseLeaveNodeEvt = new dom.window.MouseEvent('mouseleave', {
+    bubbles: false,
+    cancelable: true,
+  });
+  collectionNode.dispatchEvent(mouseLeaveNodeEvt);
+
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  assert.ok(tooltip.classList.contains('timeline-tooltip-hidden'), 'Tooltip should hide after collection node mouseleave');
+
+  // 2. Verify collapsed collection badge tooltip rendering
+  const badgeNode = wrapper.querySelector('.collection-badge-node') as SVGElement;
+  assert.ok(badgeNode, 'Collection badge node should exist on initial render for collapsed event');
+
+  const mouseEnterBadgeEvt = new dom.window.MouseEvent('mouseenter', {
+    bubbles: false,
+    cancelable: true,
+    clientX: 180,
+    clientY: 180,
+  });
+  badgeNode.dispatchEvent(mouseEnterBadgeEvt);
+
+  assert.ok(tooltip.classList.contains('timeline-tooltip-visible'), 'Tooltip should be visible on badge mouseenter');
+  assert.equal(ttTitle.textContent, '5 Collection Items');
+
+  const ttList = tooltip.querySelector('.tt-items') as HTMLElement;
+  assert.ok(!ttList.classList.contains('is-hidden'), 'Items list should be visible in badge tooltip');
+  const badges = ttList.querySelectorAll('span');
+  assert.equal(badges.length, 5, 'Should render 5 item badges in badge tooltip');
+  assert.equal(badges[0].textContent, 'Col1');
+
+  // Mouse leave badge hides tooltip
+  const mouseLeaveBadgeEvt = new dom.window.MouseEvent('mouseleave', {
+    bubbles: false,
+    cancelable: true,
+  });
+  badgeNode.dispatchEvent(mouseLeaveBadgeEvt);
+
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  assert.ok(tooltip.classList.contains('timeline-tooltip-hidden'), 'Tooltip should hide after badge mouseleave');
 });

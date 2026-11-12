@@ -122,10 +122,16 @@ Module.prototype.require = function (id: string) {
         app: any;
         plugin: any;
         containerEl: HTMLElement;
+        updateCount = 0;
+
         constructor(app: any, plugin: any) {
           this.app = app;
           this.plugin = plugin;
           this.containerEl = document.createElement('div');
+        }
+
+        update() {
+          this.updateCount++;
         }
       },
       Setting: MockSetting,
@@ -134,7 +140,7 @@ Module.prototype.require = function (id: string) {
   return originalRequire.apply(this, arguments as any);
 };
 
-test('ChartSettingTab renders settings using display() and handles toggles and color list', async () => {
+test('ChartSettingTab declarative color action adds a color and refreshes the tab', async () => {
   const { ChartSettingTab } = await import('../src/ui/settingsTab');
 
   let saved = false;
@@ -152,42 +158,18 @@ test('ChartSettingTab renders settings using display() and handles toggles and c
   const mockApp: any = {};
 
   const tab = new ChartSettingTab(mockApp, mockPlugin);
-  const container = dom.window.document.createElement('div');
-  tab.containerEl = container;
+  const definitions = tab.getSettingDefinitions();
+  const colorsGroup = definitions.find((definition) => 'items' in definition);
+  assert.ok(colorsGroup && 'items' in colorsGroup, 'Should define a Colors group');
+  const addColorItem = colorsGroup.items.find((item) => item.name === 'Add Color');
+  assert.ok(addColorItem && 'action' in addColorItem, 'Should define the Add Color action');
 
-  // Initial display
-  tab.display();
-
-  // Check heading
-  const headings = Array.from(container.querySelectorAll('.setting-item-heading'));
-  assert.ok(headings.length >= 1, 'Should render Colors section heading');
-  assert.equal(headings[0].textContent, 'Colors');
-
-  // Check color items rendered
-  const colorItems = Array.from(container.querySelectorAll('.setting-item')).filter(
-    (el) => el.textContent?.includes('Color #')
-  );
-  assert.equal(colorItems.length, 3, 'Should render 3 color items');
-
-  // Verify "Add Color" button exists
-  const buttons = Array.from(container.querySelectorAll('button'));
-  const addColorBtn = buttons.find((b) => b.textContent === 'Add Color');
-  assert.ok(addColorBtn, 'Add Color button should exist');
-
-  // Click Add Color
-  addColorBtn.click();
+  addColorItem.action(tab.containerEl, 0);
   await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(mockPlugin.settings.colors.length, 4, 'Should add a new color');
   assert.equal(mockPlugin.settings.colors[3], '#ffffff');
   assert.ok(saved);
-
-  // Check themeable toggle hides colors
-  mockPlugin.settings.themeable = true;
-  tab.display();
-  const colorItemsAfterThemeable = Array.from(container.querySelectorAll('.setting-item')).filter(
-    (el) => el.textContent?.includes('Color #')
-  );
-  assert.equal(colorItemsAfterThemeable.length, 0, 'Color items should be hidden when themeable is true');
+  assert.equal((tab as any).updateCount, 1, 'Should refresh with update() after saving');
 });
 
 test('ChartSettingTab implements getSettingDefinitions() declarative API', async () => {
@@ -217,9 +199,12 @@ test('ChartSettingTab implements getSettingDefinitions() declarative API', async
   await tab.setControlValue('contextMenu', false);
   assert.equal(mockPlugin.settings.contextMenu, false);
   assert.ok(saved);
+  assert.equal((tab as any).updateCount, 0, 'Changing contextMenu should not refresh the tab');
 
   // When themeable is true, colors group is omitted from definitions
   mockPlugin.settings.themeable = true;
   const defsThemeable = tab.getSettingDefinitions();
   assert.equal(defsThemeable.length, 2, 'Should only include contextMenu and themeable');
+  await tab.setControlValue('themeable', false);
+  assert.equal((tab as any).updateCount, 1, 'Changing themeable should refresh with update()');
 });

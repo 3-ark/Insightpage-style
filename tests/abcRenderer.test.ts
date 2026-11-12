@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { renderAbcBlock } from '../src/abcRenderer';
 
-test('renderAbcBlock sets up sheet container, playback controls and download button', () => {
+test('renderAbcBlock sets up sheet container, playback controls and download button without a copy button', () => {
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
   (global as any).document = dom.window.document;
@@ -46,5 +46,5 @@ K: Emin
   assert.ok(downloadBtn, 'Download button should be present');
 
   const copyBtn = controls.querySelector('.abcjs-copy-btn');
-  assert.ok(copyBtn, 'Copy button should be present');
+  assert.equal(copyBtn, null, 'Copy button should not be present');
 });

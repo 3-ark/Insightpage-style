@@ -26,8 +26,6 @@ import {
   formatTimelineTick,
 } from './charts/timelineFormatters';
 import {
-  createTlCopyIcon,
-  createTlCheckIcon,
   createTlDownloadIcon,
   setTlButtonIcon,
 } from './charts/timelineIcons';
@@ -133,23 +131,6 @@ export async function renderTimelineBlockAsync(
   const actionBtnsGroup = createDiv();
   actionBtnsGroup.className = 'timeline-action-btns absolute right-3 top-3 z-10 opacity-0 group-hover/chart:opacity-100 group-focus-within/chart:opacity-100 transition-opacity duration-200 flex items-center gap-1';
 
-  const copyBtn = createEl('button');
-  copyBtn.className = 'timeline-btn timeline-copy-btn p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/20 transition-colors';
-  copyBtn.title = 'Copy timeline data';
-  setTlButtonIcon(copyBtn, createTlCopyIcon());
-  copyBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    void (async () => {
-      try {
-        await navigator.clipboard.writeText(code);
-        setTlButtonIcon(copyBtn, createTlCheckIcon());
-        window.setTimeout(() => { setTlButtonIcon(copyBtn, createTlCopyIcon()); }, 1500);
-      } catch {
-        /* ignore */
-      }
-    })();
-  });
-
   const downloadBtn = createEl('button');
   downloadBtn.className = 'timeline-btn timeline-download-btn p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/20 transition-colors';
   downloadBtn.title = 'Download SVG';
@@ -174,7 +155,6 @@ export async function renderTimelineBlockAsync(
     }
   });
 
-  actionBtnsGroup.appendChild(copyBtn);
   actionBtnsGroup.appendChild(downloadBtn);
   chartContainer.appendChild(actionBtnsGroup);
 

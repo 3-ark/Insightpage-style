@@ -80,23 +80,6 @@ function createDownloadIcon(): SVGSVGElement {
   );
 }
 
-function createCopyIcon(): SVGSVGElement {
-  return createSvgIcon(
-    { width: '16', height: '16', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
-    [
-      { tag: 'rect', attrs: { width: '14', height: '14', x: '8', y: '8', rx: '2', ry: '2' } },
-      { tag: 'path', attrs: { d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' } },
-    ]
-  );
-}
-
-function createCheckIcon(): SVGSVGElement {
-  return createSvgIcon(
-    { width: '16', height: '16', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
-    [{ tag: 'polyline', attrs: { points: '20 6 9 17 4 12' } }]
-  );
-}
-
 function setButtonIcon(btn: HTMLElement, iconEl: Node): void {
   btn.replaceChildren(iconEl);
 }
@@ -252,28 +235,6 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
     }
   });
 
-  // Copy Sheet Music Button
-  const copyBtn = createEl('button');
-  copyBtn.className = 'abcjs-btn abcjs-copy-btn';
-  copyBtn.title = 'Copy ABC source';
-  setButtonIcon(copyBtn, createCopyIcon());
-
-  copyBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    void (async () => {
-      try {
-        await navigator.clipboard.writeText(source.trim());
-        setButtonIcon(copyBtn, createCheckIcon());
-        window.setTimeout(() => {
-          setButtonIcon(copyBtn, createCopyIcon());
-        }, 1500);
-      } catch {
-        // ignore
-      }
-    })();
-  });
-
-  rightBtns.appendChild(copyBtn);
   rightBtns.appendChild(downloadBtn);
 
   controlsBar.appendChild(leftBtns);
