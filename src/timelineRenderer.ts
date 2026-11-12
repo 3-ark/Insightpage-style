@@ -23,7 +23,6 @@ import {
   renderWikilinksToDom,
 } from './charts/timelineWikilinks';
 import {
-  formatDisplayDate,
   formatTimelineTick,
 } from './charts/timelineFormatters';
 import {

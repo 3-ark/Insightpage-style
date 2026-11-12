@@ -125,7 +125,7 @@ export class ChartRenderChild extends MarkdownRenderChild {
         const app = this.renderer.plugin.app;
         const customFetch = createCustomFetch(app, obsidianModule, this.ownPath);
 
-        const rawDataPath = String(this.data.data).trim().replace(/^[\["'`\s]+|[\]"'`\s]+$/g, '');
+        const rawDataPath = String(this.data.data).trim().replace(/^[["'`\s]+|[\]"'`\s]+$/g, '');
         const cleanPath = rawDataPath.replace(/\\/g, '/').replace(/^\.?\//, '');
         this.referencedFiles.add(cleanPath);
         if (cleanPath.endsWith('.csv') || cleanPath.endsWith('.tsv') || cleanPath.endsWith('.json')) {

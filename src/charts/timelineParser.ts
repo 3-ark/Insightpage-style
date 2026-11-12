@@ -301,7 +301,7 @@ export function parseLooseObjectLiteral(code: string): any {
   cleaned = cleaned.replace(/\x27([^\x27\\]*(\\.[^\x27\\]*)*)\x27/g, '"$1"');
   cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
 
-  cleaned = cleaned.replace(/(:\s*)([^"'\s{},\[\]][^{},\[\]]*?)(?=\s*[,}\]])/g, (match, prefix, val) => {
+  cleaned = cleaned.replace(/(:\s*)([^"'\s{},[\]][^{},[\]]*?)(?=\s*[,}\]])/g, (match, prefix, val) => {
     const trimmedVal = val.trim();
     if (!trimmedVal) return match;
     if (JS_KEYWORDS_SET.has(trimmedVal)) return prefix + trimmedVal;
@@ -309,7 +309,7 @@ export function parseLooseObjectLiteral(code: string): any {
     return `${prefix}"${trimmedVal}"`;
   });
 
-  cleaned = cleaned.replace(/(\[\s*|,\s*)([^"'\s\d.,{}\[\]][^{}\[\]]*?)(?=\s*[,\]])/g, (match, prefix, val) => {
+  cleaned = cleaned.replace(/(\[\s*|,\s*)([^"'\s\d.,{}[\]][^{}[\]]*?)(?=\s*[,\]])/g, (match, prefix, val) => {
     const trimmedVal = val.trim();
     if (!trimmedVal) return match;
     if (JS_KEYWORDS_SET.has(trimmedVal)) return prefix + trimmedVal;
@@ -620,10 +620,10 @@ export function parseTimelineConfig(code: string): TimelineConfig {
 
   if (yamlParsed && typeof yamlParsed === 'object' && (yamlParsed.data || yamlParsed.id || yamlParsed.events || yamlParsed.schemas || yamlParsed.schema)) {
     if (yamlParsed.data) {
-      dataPath = String(yamlParsed.data).trim().replace(/^[\["'`\s]+|[\]"'`\s]+$/g, '');
+      dataPath = String(yamlParsed.data).trim().replace(/^[["'`\s]+|[\]"'`\s]+$/g, '');
     }
     if (yamlParsed.id) {
-      blockId = String(yamlParsed.id).trim().replace(/^[\["'`\s]+|[\]"'`\s]+$/g, '').replace(/^\^/, '');
+      blockId = String(yamlParsed.id).trim().replace(/^[["'`\s]+|[\]"'`\s]+$/g, '').replace(/^\^/, '');
     }
     const s = yamlParsed.schemas || yamlParsed.schema;
     if (s && typeof s === 'object') {
@@ -641,14 +641,14 @@ export function parseTimelineConfig(code: string): TimelineConfig {
   if (!dataPath) {
     const dataMatch = cleaned.match(/\bdata\s*[:=]\s*([^\n]+)/i);
     if (dataMatch) {
-      dataPath = dataMatch[1].trim().replace(/^[\["'`\s]+|[\]"'`\s]+$/g, '');
+      dataPath = dataMatch[1].trim().replace(/^[["'`\s]+|[\]"'`\s]+$/g, '');
     }
   }
 
   if (!blockId) {
     const idMatch = cleaned.match(/\bid\s*[:=]\s*([^\n]+)/i);
     if (idMatch) {
-      blockId = idMatch[1].trim().replace(/^[\["'`\s]+|[\]"'`\s]+$/g, '').replace(/^\^/, '');
+      blockId = idMatch[1].trim().replace(/^[["'`\s]+|[\]"'`\s]+$/g, '').replace(/^\^/, '');
     }
   }
 

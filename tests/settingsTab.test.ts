@@ -189,3 +189,37 @@ test('ChartSettingTab renders settings using display() and handles toggles and c
   );
   assert.equal(colorItemsAfterThemeable.length, 0, 'Color items should be hidden when themeable is true');
 });
+
+test('ChartSettingTab implements getSettingDefinitions() declarative API', async () => {
+  const { ChartSettingTab } = await import('../src/ui/settingsTab');
+
+  let saved = false;
+  const mockPlugin: any = {
+    settings: {
+      contextMenu: true,
+      themeable: false,
+      colors: ['#ff0000', '#00ff00', '#0000ff'],
+    },
+    saveSettings: async () => {
+      saved = true;
+    },
+  };
+
+  const mockApp: any = {};
+  const tab = new ChartSettingTab(mockApp, mockPlugin);
+
+  const defs = tab.getSettingDefinitions();
+  assert.ok(Array.isArray(defs), 'Definitions should be an array');
+  assert.equal(defs.length, 3, 'Should include contextMenu, themeable, and colors group');
+
+  // Verify getControlValue and setControlValue
+  assert.equal(tab.getControlValue('contextMenu'), true);
+  await tab.setControlValue('contextMenu', false);
+  assert.equal(mockPlugin.settings.contextMenu, false);
+  assert.ok(saved);
+
+  // When themeable is true, colors group is omitted from definitions
+  mockPlugin.settings.themeable = true;
+  const defsThemeable = tab.getSettingDefinitions();
+  assert.equal(defsThemeable.length, 2, 'Should only include contextMenu and themeable');
+});

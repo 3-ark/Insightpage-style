@@ -34,7 +34,7 @@ function parseSafeHtmlFragment(rawHtml: string, doc?: Document): DocumentFragmen
   if (!documentObj) return null;
   const parser = new (documentObj.defaultView?.DOMParser || DOMParser)();
   const parsed = parser.parseFromString(rawHtml, 'text/html');
-  const fragment = typeof createFragment === 'function' ? createFragment() : documentObj.createDocumentFragment();
+  const fragment = typeof createFragment === 'function' ? createFragment() : documentObj.createRange().createContextualFragment('');
   while (parsed.body.firstChild) {
     fragment.appendChild(parsed.body.firstChild);
   }

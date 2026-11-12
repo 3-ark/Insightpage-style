@@ -4,7 +4,7 @@ import type ChartPlugin from 'src/main';
 import { createCustomFetch, toTFile } from './charts/customFetch';
 import { getPlot, getD3, setPlot, setD3, wrapPlotInstance } from './charts/plotInstance';
 import { prepareChartDataset, tryParseDate, type PreparedChart } from './charts/barLineRenderer';
-import { executePlotJs, resolveToDomElement } from './charts/plotJsRunner';
+import { executePlotJs } from './charts/plotJsRunner';
 import { PlotJsRenderChild, ChartRenderChild } from './charts/chartRenderChild';
 
 export {
