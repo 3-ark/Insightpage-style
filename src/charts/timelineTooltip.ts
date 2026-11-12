@@ -29,8 +29,6 @@ export function createTimelineTooltip(
   if (!tooltip) {
     tooltip = createDiv();
     tooltip.className = 'timeline-tooltip absolute opacity-0 transition-opacity duration-100 z-30 px-3 py-2 text-xs rounded-lg shadow-xl bg-popover text-popover-foreground border border-border/30 max-w-xs';
-    tooltip.style.left = '0';
-    tooltip.style.top = '0';
     tooltip.classList.add('timeline-tooltip-hidden');
 
     ttTitle = createDiv();

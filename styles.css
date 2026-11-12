@@ -637,6 +637,8 @@ a[href="https://ko-fi.com/phibr0"] > img
 
 .timeline-tooltip {
   position: absolute;
+  left: 0;
+  top: 0;
   pointer-events: none;
   z-index: 1000;
   padding: 0.5rem 0.75rem;
