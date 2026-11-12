@@ -67,3 +67,4 @@ minimumReleaseAgeExclude:
   - jsdom@31.0.0
   - '@rollup/rollup-android-x64@4.68.2'
   - chroma-js@3.3.0
+  - '@tsconfig/svelte@5.0.9'
