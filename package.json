@@ -1,6 +1,6 @@
 {
     "name": "insightpage-style",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "description": "This Plugin lets you create Charts, render abcjs, popover comment callout within Obsidian to match the styles in insightnote",
     "main": "main.js",
     "scripts": {
@@ -14,7 +14,7 @@
         "@rollup/plugin-commonjs": "^29.0.3",
         "@rollup/plugin-node-resolve": "^16.0.3",
         "@rollup/plugin-typescript": "^12.3.1",
-        "@tsconfig/svelte": "^5.0.8",
+        "@tsconfig/svelte": "^5.0.9",
         "@types/chroma-js": "^3.1.3",
         "@types/d3": "^7.4.3",
         "@types/node": "^26.6.6",
