@@ -5,7 +5,8 @@ import {
   rowsToTableData,
   coerceTableRow,
 } from 'src/chartFromTable';
-import { parseMarkdownTableRows, parseCsvOrTsv } from './timelineParser';
+import { parseMarkdownTableRows } from './timelineParser';
+import { parseCsvOrTsv } from './tabularDataParser';
 import { toTFile, createCustomFetch } from './customFetch';
 import type Renderer from '../chartRenderer';
 
