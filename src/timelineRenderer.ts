@@ -2,13 +2,13 @@ import {
   parseEventDate,
   parseTimelineCode,
   parseTimelineConfig,
-  parseCsvOrTsv,
   parseMarkdownTableRows,
   mapRawRowsToTimelineData,
   type TimelineEvent,
   type ParsedTimelineData,
   type TimelineConfig,
 } from './charts/timelineParser';
+import { parseCsvOrTsv } from './charts/tabularDataParser';
 import {
   getTimeGranularity,
   createAdaptiveTickFormatter,

@@ -1,10 +1,10 @@
 import {
   parseTimelineConfig,
-  parseCsvOrTsv,
   parseMarkdownTableRows,
   mapRawRowsToTimelineData,
   type ParsedTimelineData,
 } from './timelineParser';
+import { parseCsvOrTsv } from './tabularDataParser';
 import { createCustomFetch } from './customFetch';
 
 export async function resolveTimelineData(

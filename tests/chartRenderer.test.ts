@@ -904,6 +904,25 @@ Mar,200,90`;
   assert.notEqual(renderedChild.chartEl, null, 'Chart element should be rendered from external CSV file');
 });
 
+test('comma-separated CSV with tabs inside quoted cells preserves row labels and values', async () => {
+  const { parseCsvOrTsv } = await import('../src/charts/tabularDataParser');
+  const { coerceTableRow, rowsToTableData } = await import('../src/chartFromTable');
+  const csv = `指标,"2026年10月\t","2026年9月\t","2026年8月\t"
+"制造业采购经理指数 (%) \t","49.3\t","50.1\t","49.8\t"
+"生产指数 (%) \t","49.8\t","51.7\t","50.4\t"`;
+
+  const rows = parseCsvOrTsv(csv).map(coerceTableRow);
+  const tableData = rowsToTableData(rows, 'rows');
+
+  assert.deepEqual(tableData.labels, ['2026年10月', '2026年9月', '2026年8月']);
+  assert.deepEqual(
+    tableData.dataFields.map((field) => field.dataTitle),
+    ['制造业采购经理指数 (%)', '生产指数 (%)']
+  );
+  assert.deepEqual(tableData.dataFields[0].data, ['49.3', '50.1', '49.8']);
+  assert.deepEqual(tableData.dataFields[1].data, ['49.8', '51.7', '50.4']);
+});
+
 test('ChartRenderChild loads external JSON data file and reloads on metadataCache change', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
