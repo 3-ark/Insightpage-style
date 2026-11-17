@@ -93,8 +93,7 @@ g[aria-label="tip"] {
   stroke: var(--background-modifier-border, rgba(128, 128, 128, 0.35)) !important;
 }
 
-g[aria-label="tip"] text,
-g[aria-label="tip"] tspan {
+g[aria-label="tip"] text {
   fill: var(--text-normal, #222222) !important;
 }
 
