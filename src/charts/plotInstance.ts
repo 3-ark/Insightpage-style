@@ -40,6 +40,27 @@ export function wrapPlotInstance(originalPlot: any): any {
     get(target, prop, receiver) {
       const orig = Reflect.get(target, prop, receiver);
 
+      if (prop === 'lineY' && typeof orig === 'function') {
+        return function (data: any, options: any = {}) {
+          if (options.tip && options.stroke !== undefined) {
+            const line = orig.call(target, data, { ...options, tip: false });
+            // A hidden fill-coded point mark gives the tooltip the line's categorical color channel.
+            const dotOptions: any = {
+              ...(options.x !== undefined ? { x: options.x } : {}),
+              ...(options.y !== undefined ? { y: options.y } : {}),
+              fill: options.stroke,
+              r: 0,
+              stroke: 'none',
+              tip: options.tip,
+            };
+            if (options.title !== undefined) dotOptions.title = options.title;
+            const tooltipDots = target.dot(data, dotOptions);
+            return target.marks([line, tooltipDots]);
+          }
+          return orig.call(target, data, options);
+        };
+      }
+
       if (typeof prop === 'string' && FRAME_ANCHOR_MARKS.has(prop) && typeof orig === 'function') {
         return function (data: any, options: any = {}) {
           if (options && options.frameAnchor !== undefined && !VALID_FRAME_ANCHORS.has(options.frameAnchor)) {

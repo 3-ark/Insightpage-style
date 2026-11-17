@@ -759,6 +759,34 @@ Plot.plot({
   assert.ok(renderedTexts.includes('Bottom Note'));
 });
 
+test('lineY tooltips use the categorical stroke color without adding visible points', async () => {
+  const { getPlot } = await import('../src/charts/plotInstance');
+  const Plot = getPlot();
+  const data = [
+    { month: new Date(Date.UTC(2026, 0, 1)), indicator: 'Series A', value: 45 },
+    { month: new Date(Date.UTC(2026, 1, 1)), indicator: 'Series A', value: 55 },
+    { month: new Date(Date.UTC(2026, 2, 1)), indicator: 'Series A', value: 50 },
+  ];
+
+  const plot = Plot.plot({
+    color: { legend: true },
+    marks: [
+      Plot.lineY(data, {
+        x: 'month',
+        y: 'value',
+        stroke: 'indicator',
+        tip: true,
+      }),
+    ],
+  });
+
+  const lineStroke = plot.querySelector('g[aria-label="line"] path')?.getAttribute('stroke');
+  const tooltipDots = Array.from(plot.querySelectorAll('g[aria-label="dot"] circle'));
+  assert.equal(tooltipDots.length, data.length);
+  assert.ok(tooltipDots.every((dot) => dot.getAttribute('r') === '0'));
+  assert.ok(tooltipDots.every((dot) => dot.getAttribute('fill') === lineStroke));
+});
+
 test('renders Plot chart with title, subtitle, and caption within figure element', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
