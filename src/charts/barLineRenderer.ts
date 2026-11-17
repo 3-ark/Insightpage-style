@@ -236,7 +236,7 @@ export function prepareChartDataset(
         y: 'y',
         stroke: 'series',
         curve,
-        strokeWidth: 2,
+        strokeWidth: 1.5,
       })
     );
     // Resolve line dot radius and visibility. For dense series (> 30 data points),
