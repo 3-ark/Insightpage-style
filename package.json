@@ -23,6 +23,7 @@
         "esbuild": "^0.28.2",
         "esbuild-svelte": "^0.9.5",
         "eslint": "^10.15.0",
+        "eslint-plugin-obsidianmd": "^0.6.0",
         "jsdom": "^31.0.1",
         "obsidian": "^1.14.4",
         "rollup": "^4.68.7",
