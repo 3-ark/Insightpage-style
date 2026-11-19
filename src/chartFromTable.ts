@@ -1,23 +1,30 @@
-import { Editor, Notice } from 'obsidian';
+import type { CachedMetadata, Editor } from 'obsidian';
+import { Notice } from 'obsidian';
 import type { DataField } from 'src/constants/settingsConstants';
 import { splitMarkdownTableRow, parseMarkdownTableRows } from './charts/timelineParser';
 
-let _Extractor: any = null;
-function getExtractor(): any {
+interface MarkdownTableExtractor {
+    extractObject(table: string, layout: 'columns' | 'rows', transpose: boolean): Record<string, Record<string, string>>;
+}
+
+let _Extractor: MarkdownTableExtractor | null = null;
+function getExtractor(): MarkdownTableExtractor {
     if (!_Extractor) {
-        _Extractor = require('markdown-tables-to-json').Extractor;
+        const loaded = require('markdown-tables-to-json') as { Extractor: MarkdownTableExtractor };
+        _Extractor = loaded.Extractor;
     }
     return _Extractor;
 }
 
-export async function chartFromTable(editor: Editor, layout: 'columns' | 'rows') {
+export function chartFromTable(editor: Editor, layout: 'columns' | 'rows'): void {
     const {labels, dataFields} = generateTableData(editor.getSelection(), layout);
+    const labelsStr = Array.isArray(labels) ? labels.join(', ') : String(labels);
     const chart = `\`\`\`chart
 type: bar
-labels: [${labels}]
+labels: [${labelsStr}]
 series:
 ${dataFields
-    .map((data) => `  - title: ${data.dataTitle}\n    data: [${data.data}]`)
+    .map((data) => `  - title: ${data.dataTitle}\n    data: [${Array.isArray(data.data) ? data.data.join(', ') : data.data}]`)
     .join("\n")}
 width: 80%
 beginAtZero: true
@@ -112,7 +119,7 @@ export function parseMarkdownTable(tableString: string, layout: 'columns' | 'row
 }
 
 export function rowsToTableData(
-    rows: Record<string, any>[],
+    rows: Record<string, unknown>[],
     layout: 'columns' | 'rows' = 'columns',
     selected?: string[]
 ): { labels: string[]; dataFields: DataField[] } {
@@ -135,8 +142,10 @@ export function rowsToTableData(
 
     const fields: Record<string, Record<string, string>> = {};
 
-    const formatLabelValue = (val: any): string => {
+    const formatLabelValue = (val: unknown): string => {
         if (val === undefined || val === null) return '';
+        if (typeof val === 'string') return val;
+        if (typeof val === 'number' || typeof val === 'boolean' || typeof val === 'bigint') return val.toString();
         if (val instanceof Date && !isNaN(val.getTime())) {
             const y = val.getUTCFullYear();
             const m = String(val.getUTCMonth() + 1).padStart(2, '0');
@@ -146,7 +155,7 @@ export function rowsToTableData(
             }
             return val.toISOString();
         }
-        return String(val);
+        return JSON.stringify(val) ?? '';
     };
 
     if (layout === 'rows') {
@@ -158,7 +167,7 @@ export function rowsToTableData(
             for (let i = 0; i < labelHeaders.length; i++) {
                 const lbl = labelHeaders[i];
                 const val = r[lbl];
-                rowObj[lbl] = val !== undefined && val !== null ? String(val) : '';
+                rowObj[lbl] = formatLabelValue(val);
             }
             fields[rowTitle] = rowObj;
         }
@@ -173,7 +182,7 @@ export function rowsToTableData(
             for (let c = 0; c < colHeaders.length; c++) {
                 const colTitle = colHeaders[c];
                 const val = row[colTitle];
-                fields[colTitle][lbl] = val !== undefined && val !== null ? String(val) : '';
+                fields[colTitle][lbl] = formatLabelValue(val);
             }
         }
     }
@@ -182,15 +191,15 @@ export function rowsToTableData(
     if (fieldKeys.length === 0) {
         throw new Error('Table is empty or invalid');
     }
-    const firstVal = fields[fieldKeys[0]] as Record<string, any>;
+    const firstVal = fields[fieldKeys[0]];
     const labels = Object.keys(firstVal);
-    let dataFields: DataField[] = new Array(fieldKeys.length);
+    let dataFields: DataField[] = [];
     for (let i = 0; i < fieldKeys.length; i++) {
         const key = fieldKeys[i];
-        dataFields[i] = {
+        dataFields.push({
             dataTitle: key,
             data: Object.values(fields[key])
-        };
+        });
     }
 
     if (selected) {
@@ -206,7 +215,7 @@ export function generateTableData(table: string, layout: 'columns' | 'rows', sel
     // instead of attempting getExtractor().extractObject() first. The external library always throws
     // exceptions on modern runtimes or tables with block IDs, forcing an expensive exception catch
     // and secondary parse on every call. We fall back to getExtractor() only if our primary parser fails.
-    let fields: any;
+    let fields: Record<string, Record<string, string>>;
     try {
         fields = parseMarkdownTable(table, layout);
     } catch (parseError) {
@@ -224,18 +233,18 @@ export function generateTableData(table: string, layout: 'columns' | 'rows', sel
     if (fieldKeys.length === 0) {
         throw new Error('Table is empty or invalid');
     }
-    const firstVal = fields[fieldKeys[0]] as Record<string, any>;
+    const firstVal = fields[fieldKeys[0]];
     if (!firstVal || typeof firstVal !== 'object') {
         throw new Error('Table data structure is invalid');
     }
     const labels = Object.keys(firstVal);
-    let dataFields: DataField[] = new Array(fieldKeys.length);
+    let dataFields: DataField[] = [];
     for (let i = 0; i < fieldKeys.length; i++) {
         const key = fieldKeys[i];
-        dataFields[i] = {
+        dataFields.push({
             dataTitle: key,
             data: Object.values(fields[key])
-        };
+        });
     }
 
     if (selected) {
@@ -248,7 +257,7 @@ export function generateTableData(table: string, layout: 'columns' | 'rows', sel
     return { labels, dataFields };
 }
 
-export function parseCellValue(raw: any): any {
+export function parseCellValue(raw: unknown): unknown {
     if (raw === undefined || raw === null) return raw;
     if (typeof raw !== 'string') return raw;
     const str = raw.trim();
@@ -282,8 +291,8 @@ export function parseCellValue(raw: any): any {
     return str;
 }
 
-export function coerceTableRow(row: Record<string, any>): Record<string, any> {
-    const result: Record<string, any> = {};
+export function coerceTableRow(row: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
     // Performance optimization: Precompute an O(1) lowercase-to-original-key lookup Map
     // to avoid allocating Object.keys() heap arrays and executing per-access toLowerCase()
     // linear scans on property misses in rendering loops.
@@ -300,7 +309,7 @@ export function coerceTableRow(row: Record<string, any>): Record<string, any> {
             if (typeof prop === 'string' && !(prop in target)) {
                 const actualKey = lowerKeyMap.get(prop.toLowerCase());
                 if (actualKey !== undefined) {
-                    return (target as Record<string, unknown>)[actualKey];
+                    return target[actualKey];
                 }
             }
             return Reflect.get(target, prop, receiver) as unknown;
@@ -363,9 +372,9 @@ export function parseHtmlTable(tableEl: HTMLTableElement): Record<string, string
 
 export function extractTablesFromMarkdown(
     fullText: string,
-    fileCache: any,
-    tablesMap: Map<string, any[]>,
-    allTables: Array<{ id: string | null; rows: any[] }>
+    fileCache: CachedMetadata | null | undefined,
+    tablesMap: Map<string, Record<string, unknown>[]>,
+    allTables: Array<{ id: string | null; rows: Record<string, unknown>[] }>
 ) {
     // Performance optimization: Markdown tables strictly require pipes ('|').
     // In notes without markdown tables, fast O(1) includes('|') short-circuits line splitting,
@@ -374,7 +383,7 @@ export function extractTablesFromMarkdown(
 
     const registeredIds = new Set<string>();
 
-    const register = (id: string | null, rows: any[]) => {
+    const register = (id: string | null, rows: Record<string, unknown>[]) => {
         if (!rows || rows.length === 0) return;
         allTables.push({ id, rows });
         if (id) {
@@ -395,7 +404,7 @@ export function extractTablesFromMarkdown(
     };
 
     if (fileCache?.blocks) {
-        for (const [blockId, block] of Object.entries(fileCache.blocks as Record<string, any>)) {
+        for (const [blockId, block] of Object.entries(fileCache.blocks)) {
             if (block?.position) {
                 const blockText = fullText.substring(block.position.start.offset, block.position.end.offset);
                 if (blockText.includes('|')) {
@@ -455,8 +464,8 @@ export function extractTablesFromMarkdown(
 
 export function extractTablesFromDom(
     doc: Document,
-    tablesMap: Map<string, any[]>,
-    allTables: Array<{ id: string | null; rows: any[] }>
+    tablesMap: Map<string, Record<string, unknown>[]>,
+    allTables: Array<{ id: string | null; rows: Record<string, unknown>[] }>
 ) {
     // Performance optimization: Guard DOM table queries with fast tag presence check
     // to avoid allocating Array.from and CSS querySelector engine passes when no <table> elements exist.
