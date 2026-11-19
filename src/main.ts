@@ -30,11 +30,11 @@ import { renderTimelineBlock } from 'src/timelineRenderer';
 
 declare global {
   interface Window {
-    Plot: any;
-    d3: any;
-    L: any;
-    Leaflet: any;
-    renderChart: (data: any, el: HTMLElement) => Promise<any>;
+    Plot?: typeof import('@observablehq/plot');
+    d3?: typeof import('d3');
+    L?: typeof import('leaflet');
+    Leaflet?: typeof import('leaflet');
+    renderChart?: (data: unknown, el: HTMLElement) => Promise<HTMLElement | SVGElement | null>;
   }
 }
 
@@ -47,20 +47,22 @@ export default class ChartPlugin extends Plugin {
     el: HTMLElement,
     ctx: MarkdownPostProcessorContext
   ) => {
-    let data;
+    let rawParsed: unknown;
     try {
-      data = await parseYaml(content.replace(/\t/g, '    '));
+      rawParsed = await parseYaml(content.replace(/\t/g, '    '));
     } catch (error) {
       renderError(error, el);
       return;
     }
-    const hasExternalData = typeof data?.data === 'string' && data.data.trim() !== '';
+    const data = (typeof rawParsed === 'object' && rawParsed !== null ? rawParsed : {}) as Record<string, unknown>;
+    const hasExternalData = typeof data.data === 'string' && data.data.trim() !== '';
     if (!data.id && !hasExternalData) {
-      const chartType = String(data?.type ?? '').toLowerCase().trim().replace(/[-_\s]/g, '');
+      const typeStr = typeof data.type === 'string' ? data.type : '';
+      const chartType = typeStr.toLowerCase().trim().replace(/[-_\s]/g, '');
       const isScatter = ['scatter', 'point', 'points', 'scatterplot'].includes(chartType);
       const isSankey = chartType === 'sankey';
 
-      if (!data || !data.type) {
+      if (!typeStr) {
         renderError('Missing chart type', el);
         return;
       }
@@ -84,17 +86,19 @@ export default class ChartPlugin extends Plugin {
         return;
       }
     }
-    if (data.bestFit === true && String(data.type ?? '').toLowerCase() === 'line' && Array.isArray(data.series) && data.series.length > 0) {
+    const typeStr = typeof data.type === 'string' ? data.type : '';
+    if (data.bestFit === true && typeStr.toLowerCase() === 'line' && Array.isArray(data.series) && data.series.length > 0) {
+      const seriesList = data.series as Array<Record<string, unknown>>;
       const seriesIndex = data.bestFitNumber !== undefined && !isNaN(Number(data.bestFitNumber))
-        ? Math.min(Math.max(0, Number(data.bestFitNumber)), data.series.length - 1)
+        ? Math.min(Math.max(0, Number(data.bestFitNumber)), seriesList.length - 1)
         : 0;
 
-      const targetSeries = data.series[seriesIndex];
-      const rawData = targetSeries?.data ?? [];
+      const targetSeries = seriesList[seriesIndex];
+      const rawData = Array.isArray(targetSeries?.data) ? (targetSeries.data as unknown[]) : [];
 
-      if (Array.isArray(rawData) && rawData.length > 0) {
+      if (rawData.length > 0) {
         const n = rawData.length;
-        const labels = Array.isArray(data.labels) ? data.labels : [];
+        const labels = Array.isArray(data.labels) ? (data.labels as unknown[]) : [];
 
         // Performance optimization: Single-pass linear regression calculation.
         // Check if labels form a valid numeric sequence while evaluating numerical x/y values,
@@ -135,11 +139,12 @@ export default class ChartPlugin extends Plugin {
             fittedY[i] = slope * xVals[i] + intercept;
           }
 
-          const title = (data.bestFitTitle !== undefined && data.bestFitTitle !== 'undefined' && String(data.bestFitTitle).trim() !== '')
-            ? String(data.bestFitTitle)
+          const bestFitTitleStr = typeof data.bestFitTitle === 'string' ? data.bestFitTitle : '';
+          const title = (bestFitTitleStr.trim() !== '' && bestFitTitleStr !== 'undefined')
+            ? bestFitTitleStr
             : 'Line of Best Fit';
 
-          data.series.push({
+          seriesList.push({
             title,
             data: fittedY,
           });
@@ -150,7 +155,8 @@ export default class ChartPlugin extends Plugin {
   };
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const loadedData = (await this.loadData()) as Partial<ChartPluginSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
   }
 
   async saveSettings() {
@@ -167,27 +173,27 @@ export default class ChartPlugin extends Plugin {
       configurable: true,
       enumerable: false,
       get: () => getPlot(),
-      set: (v) => setPlot(v),
+      set: (v: typeof import('@observablehq/plot')) => setPlot(v),
     });
     Object.defineProperty(window, 'd3', {
       configurable: true,
       enumerable: false,
       get: () => getD3(),
-      set: (v) => setD3(v),
+      set: (v: typeof import('d3')) => setD3(v),
     });
     Object.defineProperty(window, 'L', {
       configurable: true,
       enumerable: false,
       get: () => getLeaflet(),
-      set: (v) => setLeaflet(v),
+      set: (v: typeof import('leaflet')) => setLeaflet(v),
     });
     Object.defineProperty(window, 'Leaflet', {
       configurable: true,
       enumerable: false,
       get: () => getLeaflet(),
-      set: (v) => setLeaflet(v),
+      set: (v: typeof import('leaflet')) => setLeaflet(v),
     });
-    window.renderChart = async (data: any, el: HTMLElement) =>
+    window.renderChart = async (data: unknown, el: HTMLElement) =>
       await this.renderer.renderRaw(data, el);
 
     this.registerMarkdownPostProcessor((el: HTMLElement, _ctx: MarkdownPostProcessorContext) => {
@@ -203,7 +209,7 @@ export default class ChartPlugin extends Plugin {
       'advanced-chart',
       async (data: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
         try {
-          const parsed = JSON.parse(data);
+          const parsed = JSON.parse(data) as unknown;
           await this.renderer.renderRaw(parsed, el, ctx?.sourcePath ?? '');
         } catch {
           await this.renderer.renderRaw(data, el, ctx?.sourcePath ?? '');
@@ -311,10 +317,10 @@ export default class ChartPlugin extends Plugin {
 
       // Editor mode menu
       this.registerEvent(
-        (this.app.workspace.on as any)(
+        this.app.workspace.on(
           'editor-menu',
-          (menu: Menu, _: Editor, view: MarkdownView) => {
-            if (view && this.settings.contextMenu) {
+          (menu: Menu, _: Editor, view: MarkdownView | MarkdownFileInfo) => {
+            if (view instanceof MarkdownView && this.settings.contextMenu) {
               menu.addItem((item) => {
                 item
                   .setTitle('Insert Chart')
@@ -337,11 +343,11 @@ export default class ChartPlugin extends Plugin {
 
   onunload() {
     try {
-      delete (window as any).Plot;
-      delete (window as any).d3;
-      delete (window as any).L;
-      delete (window as any).Leaflet;
-      delete (window as any).renderChart;
+      Reflect.deleteProperty(window, 'Plot');
+      Reflect.deleteProperty(window, 'd3');
+      Reflect.deleteProperty(window, 'L');
+      Reflect.deleteProperty(window, 'Leaflet');
+      Reflect.deleteProperty(window, 'renderChart');
     } catch {
       // ignore
     }

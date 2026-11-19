@@ -1,16 +1,16 @@
 import { renderError } from './util';
 
-let _leaflet: any = null;
+let _leaflet: typeof import('leaflet') | null = null;
 
-export function getLeaflet(): any {
+export function getLeaflet(): typeof import('leaflet') {
   if (!_leaflet) {
-    const loaded = require('leaflet');
+    const loaded = require('leaflet') as typeof import('leaflet') & { default?: typeof import('leaflet') };
     _leaflet = loaded.default ?? loaded;
   }
   return _leaflet;
 }
 
-export function setLeaflet(val: any): void {
+export function setLeaflet(val: typeof import('leaflet')): void {
   _leaflet = val;
 }
 
