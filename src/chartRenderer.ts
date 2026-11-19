@@ -27,7 +27,7 @@ export default class Renderer {
   }
 
   async datasetPrep(
-    yaml: any,
+    yaml: unknown,
     el: HTMLElement,
     themeColors = false
   ): Promise<PreparedChart> {
@@ -40,13 +40,13 @@ export default class Renderer {
   }
 
   async renderRaw(
-    data: any,
+    data: unknown,
     el: HTMLElement,
     sourcePath: string = '',
     onFileReferenced?: (filePath: string) => void
   ): Promise<HTMLElement | SVGElement | null> {
-    if (typeof (el as any).empty === 'function') {
-      (el as any).empty();
+    if (typeof el.empty === 'function') {
+      el.empty();
     } else if (typeof el.replaceChildren === 'function') {
       el.replaceChildren();
     } else {
@@ -62,33 +62,69 @@ export default class Renderer {
         return data;
       }
 
-      // 2. Custom Element from datasetPrep
-      if (data.customElement instanceof HTMLElement || data.customElement instanceof SVGElement) {
-        const customEl: HTMLElement | SVGElement = data.customElement;
-        if (data.width) {
-          customEl.classList.add('chart-centered');
-          customEl.style.width = data.width;
-        }
-        el.appendChild(customEl);
-        return customEl;
-      }
+      // Check for object with potential PreparedChart / Plot options / Legacy properties
+      if (typeof data === 'object') {
+        const dataObj = data as Record<string, unknown>;
 
-      // 3. Prepared plot options from datasetPrep
-      if (data.plotOptions) {
-        const plotEl = getPlot().plot(data.plotOptions);
-        if (data.width) {
-          plotEl.classList.add('chart-centered');
-          plotEl.style.width = data.width;
+        // 2. Custom Element from datasetPrep
+        if (dataObj.customElement instanceof HTMLElement || dataObj.customElement instanceof SVGElement) {
+          const customEl = dataObj.customElement;
+          if (typeof dataObj.width === 'string') {
+            customEl.classList.add('chart-centered');
+            customEl.style.width = dataObj.width;
+          }
+          el.appendChild(customEl);
+          return customEl;
         }
-        el.appendChild(plotEl);
-        return plotEl;
-      }
 
-      // 4. Raw Plot options directly passed
-      if (data.marks && Array.isArray(data.marks)) {
-        const plotEl = getPlot().plot(data);
-        el.appendChild(plotEl);
-        return plotEl;
+        // 3. Prepared plot options from datasetPrep
+        if (dataObj.plotOptions && typeof dataObj.plotOptions === 'object') {
+          const plotEl = getPlot().plot(dataObj.plotOptions);
+          if (typeof dataObj.width === 'string') {
+            plotEl.classList.add('chart-centered');
+            plotEl.style.width = dataObj.width;
+          }
+          el.appendChild(plotEl);
+          return plotEl;
+        }
+
+        // 4. Raw Plot options directly passed
+        if (Array.isArray(dataObj.marks)) {
+          const plotEl = getPlot().plot(dataObj);
+          el.appendChild(plotEl);
+          return plotEl;
+        }
+
+        // 6. Legacy / Raw spec object conversion
+        const rawYaml = (typeof dataObj.chartOptions === 'object' && dataObj.chartOptions !== null
+          ? dataObj.chartOptions
+          : dataObj) as Record<string, unknown>;
+
+        const dataSub = typeof rawYaml.data === 'object' && rawYaml.data !== null
+          ? (rawYaml.data as Record<string, unknown>)
+          : null;
+
+        if (dataSub && Array.isArray(dataSub.labels) && Array.isArray(dataSub.datasets)) {
+          const labels = dataSub.labels;
+          const series = dataSub.datasets.map((ds: unknown) => {
+            const dsObj = typeof ds === 'object' && ds !== null ? (ds as Record<string, unknown>) : {};
+            return {
+              title: typeof dsObj.label === 'string' ? dsObj.label : '',
+              data: Array.isArray(dsObj.data) ? dsObj.data : [],
+            };
+          });
+          const optionsObj = typeof rawYaml.options === 'object' && rawYaml.options !== null
+            ? (rawYaml.options as Record<string, unknown>)
+            : {};
+          const convertedYaml = {
+            type: typeof rawYaml.type === 'string' ? rawYaml.type : 'bar',
+            labels,
+            series,
+            ...optionsObj,
+          };
+          const prep = await this.datasetPrep(convertedYaml, el);
+          return await this.renderRaw(prep, el, sourcePath);
+        }
       }
 
       // 5. JavaScript code string execution (supports async/await and auto-return of last expression)
@@ -102,26 +138,6 @@ export default class Renderer {
         );
       }
 
-      // 6. Legacy / Raw spec object conversion
-      if (data.type || data.chartOptions || (data.data && data.data.labels)) {
-        const rawYaml = data.chartOptions ? data.chartOptions : data;
-        if (rawYaml.data && rawYaml.data.labels && rawYaml.data.datasets) {
-          const labels = rawYaml.data.labels;
-          const series = rawYaml.data.datasets.map((ds: any) => ({
-            title: ds.label ?? '',
-            data: ds.data ?? [],
-          }));
-          const convertedYaml = {
-            type: rawYaml.type ?? 'bar',
-            labels,
-            series,
-            ...rawYaml.options,
-          };
-          const prep = await this.datasetPrep(convertedYaml, el);
-          return await this.renderRaw(prep, el, sourcePath);
-        }
-      }
-
       return null;
     } catch (error) {
       renderError(error, el);
@@ -130,7 +146,7 @@ export default class Renderer {
   }
 
   async renderFromYaml(
-    yaml: any,
+    yaml: unknown,
     el: HTMLElement,
     ctx: MarkdownPostProcessorContext
   ) {
