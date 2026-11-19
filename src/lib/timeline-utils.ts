@@ -126,7 +126,7 @@ export function formatCursorDate(date: Date, durationMs: number): string {
  */
 export function calculateOptimalTickCount(innerWidth: number, durationMs: number): number {
   const granularity = getTimeGranularity(durationMs);
-  let minPxPerTick = 80;
+  let minPxPerTick: number;
 
   switch (granularity) {
     case 'second':

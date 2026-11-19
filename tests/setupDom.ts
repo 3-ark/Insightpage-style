@@ -94,6 +94,8 @@ export function setupDomPolyfills(win?: any) {
                 this.style.setProperty(k, v);
               }
             }
+          }
+        };
         proto.empty = function () {
           while (this.firstChild) {
             this.removeChild(this.firstChild);

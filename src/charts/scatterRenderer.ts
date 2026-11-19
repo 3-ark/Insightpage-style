@@ -493,7 +493,7 @@ export function buildScatterPlotOptions(
   const yAxisLabel = yResolved.label ?? (isTabular ? tabularMeta.yCol : null);
 
   // Auto-adaptive ticks based on width
-  let defaultXTicks: any = undefined;
+  let defaultXTicks: any;
   const explicitXTicks = yaml.xTicks ?? yaml.ticks ?? yaml.x?.ticks ?? yaml.scales?.x?.ticks;
   if (explicitXTicks !== undefined) {
     defaultXTicks = explicitXTicks;

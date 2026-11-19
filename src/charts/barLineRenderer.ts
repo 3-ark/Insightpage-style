@@ -64,7 +64,7 @@ export function prepareChartDataset(
   if (settings.themeable || themeColors) {
     let i = 1;
     while (true) {
-      let color = computedStyle.getPropertyValue(`--chart-color-${i}`);
+      const color = computedStyle.getPropertyValue(`--chart-color-${i}`);
       if (color) {
         colors.push(color.trim());
         i++;
@@ -393,7 +393,7 @@ export function prepareChartDataset(
   const yResolved = resolveAxisConfig(yaml, 'y');
 
   // Auto-adaptive tick calculation based on width to prevent overcrowded tick labels
-  let defaultXTicks: any = undefined;
+  let defaultXTicks: any;
   const explicitXTicks = yaml.xTicks ?? yaml.ticks ?? yaml.x?.ticks ?? yaml.scales?.x?.ticks;
 
   if (explicitXTicks !== undefined) {

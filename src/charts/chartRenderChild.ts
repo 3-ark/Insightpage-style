@@ -173,9 +173,9 @@ export class ChartRenderChild extends MarkdownRenderChild {
         const updatedPrep = await this.renderer.datasetPrep(mergedYaml, this.el);
         this.chartEl = await this.renderer.renderRaw(updatedPrep, this.containerEl, this.ownPath);
       } else if (this.data.id) {
-        let activeFile = this.renderer.plugin.app?.workspace?.getActiveFile() ?? null;
-        let activePath = activeFile ? activeFile.path : '';
-        let linkDest: TFile | null = this.data.file
+        const activeFile = this.renderer.plugin.app?.workspace?.getActiveFile() ?? null;
+        const activePath = activeFile ? activeFile.path : '';
+        const linkDest: TFile | null = this.data.file
           ? toTFile(
               this.renderer.plugin.app?.metadataCache?.getFirstLinkpathDest(
                 this.data.file,

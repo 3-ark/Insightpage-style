@@ -51,7 +51,7 @@ export async function resolveTimelineData(
       rawRows = parseCsvOrTsv(text);
     }
   } else if (config.id) {
-    let rawId = config.id.trim();
+    const rawId = config.id.trim();
     let fileRef = '';
     let cleanId = rawId;
 
@@ -85,7 +85,7 @@ export async function resolveTimelineData(
     if (targetFile && app?.vault?.cachedRead) {
       const fullText = await app.vault.cachedRead(targetFile);
 
-      let blockText = '';
+      let blockText: string;
       const fileCache = app.metadataCache?.getFileCache?.(targetFile);
 
       let pos: any = undefined;

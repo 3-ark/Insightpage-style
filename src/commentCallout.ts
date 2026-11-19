@@ -186,7 +186,7 @@ export function findBalancedCmtMatches(
     }
 
     const openChar = text[index];
-    let closeChar = '';
+    let closeChar: string;
     if (openChar === '[') {
       closeChar = ']';
     } else if (openChar === '{') {
@@ -428,7 +428,7 @@ export function processCommentCallouts(container: HTMLElement): void {
       // Furthermore, guard tempCheck DOM tree construction with parentEl.querySelector; if no excluded
       // elements exist, parentEl.innerHTML already proves ::cmt is in non-excluded content.
       if (parentEl.textContent && parentEl.textContent.includes('::cmt') && parentEl.innerHTML.includes('::cmt')) {
-        let hasValidMatchInHtml = false;
+        let hasValidMatchInHtml: boolean;
         const hasExcludedChildren = !!parentEl.querySelector('code, pre, script, style, svg, .math, .comment-callout-wrapper');
 
         if (!hasExcludedChildren) {

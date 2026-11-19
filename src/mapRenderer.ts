@@ -221,7 +221,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   const linesList: any[] = Array.isArray(rawLines) ? rawLines : rawLines ? [rawLines] : [];
 
   linesList.forEach((line) => {
-    let pts: [number, number][] = [];
+    const pts: [number, number][] = [];
     let color = '#2563eb';
     let weight = 3;
     let popupText: string | undefined = undefined;
@@ -260,7 +260,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   const polygonsList: any[] = Array.isArray(rawPolygons) ? rawPolygons : rawPolygons ? [rawPolygons] : [];
 
   polygonsList.forEach((poly) => {
-    let pts: [number, number][] = [];
+    const pts: [number, number][] = [];
     let color = '#2563eb';
     let fillColor = '#3b82f6';
     let fillOpacity = 0.4;

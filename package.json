@@ -5,12 +5,14 @@
     "main": "main.js",
     "scripts": {
         "dev": "node dev.config.mjs",
-        "build": "node release.config.mjs"
+        "build": "node release.config.mjs",
+        "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\""
     },
     "keywords": [],
     "author": "3-ark",
     "license": "AGPL-3.0",
     "devDependencies": {
+        "@eslint/js": "^10.0.1",
         "@rollup/plugin-commonjs": "^29.0.3",
         "@rollup/plugin-node-resolve": "^16.0.3",
         "@rollup/plugin-typescript": "^12.3.1",
@@ -20,13 +22,15 @@
         "@types/node": "^26.6.6",
         "esbuild": "^0.28.2",
         "esbuild-svelte": "^0.9.5",
+        "eslint": "^10.15.0",
         "jsdom": "^31.0.1",
         "obsidian": "^1.14.4",
         "rollup": "^4.68.7",
         "rollup-plugin-svelte": "^7.2.3",
         "svelte-preprocess": "^6.0.5",
         "tslib": "^2.9.1",
-        "typescript": "^6.0.3"
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.73.0"
     },
     "dependencies": {
         "@observablehq/plot": "^0.6.19",

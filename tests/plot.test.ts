@@ -306,16 +306,6 @@ test('renders array of marks returned from codeblock', async () => {
     app: mockApp,
   };
 
-  const mockObsidianModule = {
-    requestUrl: async (options: any) => {
-      return {
-        status: 200,
-        text: JSON.stringify(mockSstData),
-        arrayBuffer: Buffer.from(JSON.stringify(mockSstData)),
-      };
-    },
-  };
-
   const renderer = new Renderer(mockPlugin);
   const container = document.createElement('div');
 

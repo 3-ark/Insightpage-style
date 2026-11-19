@@ -272,7 +272,7 @@ export default class ChartPlugin extends Plugin {
           editor: Editor,
           ctx: MarkdownView | MarkdownFileInfo
         ) => {
-          let selection = editor.getSelection();
+          const selection = editor.getSelection();
           if (
             ctx instanceof MarkdownView &&
             selection.split('\n').length >= 3 &&

@@ -16,7 +16,7 @@ export class CreationHelperModal extends Modal {
 	}
 
 	onOpen() {
-		let { contentEl, view, renderer} = this;
+		const { contentEl, view, renderer} = this;
 		contentEl.empty();
 		const { mount } = require("svelte");
 		const HelperModal = require('./HelperModal.svelte').default ?? require('./HelperModal.svelte');
@@ -36,7 +36,7 @@ export class CreationHelperModal extends Modal {
 			unmount(this.component);
 			this.component = null;
 		}
-		let { contentEl } = this;
+		const { contentEl } = this;
 		contentEl.empty();
 	}
 }

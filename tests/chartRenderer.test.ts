@@ -545,13 +545,11 @@ test('ChartRenderChild with id only invokes datasetPrep once during onload()', a
     id: 'table',
   };
 
-  let renderedChild: any = null;
   let onloadPromise: Promise<void> | null = null;
 
   await renderer.renderFromYaml(chartData, container, {
     sourcePath: 'test.md',
     addChild: (child: any) => {
-      renderedChild = child;
       onloadPromise = child.onload();
     },
   } as any);
@@ -927,7 +925,7 @@ test('ChartRenderChild loads external JSON data file and reloads on metadataCach
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
-  let currentJson = JSON.stringify([
+  const currentJson = JSON.stringify([
     { Product: 'Widget A', Q1: 50, Q2: 70 },
     { Product: 'Widget B', Q1: 80, Q2: 95 },
   ]);

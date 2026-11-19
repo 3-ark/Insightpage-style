@@ -170,7 +170,7 @@ export function renderTimelineD3Chart(
   const circleRadius = Math.max(3.5, eventHeight * 0.32);
 
   let activeScaleX = timeScale;
-  let initialSpanMs = dateExtent[1].getTime() - dateExtent[0].getTime();
+  const initialSpanMs = dateExtent[1].getTime() - dateExtent[0].getTime();
 
   const getOptimalTicks = () => {
     const dom = activeScaleX.domain() as [Date, Date];
