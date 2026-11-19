@@ -55,8 +55,8 @@ export function wrapPlotInstance(originalPlot: any): any {
               tip: options.tip,
             };
             if (options.title !== undefined) dotOptions.title = options.title;
-            const tooltipDots = (target as any).dot(data, dotOptions);
-            return (target as any).marks([line, tooltipDots]);
+            const tooltipDots = target.dot(data, dotOptions);
+            return target.marks([line, tooltipDots]);
           }
           return origLineY.call(target, data, options);
         };
@@ -122,7 +122,7 @@ export function wrapPlotInstance(originalPlot: any): any {
                   if (dy !== undefined) subOptions.dy = dy;
                   markList.push(origMarkFn.call(target, items, subOptions));
                 }
-                return typeof (target as any).marks === 'function' ? (target as any).marks(markList) : markList;
+                return typeof target.marks === 'function' ? target.marks(markList) : markList;
               }
             }
           }
