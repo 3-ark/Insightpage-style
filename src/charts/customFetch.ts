@@ -3,7 +3,7 @@ import { TFile } from 'obsidian';
 export function toTFile(item: unknown): TFile | null {
   if (typeof TFile === 'function' && item instanceof TFile) return item;
   if (item && typeof item === 'object' && typeof (item as { path?: unknown }).path === 'string' && !('children' in item)) {
-    return item as any;
+    return item as TFile;
   }
   return null;
 }

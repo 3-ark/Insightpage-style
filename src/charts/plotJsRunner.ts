@@ -174,7 +174,7 @@ export async function executePlotJs(
     if (kebabKeys.length > 0) {
       const kebabSet = new Set(kebabKeys);
       const tokenRegex = /(\/\/.*$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(?<![a-zA-Z0-9_$])([a-zA-Z0-9_$]+(?:-[a-zA-Z0-9_$]+)+)(?![a-zA-Z0-9_$])/gm;
-      code = code.replace(tokenRegex, (match, literal, kebabIdent) => {
+      code = code.replace(tokenRegex, (match: string, literal: string | undefined, kebabIdent: string | undefined) => {
         if (literal) return literal;
         if (kebabIdent && kebabSet.has(kebabIdent)) {
           const stripped = kebabIdent.replace(/[-_]+/g, '');
@@ -215,7 +215,7 @@ export async function executePlotJs(
       el.appendChild(dom);
       displayedElement = dom;
     }
-    return val;
+    return val as unknown;
   };
 
   const prevWindowDisplay = typeof window !== 'undefined' ? (window as any).display : undefined;
@@ -238,10 +238,10 @@ export async function executePlotJs(
     return `with (__tableScope__) {\n${src}\n}`;
   };
 
-  const runUserCode = async (userSrc: string) => {
+  const runUserCode = async (userSrc: string): Promise<unknown> => {
     const wrapped = wrapFnCode(userSrc);
     const fn = new AsyncFunction('Plot', 'd3', 'el', 'container', 'app', 'obsidian', 'fetch', 'display', '__tableScope__', wrapped);
-    return await fn(PlotInst, d3Inst, el, el, app, obsidianModule, customFetch, display, tableScope);
+    return await fn(PlotInst, d3Inst, el, el, app, obsidianModule, customFetch, display, tableScope) as unknown;
   };
 
   let result: any;

@@ -291,7 +291,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
     }
   };
 
-  const initSynth = async () => {
+  const initSynth = async (): Promise<any> => {
     if (synthController) return synthController;
 
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -308,7 +308,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       abcjs.synth.registerAudioContext(audioContext);
     }
 
-    const sc = new abcjs.synth.SynthController();
+    const sc: any = new abcjs.synth.SynthController();
 
     const cursorControl = {
       onStart: () => {

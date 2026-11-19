@@ -39,7 +39,7 @@ export function renderRadarChart(
   const center = size / 2;
   const maxRadius = size / 2 - 40;
 
-  const categoryLabels = labels.length ? labels : Array.from(new Set(dataPoints.map((d) => d.x)));
+  const categoryLabels = labels.length ? labels : Array.from(new Set(dataPoints.map((d: ChartDataPoint) => d.x)));
   const numCategories = Math.max(1, categoryLabels.length);
 
   // Performance optimization: Single-pass linear evaluation of min and max Y domain values.

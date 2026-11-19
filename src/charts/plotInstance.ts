@@ -38,12 +38,13 @@ export function wrapPlotInstance(originalPlot: any): any {
 
   const handler: ProxyHandler<any> = {
     get(target, prop, receiver) {
-      const orig = Reflect.get(target, prop, receiver);
+      const orig = Reflect.get(target, prop, receiver) as unknown;
 
       if (prop === 'lineY' && typeof orig === 'function') {
+        const origLineY = orig as (...args: any[]) => any;
         return function (data: any, options: any = {}) {
           if (options.tip && options.stroke !== undefined) {
-            const line = orig.call(target, data, { ...options, tip: false });
+            const line = origLineY.call(target, data, { ...options, tip: false });
             // A hidden fill-coded point mark gives the tooltip the line's categorical color channel.
             const dotOptions: any = {
               ...(options.x !== undefined ? { x: options.x } : {}),
@@ -54,14 +55,15 @@ export function wrapPlotInstance(originalPlot: any): any {
               tip: options.tip,
             };
             if (options.title !== undefined) dotOptions.title = options.title;
-            const tooltipDots = target.dot(data, dotOptions);
-            return target.marks([line, tooltipDots]);
+            const tooltipDots = (target as any).dot(data, dotOptions);
+            return (target as any).marks([line, tooltipDots]);
           }
-          return orig.call(target, data, options);
+          return origLineY.call(target, data, options);
         };
       }
 
       if (typeof prop === 'string' && FRAME_ANCHOR_MARKS.has(prop) && typeof orig === 'function') {
+        const origMarkFn = orig as (...args: any[]) => any;
         return function (data: any, options: any = {}) {
           if (options && options.frameAnchor !== undefined && !VALID_FRAME_ANCHORS.has(options.frameAnchor)) {
             const dataArr = Array.isArray(data)
@@ -73,21 +75,21 @@ export function wrapPlotInstance(originalPlot: any): any {
             if (dataArr && dataArr.length > 0) {
               const anchorGetter =
                 typeof options.frameAnchor === 'function'
-                  ? options.frameAnchor
-                  : (d: any) => d?.[options.frameAnchor];
+                  ? (options.frameAnchor as (d: any) => any)
+                  : (d: any) => (d as Record<string, any>)?.[options.frameAnchor];
 
               const dxGetter =
                 typeof options.dx === 'function'
-                  ? options.dx
+                  ? (options.dx as (d: any) => any)
                   : typeof options.dx === 'string' && isNaN(Number(options.dx))
-                  ? (d: any) => d?.[options.dx]
+                  ? (d: any) => (d as Record<string, any>)?.[options.dx]
                   : null;
 
               const dyGetter =
                 typeof options.dy === 'function'
-                  ? options.dy
+                  ? (options.dy as (d: any) => any)
                   : typeof options.dy === 'string' && isNaN(Number(options.dy))
-                  ? (d: any) => d?.[options.dy]
+                  ? (d: any) => (d as Record<string, any>)?.[options.dy]
                   : null;
 
               // Group items by resolved (anchor, dx, dy)
@@ -118,14 +120,14 @@ export function wrapPlotInstance(originalPlot: any): any {
                   const subOptions = { ...options, frameAnchor: anchor };
                   if (dx !== undefined) subOptions.dx = dx;
                   if (dy !== undefined) subOptions.dy = dy;
-                  markList.push(orig.call(target, items, subOptions));
+                  markList.push(origMarkFn.call(target, items, subOptions));
                 }
-                return typeof target.marks === 'function' ? target.marks(markList) : markList;
+                return typeof (target as any).marks === 'function' ? (target as any).marks(markList) : markList;
               }
             }
           }
 
-          return orig.call(target, data, options);
+          return origMarkFn.call(target, data, options);
         };
       }
 

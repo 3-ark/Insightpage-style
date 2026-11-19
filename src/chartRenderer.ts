@@ -64,12 +64,13 @@ export default class Renderer {
 
       // 2. Custom Element from datasetPrep
       if (data.customElement instanceof HTMLElement || data.customElement instanceof SVGElement) {
+        const customEl: HTMLElement | SVGElement = data.customElement;
         if (data.width) {
-          data.customElement.classList.add('chart-centered');
-          data.customElement.style.width = data.width;
+          customEl.classList.add('chart-centered');
+          customEl.style.width = data.width;
         }
-        el.appendChild(data.customElement);
-        return data.customElement;
+        el.appendChild(customEl);
+        return customEl;
       }
 
       // 3. Prepared plot options from datasetPrep

@@ -300,10 +300,10 @@ export function coerceTableRow(row: Record<string, any>): Record<string, any> {
             if (typeof prop === 'string' && !(prop in target)) {
                 const actualKey = lowerKeyMap.get(prop.toLowerCase());
                 if (actualKey !== undefined) {
-                    return target[actualKey];
+                    return (target as Record<string, unknown>)[actualKey];
                 }
             }
-            return Reflect.get(target, prop, receiver);
+            return Reflect.get(target, prop, receiver) as unknown;
         },
         has(target, prop) {
             if (typeof prop === 'string' && !(prop in target)) {
@@ -385,7 +385,7 @@ export function extractTablesFromMarkdown(
             tablesMap.set('^' + clean, rows);
             tablesMap.set('#' + clean, rows);
             tablesMap.set(clean.toLowerCase(), rows);
-            const camel = clean.replace(/[-_]+([a-z0-9])/gi, (_, c) => c.toUpperCase());
+            const camel = clean.replace(/[-_]+([a-z0-9])/gi, (_, c: string) => c.toUpperCase());
             if (camel) tablesMap.set(camel, rows);
             const under = clean.replace(/[-]/g, '_');
             if (under) tablesMap.set(under, rows);
@@ -485,7 +485,7 @@ export function extractTablesFromDom(
                 tablesMap.set('^' + cleanId, coerced);
                 tablesMap.set('#' + cleanId, coerced);
                 tablesMap.set(cleanId.toLowerCase(), coerced);
-                const camel = cleanId.replace(/[-_]+([a-z0-9])/gi, (_, c) => c.toUpperCase());
+                const camel = cleanId.replace(/[-_]+([a-z0-9])/gi, (_, c: string) => c.toUpperCase());
                 if (camel) tablesMap.set(camel, coerced);
                 const under = cleanId.replace(/[-]/g, '_');
                 if (under) tablesMap.set(under, coerced);
