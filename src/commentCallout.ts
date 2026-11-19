@@ -1,3 +1,5 @@
+import { sanitizeHTMLToDom } from 'obsidian';
+
 const EMOJI_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\u2B50|\u2705|\u274C|\u26A0)/u;
 
 export function extractEmojiAndContent(rawText: string): { emoji: string; content: string } {
@@ -21,16 +23,10 @@ export function extractEmojiAndTitle(rawText: string): { emoji: string; title: s
 
 function parseSafeHtmlFragment(rawHtml: string, doc?: Document): DocumentFragment | null {
   if (!rawHtml) return null;
-  let obsidian: any;
-  try {
-    obsidian = require('obsidian');
-  } catch {
-    /* ignore */
+  if (typeof sanitizeHTMLToDom === 'function') {
+    return sanitizeHTMLToDom(rawHtml);
   }
-  if (obsidian && typeof obsidian.sanitizeHTMLToDom === 'function') {
-    return obsidian.sanitizeHTMLToDom(rawHtml);
-  }
-  const documentObj = doc || (typeof document !== 'undefined' ? document : null);
+  const documentObj = doc || (typeof activeDocument !== 'undefined' ? activeDocument : null);
   if (!documentObj) return null;
   const parser = new (documentObj.defaultView?.DOMParser || DOMParser)();
   const parsed = parser.parseFromString(rawHtml, 'text/html');
@@ -55,22 +51,25 @@ export function bindPopoverToTrigger(triggerBtn: HTMLButtonElement, content: str
   let escKeyListener: ((e: KeyboardEvent) => void) | null = null;
   let repositionListener: (() => void) | null = null;
 
+  const targetDoc = triggerBtn.ownerDocument || (typeof activeDocument !== 'undefined' ? activeDocument : document);
+  const targetWin = targetDoc.defaultView || window;
+
   const closePopover = () => {
     if (popoverEl && popoverEl.parentNode) {
       popoverEl.parentNode.removeChild(popoverEl);
       popoverEl = null;
     }
     if (outsideClickListener) {
-      document.removeEventListener('click', outsideClickListener, true);
+      targetDoc.removeEventListener('click', outsideClickListener, true);
       outsideClickListener = null;
     }
     if (escKeyListener) {
-      document.removeEventListener('keydown', escKeyListener, true);
+      targetDoc.removeEventListener('keydown', escKeyListener, true);
       escKeyListener = null;
     }
     if (repositionListener) {
-      window.removeEventListener('scroll', repositionListener, true);
-      window.removeEventListener('resize', repositionListener);
+      targetWin.removeEventListener('scroll', repositionListener, true);
+      targetWin.removeEventListener('resize', repositionListener);
       repositionListener = null;
     }
   };
@@ -82,13 +81,13 @@ export function bindPopoverToTrigger(triggerBtn: HTMLButtonElement, content: str
     let left = rect.left + rect.width / 2 - popoverWidth / 2;
 
     if (left < 10) left = 10;
-    if (left + popoverWidth > window.innerWidth - 10) {
-      left = window.innerWidth - popoverWidth - 10;
+    if (left + popoverWidth > targetWin.innerWidth - 10) {
+      left = targetWin.innerWidth - popoverWidth - 10;
     }
 
     popover.style.left = `${left}px`;
 
-    document.body.appendChild(popover);
+    targetDoc.body.appendChild(popover);
     const popoverHeight = popover.offsetHeight;
 
     let top = rect.top - popoverHeight - 8;
@@ -124,8 +123,8 @@ export function bindPopoverToTrigger(triggerBtn: HTMLButtonElement, content: str
         positionPopover(popoverEl, triggerBtn);
       }
     };
-    window.addEventListener('scroll', repositionListener, true);
-    window.addEventListener('resize', repositionListener);
+    targetWin.addEventListener('scroll', repositionListener, true);
+    targetWin.addEventListener('resize', repositionListener);
 
     outsideClickListener = (e: MouseEvent) => {
       if (
@@ -143,12 +142,12 @@ export function bindPopoverToTrigger(triggerBtn: HTMLButtonElement, content: str
       }
     };
 
-    window.setTimeout(() => {
+    targetWin.setTimeout(() => {
       if (outsideClickListener) {
-        document.addEventListener('click', outsideClickListener, true);
+        targetDoc.addEventListener('click', outsideClickListener, true);
       }
       if (escKeyListener) {
-        document.addEventListener('keydown', escKeyListener, true);
+        targetDoc.addEventListener('keydown', escKeyListener, true);
       }
     }, 10);
   };
@@ -380,11 +379,14 @@ export function processCommentCallouts(container: HTMLElement): void {
     for (const parentEl of candidates) {
       if (!parentEl.textContent || !parentEl.textContent.includes('::cmt')) continue;
 
+      const ownerDoc: Document | null = parentEl.ownerDocument ?? (typeof activeDocument !== 'undefined' ? activeDocument : null);
+      if (!ownerDoc) continue;
+
       const SHOW_TEXT = typeof NodeFilter !== 'undefined' ? NodeFilter.SHOW_TEXT : 4;
       const FILTER_ACCEPT = typeof NodeFilter !== 'undefined' ? NodeFilter.FILTER_ACCEPT : 1;
       const FILTER_REJECT = typeof NodeFilter !== 'undefined' ? NodeFilter.FILTER_REJECT : 2;
 
-      const walker = document.createTreeWalker(parentEl, SHOW_TEXT, {
+      const walker = ownerDoc.createTreeWalker(parentEl, SHOW_TEXT, {
         acceptNode: (node) => {
           const parent = node.parentElement;
           if (!parent || isExcluded(parent)) return FILTER_REJECT;
@@ -410,14 +412,14 @@ export function processCommentCallouts(container: HTMLElement): void {
         let lastIdx = 0;
         for (const m of matches) {
           if (m.startIndex > lastIdx) {
-            fragment.appendChild(document.createTextNode(text.slice(lastIdx, m.startIndex)));
+            fragment.appendChild(ownerDoc.createTextNode(text.slice(lastIdx, m.startIndex)));
           }
           const commentEl = createCommentElement(m.rawContent);
           fragment.appendChild(commentEl);
           lastIdx = m.endIndex;
         }
         if (lastIdx < text.length) {
-          fragment.appendChild(document.createTextNode(text.slice(lastIdx)));
+          fragment.appendChild(ownerDoc.createTextNode(text.slice(lastIdx)));
         }
         pNode.replaceChild(fragment, node);
       }
