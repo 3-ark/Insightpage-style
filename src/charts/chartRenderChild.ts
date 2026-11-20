@@ -10,6 +10,25 @@ import { parseCsvOrTsv } from './tabularDataParser';
 import { toTFile, createCustomFetch } from './customFetch';
 import type Renderer from '../chartRenderer';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function toLayout(value: unknown): 'columns' | 'rows' {
+  return value === 'rows' ? 'rows' : 'columns';
+}
+
+function toStringArray(value: unknown): string[] | undefined {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : undefined;
+}
+
+interface TablePosition {
+  start: { offset: number };
+  end: { offset: number };
+}
+
 export class PlotJsRenderChild extends MarkdownRenderChild {
   code: string;
   chartEl: HTMLElement | SVGElement | null = null;
@@ -31,7 +50,11 @@ export class PlotJsRenderChild extends MarkdownRenderChild {
     this.reload = this.reload.bind(this);
   }
 
-  async onload() {
+  onload() {
+    void this.loadAsync();
+  }
+
+  private async loadAsync() {
     try {
       this.chartEl = await this.renderer.renderRaw(
         this.code,
@@ -47,17 +70,20 @@ export class PlotJsRenderChild extends MarkdownRenderChild {
 
     this.renderer.plugin.app?.metadataCache?.on?.(
       'changed',
-      this.changeHandler as any
+      this.changeHandler
     );
     this.renderer.plugin.app?.workspace?.on?.('css-change', this.reload);
   }
 
-  changeHandler = (file?: TFile) => {
-    if (!file) return;
+  changeHandler = (...data: unknown[]) => {
+    const file = data[0];
+    if (!isRecord(file)) return;
+    const path = typeof file.path === 'string' ? file.path : '';
+    const basename = typeof file.basename === 'string' ? file.basename : '';
     if (
-      this.referencedFiles.has(file.path) ||
-      this.referencedFiles.has(file.basename) ||
-      file.path === this.ownPath
+      this.referencedFiles.has(path) ||
+      this.referencedFiles.has(basename) ||
+      path === this.ownPath
     ) {
       this.reload();
     }
@@ -71,11 +97,11 @@ export class PlotJsRenderChild extends MarkdownRenderChild {
   onunload() {
     this.renderer.plugin.app?.metadataCache?.off?.(
       'changed',
-      this.changeHandler as any
+      this.changeHandler
     );
     this.renderer.plugin.app?.workspace?.off?.('css-change', this.reload);
-    if (typeof (this.containerEl as any).empty === 'function') {
-      (this.containerEl as any).empty();
+    if (typeof this.containerEl.empty === 'function') {
+      this.containerEl.empty();
     } else if (typeof this.containerEl.replaceChildren === 'function') {
       this.containerEl.replaceChildren();
     } else {
@@ -86,35 +112,39 @@ export class PlotJsRenderChild extends MarkdownRenderChild {
 }
 
 export class ChartRenderChild extends MarkdownRenderChild {
-  data: any;
+  data: Record<string, unknown>;
   chartEl: HTMLElement | SVGElement | null = null;
   renderer: Renderer;
-  prep: any = null;
+  prep: unknown = null;
   ownPath: string;
   el: HTMLElement;
   referencedFiles: Set<string> = new Set();
 
   constructor(
-    data: any,
+    data: unknown,
     el: HTMLElement,
     renderer: Renderer,
     ownPath: string
   ) {
     super(el);
     this.el = el;
-    this.data = data;
+    this.data = isRecord(data) ? data : {};
     this.renderer = renderer;
     this.ownPath = ownPath;
     this.changeHandler = this.changeHandler.bind(this);
     this.reload = this.reload.bind(this);
   }
 
-  async onload() {
+  onload() {
+    void this.loadAsync();
+  }
+
+  private async loadAsync() {
     try {
       const isExternalData = typeof this.data.data === 'string' && this.data.data.trim() !== '';
 
       if (isExternalData) {
-        let obsidianModule: any = null;
+        let obsidianModule: unknown = null;
         if (typeof require === 'function') {
           try {
             obsidianModule = require('obsidian');
@@ -140,11 +170,13 @@ export class ChartRenderChild extends MarkdownRenderChild {
         const text = await res.text();
         const trimmed = text.trim();
 
-        let rawRows: Record<string, any>[] = [];
+        let rawRows: Record<string, unknown>[] = [];
         if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
           try {
-            const parsedJson = JSON.parse(trimmed);
-            rawRows = Array.isArray(parsedJson) ? parsedJson : [parsedJson];
+            const parsedJson: unknown = JSON.parse(trimmed) as unknown;
+            rawRows = Array.isArray(parsedJson)
+              ? parsedJson.filter(isRecord)
+              : isRecord(parsedJson) ? [parsedJson] : [];
           } catch {
             rawRows = parseCsvOrTsv(text);
           }
@@ -157,7 +189,11 @@ export class ChartRenderChild extends MarkdownRenderChild {
         }
 
         const tableRows = rawRows.map(coerceTableRow);
-        const tableData = rowsToTableData(tableRows, this.data.layout ?? 'columns', this.data.select);
+        const tableData = rowsToTableData(
+          tableRows,
+          toLayout(this.data.layout),
+          toStringArray(this.data.select)
+        );
 
         const mergedYaml = {
           ...this.data,
@@ -172,19 +208,20 @@ export class ChartRenderChild extends MarkdownRenderChild {
         this.data = mergedYaml;
         const updatedPrep = await this.renderer.datasetPrep(mergedYaml, this.el);
         this.chartEl = await this.renderer.renderRaw(updatedPrep, this.containerEl, this.ownPath);
-      } else if (this.data.id) {
+      } else if (typeof this.data.id === 'string' && this.data.id) {
         const activeFile = this.renderer.plugin.app?.workspace?.getActiveFile() ?? null;
         const activePath = activeFile ? activeFile.path : '';
-        const linkDest: TFile | null = this.data.file
+        const dataFile = typeof this.data.file === 'string' ? this.data.file : undefined;
+        const linkDest: TFile | null = dataFile
           ? toTFile(
               this.renderer.plugin.app?.metadataCache?.getFirstLinkpathDest(
-                this.data.file,
+                dataFile,
                 activePath
               )
             )
           : null;
         const fileToRead = toTFile(
-          this.data.file
+          dataFile
             ? linkDest
             : this.renderer.plugin.app?.vault?.getAbstractFileByPath(
                 this.ownPath
@@ -201,19 +238,20 @@ export class ChartRenderChild extends MarkdownRenderChild {
         const cleanId = String(this.data.id).replace(/^\^/, '');
         const caretId = '^' + cleanId;
 
-        let pos: any = undefined;
+        let pos: TablePosition | undefined;
 
         if (fileCache?.blocks) {
-          const exactBlock = fileCache.blocks[cleanId] ?? fileCache.blocks[caretId];
+          const blocks = fileCache.blocks as Record<string, { position: TablePosition }>;
+          const exactBlock = blocks[cleanId] ?? blocks[caretId];
           if (exactBlock) {
             pos = exactBlock.position;
           } else {
             const cleanLower = cleanId.toLowerCase();
             const strippedLower = cleanLower.replace(/[-_]+/g, '');
-            for (const k in fileCache.blocks) {
+            for (const k in blocks) {
               const kLower = k.toLowerCase().replace(/^\^/, '');
               if (kLower === cleanLower || kLower.replace(/[-_]+/g, '') === strippedLower) {
-                pos = fileCache.blocks[k]?.position;
+                pos = blocks[k]?.position;
                 break;
               }
             }
@@ -223,16 +261,20 @@ export class ChartRenderChild extends MarkdownRenderChild {
         if (!pos && fileCache?.sections) {
           const cleanLower = cleanId.toLowerCase();
           const strippedLower = cleanLower.replace(/[-_]+/g, '');
-          const sec = fileCache.sections.find(
-            (pre: any) => {
-              if (!pre.id) return false;
-              const pId = String(pre.id).replace(/^\^/, '').toLowerCase();
+          const sections = fileCache.sections as Array<{ id?: unknown; position: TablePosition }>;
+          const sec = sections.find(
+            (pre) => {
+              if (pre.id === undefined) return false;
+              const rawId = typeof pre.id === 'string' || typeof pre.id === 'number'
+                ? String(pre.id)
+                : '';
+              const pId = rawId.replace(/^\^/, '').toLowerCase();
               return (
                 pId === cleanLower ||
                 pId.replace(/[-_]+/g, '') === strippedLower ||
-                pre.id === cleanId ||
-                pre.id === caretId ||
-                pre.id === this.data.id
+                rawId === cleanId ||
+                rawId === caretId ||
+                rawId === String(this.data.id)
               );
             }
           );
@@ -285,14 +327,14 @@ export class ChartRenderChild extends MarkdownRenderChild {
         try {
           tableData = generateTableData(
             tableString,
-            this.data.layout ?? 'columns',
-            this.data.select
+            toLayout(this.data.layout),
+            toStringArray(this.data.select)
           );
         } catch {
           throw new Error('There is no table at that id and/or file');
         }
 
-        let tableRows: any[] = [];
+        let tableRows: Record<string, unknown>[] = [];
         try {
           const rawRows = parseMarkdownTableRows(tableString);
           if (rawRows.length > 0) {
@@ -327,20 +369,24 @@ export class ChartRenderChild extends MarkdownRenderChild {
     if (this.data.id || (typeof this.data.data === 'string' && this.data.data.trim() !== '')) {
       this.renderer.plugin.app?.metadataCache?.on?.(
         'changed',
-        this.changeHandler as any
+        this.changeHandler
       );
     }
     this.renderer.plugin.app?.workspace?.on?.('css-change', this.reload);
   }
 
-  changeHandler = (file?: TFile) => {
-    if (!file) return;
+  changeHandler = (...data: unknown[]) => {
+    const file = data[0];
+    if (!isRecord(file)) return;
+    const path = typeof file.path === 'string' ? file.path : '';
+    const basename = typeof file.basename === 'string' ? file.basename : '';
+    const name = typeof file.name === 'string' ? file.name : '';
     const isTargetFile =
-      (this.data.file && (file.basename === this.data.file || file.name === this.data.file)) ||
-      file.path === this.ownPath ||
-      this.referencedFiles.has(file.path) ||
-      this.referencedFiles.has(file.basename) ||
-      this.referencedFiles.has(file.name);
+      (this.data.file && (basename === this.data.file || name === this.data.file)) ||
+      path === this.ownPath ||
+      this.referencedFiles.has(path) ||
+      this.referencedFiles.has(basename) ||
+      this.referencedFiles.has(name);
 
     if (isTargetFile) {
       this.reload();
@@ -355,7 +401,7 @@ export class ChartRenderChild extends MarkdownRenderChild {
   onunload() {
     this.renderer.plugin.app?.metadataCache?.off?.(
       'changed',
-      this.changeHandler as any
+      this.changeHandler
     );
     this.renderer.plugin.app?.workspace?.off?.('css-change', this.reload);
     if (typeof this.el.empty === 'function') {

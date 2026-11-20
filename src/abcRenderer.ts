@@ -1,7 +1,29 @@
-let _abcjs: any = null;
-function getAbcjs(): any {
+import type { CursorControl, NoteTimingEvent, SynthObjectController, TuneObject } from 'abcjs';
+
+function getActiveDocument(): Document {
+  if (typeof window === 'undefined') {
+    throw new Error('Document unavailable');
+  }
+  return window.document;
+}
+
+interface AbcSynthController extends SynthObjectController {
+  isStarted?: boolean;
+  midiBuffer?: { duration?: number };
+  percent?: number;
+  seek(position: number): void;
+  play(): void;
+}
+
+interface AbcRenderModule {
+  renderAbc: typeof import('abcjs')['renderAbc'];
+  synth: typeof import('abcjs')['synth'];
+}
+
+let _abcjs: AbcRenderModule | null = null;
+function getAbcjs(): AbcRenderModule {
   if (!_abcjs) {
-    const loaded = require('abcjs');
+    const loaded = require('abcjs') as typeof import('abcjs') & { default?: typeof import('abcjs') };
     _abcjs = loaded.default ?? loaded;
   }
   return _abcjs;
@@ -20,13 +42,13 @@ function createSvgIcon(
   attrs: Record<string, string>,
   children: Array<{ tag: string; attrs: Record<string, string> }>
 ): SVGSVGElement {
-  const svg = document.createElementNS(SVG_NS, 'svg');
+  const svg = getActiveDocument().createElementNS(SVG_NS, 'svg');
   svg.setAttribute('xmlns', SVG_NS);
   for (const [k, v] of Object.entries(attrs)) {
     svg.setAttribute(k, v);
   }
   for (const child of children) {
-    const el = document.createElementNS(SVG_NS, child.tag);
+    const el = getActiveDocument().createElementNS(SVG_NS, child.tag);
     for (const [k, v] of Object.entries(child.attrs)) {
       el.setAttribute(k, v);
     }
@@ -92,7 +114,11 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   const sheetContainer = createDiv();
   sheetContainer.className = 'abcjs-sheet-container';
 
-  let visualObj: any = null;
+  const audioControllerContainer = createDiv();
+  audioControllerContainer.className = 'abcjs-audio-controller';
+  audioControllerContainer.hidden = true;
+
+  let visualObj: TuneObject | null = null;
   try {
     const renderResult = abcjs.renderAbc(sheetContainer, source.trim(), {
       responsive: 'resize',
@@ -104,15 +130,16 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   } catch (err) {
     const errDiv = createDiv();
     errDiv.className = 'chart-error';
-    errDiv.textContent = `ABC Render Error: ${err}`;
+    errDiv.textContent = `ABC Render Error: ${String(err)}`;
     container.appendChild(errDiv);
     return;
   }
 
   wrapper.appendChild(sheetContainer);
+  wrapper.appendChild(audioControllerContainer);
 
   // Audio Context and Synth Controller state
-  let synthController: any = null;
+  let synthController: AbcSynthController | null = null;
   let audioContext: AudioContext | null = null;
   let playbackState: 'idle' | 'loading' | 'playing' | 'paused' = 'idle';
   let totalDuration = 0;
@@ -221,15 +248,18 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
   downloadBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     try {
-      const midiData = abcjs.synth.getMidiFile(source.trim(), { midiOutputType: 'encoded' });
+      const midiData: unknown = abcjs.synth.getMidiFile(source.trim(), { midiOutputType: 'encoded' }) as unknown;
       if (!midiData) return;
-      const dataUrl = Array.isArray(midiData) ? midiData[0] : midiData;
+      const dataUrl = Array.isArray(midiData)
+        ? (midiData as unknown[])[0]
+        : midiData;
+      if (typeof dataUrl !== 'string') return;
       const a = createEl('a');
       a.href = dataUrl;
       a.download = 'sheet-music.midi';
-      document.body.appendChild(a);
+      getActiveDocument().body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      getActiveDocument().body.removeChild(a);
     } catch (err) {
       console.error('MIDI export failed', err);
     }
@@ -291,10 +321,11 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
     }
   };
 
-  const initSynth = async (): Promise<any> => {
+  const initSynth = async (): Promise<AbcSynthController | null> => {
     if (synthController) return synthController;
 
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioCtx = window.AudioContext
+      || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return null;
 
     if (!audioContext || audioContext.state === 'closed') {
@@ -308,16 +339,16 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       abcjs.synth.registerAudioContext(audioContext);
     }
 
-    const sc: any = new abcjs.synth.SynthController();
+    const sc = new abcjs.synth.SynthController() as AbcSynthController;
 
-    const cursorControl = {
+    const cursorControl: CursorControl = {
       onStart: () => {
         clearHighlights();
       },
-      onEvent: (ev: any) => {
+      onEvent: (ev: NoteTimingEvent) => {
         clearHighlights();
-        if (ev && ev.elements) {
-          ev.elements.forEach((group: any[]) => {
+        if ('elements' in ev && Array.isArray(ev.elements)) {
+          ev.elements.forEach((group: unknown) => {
             if (Array.isArray(group)) {
               group.forEach((el: SVGElement) => {
                 if (el && el.classList) {
@@ -337,8 +368,11 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
       },
     };
 
-    sc.cursorControl = cursorControl;
-
+    if (!visualObj) return null;
+    sc.load(audioControllerContainer, cursorControl, {
+      displayPlay: false,
+      displayProgress: false,
+    });
     await sc.setTune(visualObj, false, {});
 
     synthController = sc;
@@ -386,7 +420,7 @@ export function renderAbcBlock(source: string, container: HTMLElement): void {
         }
         playbackState = 'playing';
         updateControlsUI();
-        await sc.play();
+        sc.play();
         totalDuration = sc.midiBuffer?.duration || totalDuration;
         durationEl.textContent = formatTime(totalDuration);
         progressSlider.max = totalDuration.toString();
