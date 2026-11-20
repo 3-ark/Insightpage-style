@@ -1,5 +1,6 @@
 import type { TimelineEvent } from './timelineParser';
 import { formatDisplayDate } from './timelineFormatters';
+import type { TooltipDetails } from './timelineTooltip';
 
 export interface ProcessedEvent extends TimelineEvent {
   id: string;
@@ -18,15 +19,17 @@ export interface SVGColsGroupElement extends SVGGElement {
   };
 }
 
+type TooltipDetailsFactory = (event: MouseEvent, title: string, details?: TooltipDetails) => void;
+
 export function renderCollectionsNode(
-  colsG: d3.Selection<SVGGElement, any, null, undefined>,
+  colsG: d3.Selection<SVGGElement, ProcessedEvent, null, undefined>,
   evt: ProcessedEvent,
   barWidth: number,
   circleRadius: number,
   eventHeight: number,
   color: string,
   activeCat: string,
-  showTooltip: (event: MouseEvent, title: string, details?: any) => void,
+  showTooltip: TooltipDetailsFactory,
   hideTooltip: () => void
 ) {
   const node: SVGColsGroupElement | null = colsG.node();

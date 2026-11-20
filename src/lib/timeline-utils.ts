@@ -156,6 +156,11 @@ export function calculateOptimalTickCount(innerWidth: number, durationMs: number
 // and check text content (_cachedText) to eliminate getComputedTextLength() layout thrashing
 // on continuous zoom/pan animation ticks. Iterate DOM nodes directly in single-pass index loop
 // without intermediate heap array allocations and redundant sort calls.
+type TextElementWithMeasureCache = SVGTextElement & {
+  _cachedWidth?: number;
+  _cachedText?: string;
+};
+
 export function preventTickOverlap(axisGNode: SVGGElement | null, minGapPx = 12): void {
   if (!axisGNode) return;
   const tickNodes = axisGNode.querySelectorAll<SVGGElement>('.tick');
@@ -175,13 +180,14 @@ export function preventTickOverlap(axisGNode: SVGGElement | null, minGapPx = 12)
     if (!textEl) continue;
 
     const text = textEl.textContent || '';
-    let width = (textEl as any)._cachedWidth as number | undefined;
+    const cachedTextEl = textEl as TextElementWithMeasureCache;
+    let width = cachedTextEl._cachedWidth;
 
-    if (width === undefined || (textEl as any)._cachedText !== text) {
+    if (width === undefined || cachedTextEl._cachedText !== text) {
       width = 0;
-      if (typeof (textEl as any).getComputedTextLength === 'function') {
+      if (typeof cachedTextEl.getComputedTextLength === 'function') {
         try {
-          width = (textEl as any).getComputedTextLength();
+          width = cachedTextEl.getComputedTextLength();
         } catch {
           /* ignore */
         }
@@ -189,8 +195,8 @@ export function preventTickOverlap(axisGNode: SVGGElement | null, minGapPx = 12)
       if (!width || width <= 0) {
         width = text.length * 7.5;
       }
-      (textEl as any)._cachedText = text;
-      (textEl as any)._cachedWidth = width;
+      cachedTextEl._cachedText = text;
+      cachedTextEl._cachedWidth = width;
     }
 
     const left = x - width / 2;

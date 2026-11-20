@@ -59,7 +59,7 @@ export function parseCsvOrTsv(text: string): Record<string, string>[] {
   const headers = parseLine(lines[0]);
   const numHeaders = headers.length;
   const numRows = lines.length - 1;
-  const rows: Record<string, string>[] = new Array(numRows);
+  const rows: Record<string, string>[] = Array.from({ length: numRows }, () => ({}));
 
   for (let i = 0; i < numRows; i++) {
     const values = parseLine(lines[i + 1]);
