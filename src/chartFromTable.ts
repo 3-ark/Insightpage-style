@@ -283,6 +283,17 @@ export function parseCellValue(raw: unknown): unknown {
     // Guard date format regex and slash replacement with fast delimiter check for '-' or '/'
     // to skip regex matching and string allocation for standard text strings and non-date cells.
     if ((str.includes('-') || str.includes('/')) && /^\d{4}[-/]\d{1,2}(?:[-/]\d{1,2})?(?:[T ].*)?$/.test(str)) {
+        const dateOnlyMatch = str.match(/^(\d{4})[-/](\d{1,2})(?:[-/](\d{1,2}))?$/);
+        if (dateOnlyMatch) {
+            const date = new Date(0);
+            date.setUTCHours(0, 0, 0, 0);
+            date.setUTCFullYear(
+                Number(dateOnlyMatch[1]),
+                Number(dateOnlyMatch[2]) - 1,
+                Number(dateOnlyMatch[3] ?? 1)
+            );
+            return date;
+        }
         const normalized = str.includes('/') ? str.replace(/\//g, '-') : str;
         const d = new Date(normalized);
         if (!isNaN(d.getTime())) return d;

@@ -46,7 +46,7 @@ export function toTFile(item: unknown): TFile | null {
   return null;
 }
 
-export function createCustomFetch(app: App, obsidianModule: unknown, sourcePath: string = '') {
+export function createCustomFetch(app: App | undefined, obsidianModule: unknown, sourcePath: string = '') {
   return async function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const urlString =
       typeof input === 'string'

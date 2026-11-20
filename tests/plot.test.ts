@@ -6,7 +6,7 @@ import { JSDOM } from 'jsdom';
 import Module from 'node:module';
 
 // Mock 'obsidian' and '.svelte' modules for Node runtime
-const originalRequire = Module.prototype.require;
+const originalRequire = Reflect.get(Module.prototype, 'require');
 Module.prototype.require = function (id: string) {
   if (id.endsWith('.svelte')) {
     return {};
@@ -93,6 +93,30 @@ global.getComputedStyle = dom.window.getComputedStyle;
 global.XMLSerializer = dom.window.XMLSerializer;
 global.Blob = dom.window.Blob;
 global.URL = dom.window.URL;
+
+function createTable(document: Document, headers: string[], rows: string[][]): HTMLTableElement {
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  for (const header of headers) {
+    const cell = document.createElement('th');
+    cell.textContent = header;
+    headerRow.append(cell);
+  }
+  thead.append(headerRow);
+  const tbody = document.createElement('tbody');
+  for (const row of rows) {
+    const tableRow = document.createElement('tr');
+    for (const value of row) {
+      const cell = document.createElement('td');
+      cell.textContent = value;
+      tableRow.append(cell);
+    }
+    tbody.append(tableRow);
+  }
+  table.append(thead, tbody);
+  return table;
+}
 
 // Polyfill innerText in JSDOM if needed
 if (!('innerText' in dom.window.HTMLElement.prototype)) {
@@ -259,7 +283,7 @@ Plot.plot({
 })
 `;
 
-test('renders standalone Plot.rectY mark codeblock from user issue query', async () => {
+void test('renders standalone Plot.rectY mark codeblock from user issue query', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -294,7 +318,7 @@ test('renders standalone Plot.rectY mark codeblock from user issue query', async
   assert.equal(rendered?.tagName.toLowerCase(), 'svg', 'Rendered element should be an SVG');
 });
 
-test('renders array of marks returned from codeblock', async () => {
+void test('renders array of marks returned from codeblock', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -323,7 +347,7 @@ test('renders array of marks returned from codeblock', async () => {
   assert.equal(rendered?.tagName.toLowerCase(), 'svg', 'Rendered element should be an SVG');
 });
 
-test('custom fetch resolves relative vault dataset file path', async () => {
+void test('custom fetch resolves relative vault dataset file path', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -378,7 +402,7 @@ Plot.rectY([sst.length], Plot.binX({ y: "count" }, { x: (d) => d }));
   assert.ok(container.innerHTML.includes('svg'));
 });
 
-test('renders exact user plot codeblock without explicit return keyword', async () => {
+void test('renders exact user plot codeblock without explicit return keyword', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -411,7 +435,7 @@ test('renders exact user plot codeblock without explicit return keyword', async 
   };
 
   // Re-register require for obsidian in this test
-  const origReq = Module.prototype.require;
+  const origReq = Reflect.get(Module.prototype, 'require');
   Module.prototype.require = function (id: string) {
     if (id === 'obsidian') {
       return mockObsidian;
@@ -434,7 +458,7 @@ test('renders exact user plot codeblock without explicit return keyword', async 
   );
 });
 
-test('renders Observable Plot tooltip mark with correct tip group element and styles', async () => {
+void test('renders Observable Plot tooltip mark with correct tip group element and styles', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -465,7 +489,7 @@ Plot.plot({
   assert.equal(tipGroup?.getAttribute('fill'), 'var(--plot-background)', 'Tip group fill should be var(--plot-background)');
 });
 
-test('renders text mark with dynamic frameAnchor, dx, and dy channel accessors', async () => {
+void test('renders text mark with dynamic frameAnchor, dx, and dy channel accessors', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -514,7 +538,7 @@ Plot.plot({
   assert.ok(renderedTexts.includes('↘ Large Land / Low Pop'));
 });
 
-test('renders user issue query code with dynamic frameAnchor and table parsing', async () => {
+void test('renders user issue query code with dynamic frameAnchor and table parsing', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -547,16 +571,15 @@ test('renders user issue query code with dynamic frameAnchor and table parsing',
   const existingTable = dom.window.document.querySelector('table');
   if (existingTable) existingTable.remove();
 
-  const tableEl = dom.window.document.createElement('table');
-  tableEl.innerHTML = `
-    <thead><tr><th>Land area</th><th>Density</th><th>Population</th><th>Area</th></tr></thead>
-    <tbody>
-      <tr><td>China</td><td>145</td><td>1,400,000,000</td><td>9,600,000</td></tr>
-      <tr><td>India</td><td>418</td><td>1,380,000,000</td><td>3,300,000</td></tr>
-      <tr><td>Singapore</td><td>8,000</td><td>5,700,000</td><td>728</td></tr>
-      <tr><td>Monaco</td><td>19,000</td><td>39,000</td><td>2.1</td></tr>
-    </tbody>
-  `;
+  const tableEl = createTable(dom.window.document,
+    ['Land area', 'Density', 'Population', 'Area'],
+    [
+      ['China', '145', '1,400,000,000', '9,600,000'],
+      ['India', '418', '1,380,000,000', '3,300,000'],
+      ['Singapore', '8,000', '5,700,000', '728'],
+      ['Monaco', '19,000', '39,000', '2.1'],
+    ]
+  );
   dom.window.document.body.appendChild(tableEl);
 
   const mockPlugin: any = {
@@ -705,7 +728,7 @@ Plot.plot({
   );
 });
 
-test('handles frameAnchor accessor function and dot/tip marks', async () => {
+void test('handles frameAnchor accessor function and dot/tip marks', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -749,7 +772,7 @@ Plot.plot({
   assert.ok(renderedTexts.includes('Bottom Note'));
 });
 
-test('lineY tooltips use the categorical stroke color without adding visible points', async () => {
+void test('lineY tooltips use the categorical stroke color without adding visible points', async () => {
   const { getPlot } = await import('../src/charts/plotInstance');
   const Plot = getPlot();
   const data = [
@@ -777,7 +800,7 @@ test('lineY tooltips use the categorical stroke color without adding visible poi
   assert.ok(tooltipDots.every((dot) => dot.getAttribute('fill') === lineStroke));
 });
 
-test('renders Plot chart with title, subtitle, and caption within figure element', async () => {
+void test('renders Plot chart with title, subtitle, and caption within figure element', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -833,7 +856,7 @@ Plot.plot({
   assert.notEqual(svgEl, null, 'Figure should contain an <svg> chart element');
 });
 
-test('renders Plot chart with only caption in figure element', async () => {
+void test('renders Plot chart with only caption in figure element', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -869,7 +892,7 @@ Plot.plot({
   assert.equal(captionEl?.textContent, 'Source: Observation data collected at meteorological stations.');
 });
 
-test('renders plot assigned to variable without explicit return (Plot 2 fix)', async () => {
+void test('renders plot assigned to variable without explicit return (Plot 2 fix)', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -902,7 +925,7 @@ const plot = Plot.plot({
   assert.ok(container.innerHTML.includes('Test Plot Assigned to Var'));
 });
 
-test('renders plot using display() function (Plot 3 fix)', async () => {
+void test('renders plot using display() function (Plot 3 fix)', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -933,7 +956,7 @@ const plot = display(Plot.plot({
   assert.ok(container.innerHTML.includes('Displayed Plot'));
 });
 
-test('renders user example note containing Plot 1, Plot 2, and Plot 3', async () => {
+void test('renders user example note containing Plot 1, Plot 2, and Plot 3', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -966,16 +989,15 @@ test('renders user example note containing Plot 1, Plot 2, and Plot 3', async ()
   const existingTable = dom.window.document.querySelector('table');
   if (existingTable) existingTable.remove();
 
-  const tableEl = dom.window.document.createElement('table');
-  tableEl.innerHTML = `
-    <thead><tr><th>Location</th><th>Density</th><th>Population</th><th>Land area (km2)</th></tr></thead>
-    <tbody>
-      <tr><td>World</td><td>55</td><td>8,231,613,070</td><td>148,940,000</td></tr>
-      <tr><td>Macau (China)</td><td>21,826</td><td>720,262</td><td>33</td></tr>
-      <tr><td>Monaco</td><td>19,428</td><td>38,857</td><td>2</td></tr>
-      <tr><td>Singapore</td><td>8,290</td><td>6,110,200</td><td>737</td></tr>
-    </tbody>
-  `;
+  const tableEl = createTable(dom.window.document,
+    ['Location', 'Density', 'Population', 'Land area (km2)'],
+    [
+      ['World', '55', '8,231,613,070', '148,940,000'],
+      ['Macau (China)', '21,826', '720,262', '33'],
+      ['Monaco', '19,428', '38,857', '2'],
+      ['Singapore', '8,290', '6,110,200', '737'],
+    ]
+  );
   dom.window.document.body.appendChild(tableEl);
 
   const mockPlugin: any = {
@@ -1106,7 +1128,7 @@ const plot = display(Plot.plot({
   assert.ok(container3.innerHTML.includes('Plot 3: Population vs. land area'));
 });
 
-test('renders Plot chart directly referencing table ID as data source (^tablecountries)', async () => {
+void test('renders Plot chart directly referencing table ID as data source (^tablecountries)', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -1187,7 +1209,7 @@ Plot.plot({
   assert.ok(container.innerHTML.includes('Singapore'));
 });
 
-test('renders Plot chart referring to `table` with explicit // table: #my-table-id comment', async () => {
+void test('renders Plot chart referring to `table` with explicit // table: #my-table-id comment', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -1247,7 +1269,7 @@ Plot.plot({
   assert.ok(container.innerHTML.includes('Delhi'));
 });
 
-test('renders Plot chart directly referencing kebab-case table ID (^table-countries) as table-countries or tablecountries', async () => {
+void test('renders Plot chart directly referencing kebab-case table ID (^table-countries) as table-countries or tablecountries', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -1321,7 +1343,7 @@ Plot.plot({
   assert.ok(containerStripped.innerHTML.includes('svg'));
 });
 
-test('codeblock processor is registered on plugin', async () => {
+void test('codeblock processor is registered on plugin', async () => {
   const PluginModule = await import('../src/main');
   const ChartPlugin = PluginModule.default;
 
@@ -1346,6 +1368,7 @@ test('codeblock processor is registered on plugin', async () => {
     registeredCodeblocks.push(name);
   };
   plugin.registerMarkdownPostProcessor = () => {};
+  plugin.registerEditorExtension = () => {};
 
   await plugin.onload();
 
@@ -1353,7 +1376,7 @@ test('codeblock processor is registered on plugin', async () => {
   assert.ok(registeredCodeblocks.includes('observableplot'), 'observableplot processor should be registered');
 });
 
-test('PlotJsRenderChild reloads on metadataCache change when note table changes', async () => {
+void test('PlotJsRenderChild reloads on metadataCache change when note table changes', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -1413,7 +1436,8 @@ Plot.plot({
   } as any);
 
   assert.notEqual(renderChild, null);
-  await renderChild.onload();
+  renderChild.onload();
+  await renderChild.loadPromise;
   assert.ok(container.innerHTML.includes('Alpha'), 'Container should render initial table value');
 
   // Update markdown content and trigger change

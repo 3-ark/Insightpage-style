@@ -63,7 +63,7 @@ void test('subscript renders as a styled span in live preview', () => {
   view.destroy();
 });
 
-test('transformSubscriptSuperscriptHtml correctly converts superscript and subscript syntax', () => {
+void test('transformSubscriptSuperscriptHtml correctly converts superscript and subscript syntax', () => {
   const input = 'This ^**note**^ *demonstrates* ~the~ various ==***"Markdown"***== rendering capabilities of InsightPage ~~***"笔记"***~~.';
   const output = transformSubscriptSuperscriptHtml(input);
 
@@ -73,7 +73,7 @@ test('transformSubscriptSuperscriptHtml correctly converts superscript and subsc
   );
 });
 
-test('transformSubscriptSuperscriptHtml preserves strikethrough (~~) without converting to subscript', () => {
+void test('transformSubscriptSuperscriptHtml preserves strikethrough (~~) without converting to subscript', () => {
   const input = 'This is ~~strikethrough~~ text and ~subscript~ text.';
   const output = transformSubscriptSuperscriptHtml(input);
 
@@ -83,7 +83,7 @@ test('transformSubscriptSuperscriptHtml preserves strikethrough (~~) without con
   );
 });
 
-test('transformSubscriptSuperscriptHtml does not convert text inside code blocks', () => {
+void test('transformSubscriptSuperscriptHtml does not convert text inside code blocks', () => {
   const input = 'Text with ^super^ and <code>^code^ and ~sub~</code> inside code.';
   const output = transformSubscriptSuperscriptHtml(input);
 
@@ -93,9 +93,11 @@ test('transformSubscriptSuperscriptHtml does not convert text inside code blocks
   );
 });
 
-test('processSubscriptSuperscript updates container DOM element', () => {
+void test('processSubscriptSuperscript updates container DOM element', () => {
   const container = document.createElement('div');
-  container.innerHTML = '<p>This ^**note**^ ~the~ end.</p>';
+  const paragraph = document.createElement('p');
+  paragraph.textContent = 'This ^**note**^ ~the~ end.';
+  container.append(paragraph);
 
   processSubscriptSuperscript(container);
 
@@ -105,9 +107,15 @@ test('processSubscriptSuperscript updates container DOM element', () => {
   );
 });
 
-test('processSubscriptSuperscript preserves markdown emphasis inside scripts', () => {
+void test('processSubscriptSuperscript preserves markdown emphasis inside scripts', () => {
   const container = document.createElement('div');
-  container.innerHTML = '<p>^<strong>up</strong>^ ~<strong>down</strong>~</p>';
+  const paragraph = document.createElement('p');
+  const up = document.createElement('strong');
+  up.textContent = 'up';
+  const down = document.createElement('strong');
+  down.textContent = 'down';
+  paragraph.append('^', up, '^ ~', down, '~');
+  container.append(paragraph);
 
   processSubscriptSuperscript(container);
 

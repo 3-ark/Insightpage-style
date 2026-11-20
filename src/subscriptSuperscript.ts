@@ -1,14 +1,24 @@
 import { Decoration, ViewPlugin } from '@codemirror/view';
 import type { Range } from '@codemirror/state';
 import type { DecorationSet, EditorView, ViewUpdate } from '@codemirror/view';
-import { sanitizeHTMLToDom } from 'obsidian';
-
 const BLOCK_REGEX = /<(code|pre|script|style|svg|span[^>]*class="[^"]*math[^"]*")[^>]*>[\s\S]*?<\/\1>|<span[^>]*class="[^"]*math[^"]*"[^>]*>[\s\S]*?<\/span>/gi;
 const TAG_REGEX = /<[^>]+>/g;
 const SUPERSCRIPT_REGEX = /(^|[^\\])\^([^^\r\n]+?)\^(?!\^)/g;
 const SUBSCRIPT_REGEX = /(^|[^\\~])~(?!~)([^~\r\n]+?)~(?!~)/g;
 const RESTORE_TAG_REGEX = /___HTML_TAG_(\d+)___/g;
 const RESTORE_BLOCK_REGEX = /___PROTECTED_BLOCK_(\d+)___/g;
+
+type HtmlSanitizer = (html: string) => DocumentFragment;
+
+function getHtmlSanitizer(): HtmlSanitizer | undefined {
+  if (typeof require !== 'function') return undefined;
+  try {
+    const obsidian = require('obsidian') as { sanitizeHTMLToDom?: HtmlSanitizer };
+    return obsidian.sanitizeHTMLToDom;
+  } catch {
+    return undefined;
+  }
+}
 
 export interface ScriptDecorationRange {
   from: number;
@@ -245,7 +255,8 @@ export function processSubscriptSuperscript(container: HTMLElement): void {
   const transformed = transformSubscriptSuperscriptHtml(html);
   if (transformed !== html) {
     container.replaceChildren();
-    if (typeof sanitizeHTMLToDom === 'function') {
+    const sanitizeHTMLToDom = getHtmlSanitizer();
+    if (sanitizeHTMLToDom) {
       container.appendChild(sanitizeHTMLToDom(transformed));
     } else {
       const parser = new (container.ownerDocument?.defaultView?.DOMParser || DOMParser)();

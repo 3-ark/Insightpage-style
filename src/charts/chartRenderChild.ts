@@ -31,6 +31,7 @@ interface TablePosition {
 
 export class PlotJsRenderChild extends MarkdownRenderChild {
   code: string;
+  loadPromise: Promise<void> = Promise.resolve();
   chartEl: HTMLElement | SVGElement | null = null;
   renderer: Renderer;
   ownPath: string;
@@ -51,7 +52,7 @@ export class PlotJsRenderChild extends MarkdownRenderChild {
   }
 
   onload() {
-    void this.loadAsync();
+    this.loadPromise = this.loadAsync();
   }
 
   private async loadAsync() {
@@ -113,6 +114,7 @@ export class PlotJsRenderChild extends MarkdownRenderChild {
 
 export class ChartRenderChild extends MarkdownRenderChild {
   data: Record<string, unknown>;
+  loadPromise: Promise<void> = Promise.resolve();
   chartEl: HTMLElement | SVGElement | null = null;
   renderer: Renderer;
   prep: unknown = null;
@@ -136,7 +138,7 @@ export class ChartRenderChild extends MarkdownRenderChild {
   }
 
   onload() {
-    void this.loadAsync();
+    this.loadPromise = this.loadAsync();
   }
 
   private async loadAsync() {

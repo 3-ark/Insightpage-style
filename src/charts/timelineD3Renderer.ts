@@ -97,7 +97,13 @@ export function renderTimelineD3Chart(
     if (startTime < minTime) minTime = startTime;
     if (endTime > maxTime) maxTime = endTime;
 
-    const categoryVal = String(evt[activeCat] ?? 'default');
+    const rawCategoryValue = evt[activeCat];
+    const categoryVal =
+      typeof rawCategoryValue === 'string' ||
+      typeof rawCategoryValue === 'number' ||
+      typeof rawCategoryValue === 'boolean'
+        ? String(rawCategoryValue)
+        : 'default';
     categoryValuesSet.add(categoryVal);
     const collections = Array.isArray(evt.collection) ? evt.collection : [];
 

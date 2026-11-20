@@ -1,6 +1,16 @@
-import { sanitizeHTMLToDom } from 'obsidian';
-
 const EMOJI_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\u2B50|\u2705|\u274C|\u26A0)/u;
+
+type HtmlSanitizer = (html: string) => DocumentFragment;
+
+function getHtmlSanitizer(): HtmlSanitizer | undefined {
+  if (typeof require !== 'function') return undefined;
+  try {
+    const obsidian = require('obsidian') as { sanitizeHTMLToDom?: HtmlSanitizer };
+    return obsidian.sanitizeHTMLToDom;
+  } catch {
+    return undefined;
+  }
+}
 
 export function extractEmojiAndContent(rawText: string): { emoji: string; content: string } {
   const trimmed = rawText.trim();
@@ -23,7 +33,8 @@ export function extractEmojiAndTitle(rawText: string): { emoji: string; title: s
 
 function parseSafeHtmlFragment(rawHtml: string, doc?: Document): DocumentFragment | null {
   if (!rawHtml) return null;
-  if (typeof sanitizeHTMLToDom === 'function') {
+  const sanitizeHTMLToDom = getHtmlSanitizer();
+  if (sanitizeHTMLToDom) {
     return sanitizeHTMLToDom(rawHtml);
   }
   const documentObj = doc || (typeof activeDocument !== 'undefined' ? activeDocument : null);

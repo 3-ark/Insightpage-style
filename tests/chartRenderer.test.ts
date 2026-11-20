@@ -6,7 +6,7 @@ import { JSDOM } from 'jsdom';
 import Module from 'node:module';
 
 // Mock 'obsidian' and '.svelte' modules for Node runtime
-const originalRequire = Module.prototype.require;
+const originalRequire = Reflect.get(Module.prototype, 'require');
 Module.prototype.require = function (id: string) {
   if (id.endsWith('.svelte')) {
     return {};
@@ -142,7 +142,7 @@ const mockApp = {
   },
 };
 
-test('donut chart (type: donut) renders as doughnut SVG chart and not bar chart', async () => {
+void test('donut chart (type: donut) renders as doughnut SVG chart and not bar chart', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -185,7 +185,7 @@ test('donut chart (type: donut) renders as doughnut SVG chart and not bar chart'
   assert.ok(firstPathD.includes('A'), 'Path d attribute should contain arc commands');
 });
 
-test('pie/donut, radar, and sankey paths create and display Plot-style tooltip on mouseenter', async () => {
+void test('pie/donut, radar, and sankey paths create and display Plot-style tooltip on mouseenter', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -262,7 +262,7 @@ test('pie/donut, radar, and sankey paths create and display Plot-style tooltip o
   assert.ok(sankeyTooltip.textContent?.includes('Flow: 100'));
 });
 
-test('line chart best fit handles string labels without NaN values', async () => {
+void test('line chart best fit handles string labels without NaN values', async () => {
   const PluginModule = await import('../src/main');
   const ChartPlugin = PluginModule.default;
 
@@ -299,7 +299,7 @@ series:
   assert.deepEqual(bestFitSeries.data, [100, 200, 300, 400]);
 });
 
-test('generateTableData correctly parses markdown tables with block IDs (^table)', async () => {
+void test('generateTableData correctly parses markdown tables with block IDs (^table)', async () => {
   const { generateTableData } = await import('../src/chartFromTable');
 
   const tableMarkdown = `|       | Test1 | Test2 | Test3 |
@@ -331,7 +331,7 @@ test('generateTableData correctly parses markdown tables with block IDs (^table)
   assert.deepEqual(kebabData.dataFields[0].data, ['19428']);
 });
 
-test('ChartRenderChild resolves table from block ID (^table) in fileCache.blocks', async () => {
+void test('ChartRenderChild resolves table from block ID (^table) in fileCache.blocks', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -403,19 +403,20 @@ test('ChartRenderChild resolves table from block ID (^table) in fileCache.blocks
     sourcePath: 'test.md',
     addChild: (child: any) => {
       renderedChild = child;
-      onloadPromise = child.onload();
+      child.onload();
+      onloadPromise = child.loadPromise;
     },
   } as any);
 
   if (onloadPromise) {
-    await onloadPromise;
+    await Promise.resolve(onloadPromise);
   }
 
   assert.notEqual(renderedChild, null);
   assert.notEqual(renderedChild.chartEl, null, 'Chart element should be rendered from block ID table reference');
 });
 
-test('ChartRenderChild resolves table with kebab-case block ID (^table-countries) via fallback note text search', async () => {
+void test('ChartRenderChild resolves table with kebab-case block ID (^table-countries) via fallback note text search', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -470,19 +471,20 @@ test('ChartRenderChild resolves table with kebab-case block ID (^table-countries
     sourcePath: 'countries.md',
     addChild: (child: any) => {
       renderedChild = child;
-      onloadPromise = child.onload();
+      child.onload();
+      onloadPromise = child.loadPromise;
     },
   } as any);
 
   if (onloadPromise) {
-    await onloadPromise;
+    await Promise.resolve(onloadPromise);
   }
 
   assert.notEqual(renderedChild, null);
   assert.notEqual(renderedChild.chartEl, null, 'Chart should render from kebab-case block ID fallback search');
 });
 
-test('ChartRenderChild with id only invokes datasetPrep once during onload()', async () => {
+void test('ChartRenderChild with id only invokes datasetPrep once during onload()', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -550,18 +552,19 @@ test('ChartRenderChild with id only invokes datasetPrep once during onload()', a
   await renderer.renderFromYaml(chartData, container, {
     sourcePath: 'test.md',
     addChild: (child: any) => {
-      onloadPromise = child.onload();
+      child.onload();
+      onloadPromise = child.loadPromise;
     },
   } as any);
 
   if (onloadPromise) {
-    await onloadPromise;
+    await Promise.resolve(onloadPromise);
   }
 
   assert.equal(datasetPrepCallCount, 1, 'datasetPrep should be called exactly once for table-linked charts');
 });
 
-test('custom chart containers (pie, donut, radar, sankey) have position: relative explicitly set upon datasetPrep', async () => {
+void test('custom chart containers (pie, donut, radar, sankey) have position: relative explicitly set upon datasetPrep', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -593,7 +596,7 @@ test('custom chart containers (pie, donut, radar, sankey) have position: relativ
   }
 });
 
-test('Radar and Polar Area charts correctly resolve category data using O(1) ptMap lookups', async () => {
+void test('Radar and Polar Area charts correctly resolve category data using O(1) ptMap lookups', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -650,7 +653,7 @@ test('Radar and Polar Area charts correctly resolve category data using O(1) ptM
   assert.equal(polarPaths.length, 4, 'Polar Area chart should render 4 arc paths for 4 categories');
 });
 
-test('Polar Area chart with a single top category renders distinct colors for second level categories and legend', async () => {
+void test('Polar Area chart with a single top category renders distinct colors for second level categories and legend', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -719,7 +722,7 @@ test('Polar Area chart with a single top category renders distinct colors for se
   assert.deepEqual(multiLegendSpans, ['Series A', 'Series B'], 'Multi-series legend should list series names');
 });
 
-test('ChartRenderChild safely handles missing fileCache or early changeHandler events without error', async () => {
+void test('ChartRenderChild safely handles missing fileCache or early changeHandler events without error', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -766,12 +769,13 @@ test('ChartRenderChild safely handles missing fileCache or early changeHandler e
     sourcePath: 'test.md',
     addChild: (child: any) => {
       renderedChild = child;
-      onloadPromise = child.onload();
+      child.onload();
+      onloadPromise = child.loadPromise;
     },
   } as any);
 
   if (onloadPromise) {
-    await onloadPromise;
+    await Promise.resolve(onloadPromise);
   }
 
   assert.notEqual(renderedChild, null);
@@ -781,7 +785,7 @@ test('ChartRenderChild safely handles missing fileCache or early changeHandler e
   });
 });
 
-test('coerceTableRow provides case-insensitive access with get, in (has), and getOwnPropertyDescriptor', async () => {
+void test('coerceTableRow provides case-insensitive access with get, in (has), and getOwnPropertyDescriptor', async () => {
   const { coerceTableRow, parseCellValue } = await import('../src/chartFromTable');
 
   assert.equal(parseCellValue(' 1,234,567 '), 1234567);
@@ -838,7 +842,7 @@ test('coerceTableRow provides case-insensitive access with get, in (has), and ge
   assert.equal(descMissing, undefined);
 });
 
-test('ChartRenderChild loads external CSV data file directly in chart DSL', async () => {
+void test('ChartRenderChild loads external CSV data file directly in chart DSL', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -890,19 +894,20 @@ Mar,200,90`;
     sourcePath: 'report.md',
     addChild: (child: any) => {
       renderedChild = child;
-      onloadPromise = child.onload();
+      child.onload();
+      onloadPromise = child.loadPromise;
     },
   } as any);
 
   if (onloadPromise) {
-    await onloadPromise;
+    await Promise.resolve(onloadPromise);
   }
 
   assert.notEqual(renderedChild, null);
   assert.notEqual(renderedChild.chartEl, null, 'Chart element should be rendered from external CSV file');
 });
 
-test('comma-separated CSV with tabs inside quoted cells preserves row labels and values', async () => {
+void test('comma-separated CSV with tabs inside quoted cells preserves row labels and values', async () => {
   const { parseCsvOrTsv } = await import('../src/charts/tabularDataParser');
   const { coerceTableRow, rowsToTableData } = await import('../src/chartFromTable');
   const csv = `指标,"2026年10月\t","2026年9月\t","2026年8月\t"
@@ -921,7 +926,7 @@ test('comma-separated CSV with tabs inside quoted cells preserves row labels and
   assert.deepEqual(tableData.dataFields[1].data, ['49.8', '51.7', '50.4']);
 });
 
-test('ChartRenderChild loads external JSON data file and reloads on metadataCache change', async () => {
+void test('ChartRenderChild loads external JSON data file and reloads on metadataCache change', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -977,12 +982,13 @@ test('ChartRenderChild loads external JSON data file and reloads on metadataCach
     sourcePath: 'note.md',
     addChild: (child: any) => {
       renderedChild = child;
-      onloadPromise = child.onload();
+      child.onload();
+      onloadPromise = child.loadPromise;
     },
   } as any);
 
   if (onloadPromise) {
-    await onloadPromise;
+    await Promise.resolve(onloadPromise);
   }
 
   assert.notEqual(renderedChild, null);
@@ -999,7 +1005,7 @@ test('ChartRenderChild loads external JSON data file and reloads on metadataCach
   assert.equal(reloadCalled, true, 'Chart should reload when external data file changes in metadataCache');
 });
 
-test('ChartPlugin postprocessor accepts chart DSL with external data file without error', async () => {
+void test('ChartPlugin postprocessor accepts chart DSL with external data file without error', async () => {
   const PluginModule = await import('../src/main');
   const ChartPlugin = PluginModule.default;
 
@@ -1024,7 +1030,7 @@ data: 5-Data/datasets/sales.csv
   assert.equal(container.querySelector('.chart-error'), null, 'No error should be rendered for valid external data DSL');
 });
 
-test('ChartRenderChild renders 2-column CSV with Windows backslash path and displays title', async () => {
+void test('ChartRenderChild renders 2-column CSV with Windows backslash path and displays title', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -1085,12 +1091,13 @@ test('ChartRenderChild renders 2-column CSV with Windows backslash path and disp
     sourcePath: 'note.md',
     addChild: (child: any) => {
       renderedChild = child;
-      onloadPromise = child.onload();
+      child.onload();
+      onloadPromise = child.loadPromise;
     },
   } as any);
 
   if (onloadPromise) {
-    await onloadPromise;
+    await Promise.resolve(onloadPromise);
   }
 
   assert.notEqual(renderedChild, null);
@@ -1106,7 +1113,7 @@ test('ChartRenderChild renders 2-column CSV with Windows backslash path and disp
   assert.deepEqual(renderedChild.data.labels, ['2000', '2001', '2002']);
 });
 
-test('line chart sorts timeseries data points monotonically and applies thin white border to dots', async () => {
+void test('line chart sorts timeseries data points monotonically and applies thin white border to dots', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -1152,7 +1159,7 @@ test('line chart sorts timeseries data points monotonically and applies thin whi
   });
 });
 
-test('dense line charts (>30 points) auto-omit visible dots, format temporal axes, and support point options', async () => {
+void test('dense line charts (>30 points) auto-omit visible dots, format temporal axes, and support point options', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const { rowsToTableData, coerceTableRow } = await import('../src/chartFromTable');
@@ -1230,7 +1237,7 @@ test('dense line charts (>30 points) auto-omit visible dots, format temporal axe
   assert.equal(explicitDots[0].getAttribute('r'), '2');
 });
 
-test('categorical line and bar charts strictly preserve non-alphabetical labels order, markLine, and filtered dataLabels', async () => {
+void test('categorical line and bar charts strictly preserve non-alphabetical labels order, markLine, and filtered dataLabels', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -1318,7 +1325,7 @@ test('categorical line and bar charts strictly preserve non-alphabetical labels 
   assert.ok(renderedTexts.includes('Capacity Upgrade'), 'MarkLine label Capacity Upgrade should be rendered');
 });
 
-test('grouped bar chart with markdown table, markLine, and string axis titles renders all data bars without data loss', async () => {
+void test('grouped bar chart with markdown table, markLine, and string axis titles renders all data bars without data loss', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -1381,12 +1388,13 @@ test('grouped bar chart with markdown table, markLine, and string axis titles re
     sourcePath: 'test_table.md',
     addChild: (child: any) => {
       renderedChild = child;
-      onloadPromise = child.onload();
+      child.onload();
+      onloadPromise = child.loadPromise;
     },
   } as any);
 
   if (onloadPromise) {
-    await onloadPromise;
+    await Promise.resolve(onloadPromise);
   }
 
   assert.notEqual(renderedChild, null);
@@ -1418,7 +1426,7 @@ test('grouped bar chart with markdown table, markLine, and string axis titles re
   assert.equal(renderedChild.prep?.plotOptions?.y?.label, 'Score', 'Shorthand y string should set y axis label');
 });
 
-test('horizontal grouped bar chart preserves category ordering on fy without discarding bars', async () => {
+void test('horizontal grouped bar chart preserves category ordering on fy without discarding bars', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
