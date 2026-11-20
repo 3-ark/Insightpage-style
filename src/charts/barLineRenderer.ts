@@ -75,12 +75,23 @@ function formatChartValue(value: unknown): string {
   return '';
 }
 
+function finiteNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : fallback;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
 const ISO_DATE_REGEX = /^\d{4}[-/]\d{1,2}(?:[-/]\d{1,2})?(?:[T ].*)?$/;
 const DIGITS_ONLY_REGEX = /^\d+$/;
 const HAS_DIGIT_REGEX = /\d/;
 
 export function tryParseDate(v: unknown): unknown {
-  if (v instanceof Date) return isNaN(v.getTime()) ? v : v;
+  if (v instanceof Date) return v;
   if (typeof v === 'string') {
     const s = v.trim();
     // Guard regex tests with delimiter check to fast-path standard strings without dashes or slashes
@@ -180,16 +191,9 @@ export function prepareChartDataset(
       // Since parsedLabels[j] was already parsed during the label pre-pass, avoid redundant tryParseDate calls
       const xVal = j < numLabels ? parsedLabels[j] : j;
       const val = seriesData[j];
-      let numVal = 0;
-      if (typeof val === 'number') {
-        numVal = val;
-      } else if (typeof val === 'string') {
-        const parsed = Number(val);
-        numVal = isNaN(parsed) ? 0 : parsed;
-      } else if (typeof val === 'boolean') {
-        numVal = val ? 1 : 0;
-      }
-      const yVal = isNaN(numVal) ? 0 : numVal;
+      const yVal = typeof val === 'boolean'
+        ? (val ? 1 : 0)
+        : finiteNumber(val);
       dataPoints[dpIdx++] = {
         x: xVal,
         y: yVal,
@@ -310,16 +314,17 @@ export function prepareChartDataset(
     // while preserving tooltip interactivity. Allow explicit user control via pointRadius / radius / r / points / dots.
     let pointRadius = 4;
     if (yaml.pointRadius !== undefined) {
-      pointRadius = Number(yaml.pointRadius);
+      pointRadius = finiteNumber(yaml.pointRadius, 4);
     } else if (yaml.radius !== undefined) {
-      pointRadius = Number(yaml.radius);
+      pointRadius = finiteNumber(yaml.radius, 4);
     } else if (yaml.r !== undefined) {
-      pointRadius = Number(yaml.r);
+      pointRadius = finiteNumber(yaml.r, 4);
     } else if (yaml.points === false || yaml.dots === false) {
       pointRadius = 0;
     } else if (sortedLineData.length > 30) {
       pointRadius = 0;
     }
+    pointRadius = Math.max(0, pointRadius);
 
     marks.push(
       PlotInst.dot(sortedLineData, {
@@ -466,7 +471,9 @@ export function prepareChartDataset(
     if (typeof explicitXTicks === 'number') {
       defaultXTicks = explicitXTicks;
     } else if (Array.isArray(explicitXTicks)) {
-      defaultXTicks = explicitXTicks.filter((tick): tick is string => typeof tick === 'string');
+      defaultXTicks = explicitXTicks.filter(
+        (tick): tick is string => typeof tick === 'string'
+      );
     }
   } else {
     // Estimate target pixel width

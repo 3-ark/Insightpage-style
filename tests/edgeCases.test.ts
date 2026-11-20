@@ -200,6 +200,38 @@ void test('edge case [DSL 1 - Bar/Line]: mismatched series vs labels length and 
   assert.ok(el3 instanceof HTMLElement || el3 instanceof SVGElement);
 });
 
+void test('edge case [DSL 1 - Bar/Line]: non-finite values, radii, and tick arrays', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+  const renderer = new Renderer(mockPlugin);
+
+  const yaml = {
+    type: 'line',
+    labels: ['A', 'B', 'C'],
+    series: [{ title: 'Mixed', data: [Infinity, NaN, -Infinity] }],
+    pointRadius: 'not-a-number',
+    xTicks: ['A', 'C'],
+  };
+  const container = document.createElement('div');
+  const prep = await renderer.datasetPrep(yaml, container);
+  assert.ok(prep.plotOptions);
+  assert.deepEqual((prep.plotOptions?.x as any)?.ticks, ['A', 'C']);
+
+  const rendered = await renderer.renderRaw(prep, container);
+  assert.ok(rendered instanceof HTMLElement || rendered instanceof SVGElement);
+
+  const negativeRadiusYaml = {
+    type: 'line',
+    labels: ['A'],
+    series: [{ title: 'Mixed', data: [1] }],
+    pointRadius: -5,
+  };
+  const negativeContainer = document.createElement('div');
+  const negativePrep = await renderer.datasetPrep(negativeRadiusYaml, negativeContainer);
+  assert.ok(negativePrep.plotOptions);
+  await renderer.renderRaw(negativePrep, negativeContainer);
+});
+
 void test('edge case [DSL 1 - Pie/Donut/Radar/Sankey]: empty data, zeros, and single node flows', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;

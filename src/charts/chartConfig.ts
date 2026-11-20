@@ -229,7 +229,7 @@ export function resolveFillConfig(yaml: unknown, defaultFill: boolean | string =
       ? (typeof config.area === 'boolean' || typeof config.area === 'string' ? config.area : defaultFill)
       : defaultFill;
 
-  const fillOpacity =
+  const rawFillOpacity =
     typeof config.fillOpacity === 'number'
       ? config.fillOpacity
       : typeof config.transparency === 'number'
@@ -237,6 +237,9 @@ export function resolveFillConfig(yaml: unknown, defaultFill: boolean | string =
       : typeof config.opacity === 'number'
       ? config.opacity
       : 0.25;
+  const fillOpacity = Number.isFinite(rawFillOpacity)
+    ? Math.max(0, Math.min(1, rawFillOpacity))
+    : 0.25;
 
   return { fill, fillOpacity };
 }
