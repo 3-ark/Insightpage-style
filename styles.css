@@ -100,7 +100,7 @@ g[aria-label="tip"] text {
 .chart-plot-tooltip {
   position: absolute;
   pointer-events: none;
-  display: none;
+  visibility: hidden;
   z-index: 1000;
   padding: 6px 10px;
   font-size: 12px;
@@ -111,12 +111,12 @@ g[aria-label="tip"] text {
   color: var(--text-normal, #222222) !important;
   border: 1px solid var(--background-modifier-border, rgba(128, 128, 128, 0.35)) !important;
   white-space: pre-wrap;
-  transition: opacity 0.1s ease-in-out;
+  transition: opacity 0.1s ease-in-out, visibility 0.1s ease-in-out;
   opacity: 0;
 }
 
 .chart-plot-tooltip.is-visible {
-  display: block;
+  visibility: visible;
   opacity: 1;
 }
 
@@ -159,7 +159,7 @@ a[href="https://ko-fi.com/phibr0"] > img
   margin: 0 0.15rem;
   padding: 0.1rem 0.35rem;
   border-radius: 9999px;
-  background-color: var(--interactive-accent-hover, rgba(var(--mono-rgb-100, 100, 100), 0.1));
+  background-color: var(--interactive-accent-hover, rgba(var(--mono-rgb-100, 100, 100, 100), 0.1));
   color: var(--text-normal);
   border: 1px solid var(--background-modifier-border, rgba(128, 128, 128, 0.3));
   cursor: pointer;
@@ -751,6 +751,7 @@ a[href="https://ko-fi.com/phibr0"] > img
 
 .chart-interactive-svg {
   max-width: 100%;
+  height: auto;
 }
 
 .chart-interactive-path {
