@@ -236,10 +236,10 @@ export function resolveFillConfig(yaml: unknown, defaultFill: boolean | string =
       ? config.transparency
       : typeof config.opacity === 'number'
       ? config.opacity
-      : 0.25;
+      : 0.5;
   const fillOpacity = Number.isFinite(rawFillOpacity)
     ? Math.max(0, Math.min(1, rawFillOpacity))
-    : 0.25;
+    : 0.5;
 
   return { fill, fillOpacity };
 }
@@ -360,7 +360,7 @@ export function parseCommonChartConfig(yaml: unknown): CommonChartConfig {
       yLabel: null,
       grid: true,
       fill: false,
-      fillOpacity: 0.25,
+      fillOpacity: 0.5,
       markLines: [],
     };
   }
