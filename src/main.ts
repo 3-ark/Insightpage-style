@@ -23,7 +23,10 @@ import { addIcons } from 'src/ui/icons';
 import { chartFromTable } from 'src/chartFromTable';
 import { renderError } from 'src/util';
 import { processCommentCallouts } from 'src/commentCallout';
-import { processSubscriptSuperscript } from 'src/subscriptSuperscript';
+import {
+  processSubscriptSuperscript,
+  subscriptSuperscriptEditorExtension,
+} from 'src/subscriptSuperscript';
 import { renderAbcBlock } from 'src/abcRenderer';
 import { renderMapBlock, getLeaflet, setLeaflet } from 'src/mapRenderer';
 import { renderTimelineBlock } from 'src/timelineRenderer';
@@ -200,6 +203,7 @@ export default class ChartPlugin extends Plugin {
       processSubscriptSuperscript(el);
       processCommentCallouts(el);
     });
+    this.registerEditorExtension(subscriptSuperscriptEditorExtension);
 
     this.registerMarkdownCodeBlockProcessor('chart', this.postprocessor);
     this.registerMarkdownCodeBlockProcessor('scatter', this.postprocessor);

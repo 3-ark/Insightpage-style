@@ -7,7 +7,7 @@ import { sveltePreprocess } from "svelte-preprocess";
 esbuild.build({
     entryPoints: ['src/main.ts'],
     bundle: true,
-    external: ['obsidian', 'moment'],
+    external: ['obsidian', 'moment', '@codemirror/state', '@codemirror/view'],
     format: 'cjs',
     minify: true,
     logLevel: "info",

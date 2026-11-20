@@ -13,7 +13,7 @@ export default {
         exports: "default",
         // banner
     },
-    external: ["obsidian"],
+    external: ["obsidian", "@codemirror/state", "@codemirror/view"],
     plugins: [
         svelte({
             emitCss: false,

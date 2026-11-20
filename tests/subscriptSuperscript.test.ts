@@ -3,6 +3,8 @@ setupDomPolyfills();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
+import { EditorState, EditorSelection } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 
 // Setup JSDOM environment
 const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>', {
@@ -13,8 +15,53 @@ global.document = dom.window.document;
 global.HTMLElement = dom.window.HTMLElement;
 global.Element = dom.window.Element;
 global.Node = dom.window.Node;
+global.MutationObserver = dom.window.MutationObserver;
+dom.window.requestAnimationFrame = () => 1;
+dom.window.cancelAnimationFrame = () => {};
 
-import { transformSubscriptSuperscriptHtml, processSubscriptSuperscript } from '../src/subscriptSuperscript';
+import {
+  findSubscriptSuperscriptRanges,
+  transformSubscriptSuperscriptHtml,
+  processSubscriptSuperscript,
+  subscriptSuperscriptEditorExtension,
+} from '../src/subscriptSuperscript';
+
+void test('findSubscriptSuperscriptRanges identifies script content and ignores code', () => {
+  const source = 'H^2^O and ~down~ and `^literal^`.\n```md\n~literal~\n```';
+
+  assert.deepEqual(
+    findSubscriptSuperscriptRanges(source).map(({ from, to, tagName }) => ({
+      text: source.slice(from, to),
+      tagName,
+    })),
+    [
+      { text: '2', tagName: 'sup' },
+      { text: 'down', tagName: 'sub' },
+    ]
+  );
+});
+
+void test('subscript renders as a styled span in live preview', () => {
+  const view = new EditorView({
+    state: EditorState.create({
+      doc: '~~strike~~ ~down~ text',
+      selection: EditorSelection.cursor(22),
+      extensions: [subscriptSuperscriptEditorExtension],
+    }),
+    parent: document.createElement('div'),
+  });
+
+  const subscript = view.dom.querySelector('.cm-ip-subscript');
+  assert.ok(subscript);
+  assert.equal(subscript.tagName, 'SPAN');
+  assert.equal(subscript.textContent, 'down');
+  assert.equal(
+    subscript.getAttribute('style'),
+    'vertical-align: -0.25em; font-size: 0.75em; line-height: 0;'
+  );
+  assert.equal(view.dom.textContent, '~~strike~~ down text');
+  view.destroy();
+});
 
 test('transformSubscriptSuperscriptHtml correctly converts superscript and subscript syntax', () => {
   const input = 'This ^**note**^ *demonstrates* ~the~ various ==***"Markdown"***== rendering capabilities of InsightPage ~~***"笔记"***~~.';
