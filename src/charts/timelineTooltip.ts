@@ -1,3 +1,4 @@
+import type { App, MarkdownPostProcessorContext } from 'obsidian';
 import { renderWikilinksToDom } from './timelineWikilinks';
 
 export interface TooltipDetails {
@@ -16,8 +17,8 @@ export interface TimelineTooltipController {
 
 export function createTimelineTooltip(
   wrapper: HTMLElement,
-  app?: any,
-  ctx?: any
+  app?: App,
+  ctx?: MarkdownPostProcessorContext
 ): TimelineTooltipController {
   let tooltip = wrapper.querySelector<HTMLDivElement>('.timeline-tooltip');
   let ttTitle: HTMLDivElement;
@@ -60,7 +61,7 @@ export function createTimelineTooltip(
     ttSub = tooltip.querySelector<HTMLDivElement>('.tt-sub')!;
   }
 
-  let hideTimeout: any = null;
+  let hideTimeout: ReturnType<typeof window.setTimeout> | null = null;
 
   function clearHideTimeout() {
     if (hideTimeout !== null) {
@@ -86,7 +87,7 @@ export function createTimelineTooltip(
       const href = linkEl.getAttribute('data-href') || linkEl.getAttribute('href');
       if (href) {
         if (app?.workspace?.openLinkText) {
-          app.workspace.openLinkText(href, ctx?.sourcePath || '', false);
+          void app.workspace.openLinkText(href, ctx?.sourcePath || '', false);
         } else if (typeof window !== 'undefined') {
           window.open(href, '_blank');
         }
