@@ -371,8 +371,8 @@ void test('edge case [DSL 2 - Scatter]: tabular rows with missing columns, custo
   assert.equal(points[0].r, 5);
 
   const plotOpts = buildScatterPlotOptions(scatterYaml, points, ['#3b82f6'], '#ccc', '#222', Plot);
-  assert.equal(plotOpts.x.type, 'log', 'X scale should be log');
-  assert.equal(plotOpts.color.type, 'log', 'Color scale should auto-align to log scale');
+  assert.equal(plotOpts.x?.type, 'log', 'X scale should be log');
+  assert.equal(plotOpts.color?.type, 'log', 'Color scale should auto-align to log scale');
 });
 
 // -------------------------------------------------------------

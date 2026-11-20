@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import Module from 'node:module';
+import type { MarkdownRenderChild, MarkdownSectionInformation } from "obsidian";
 
 // Mock 'obsidian' module for Node runtime BEFORE loading chart modules
 const originalRequire = Reflect.get(Module.prototype, 'require');
@@ -286,7 +287,17 @@ schemas = [
   end = "end"
 ]`;
 
-  await renderTimelineBlockAsync(code, container, { sourcePath: 'main.md' }, mockApp);
+  await renderTimelineBlockAsync(code, container, {
+    sourcePath: 'main.md',
+    docId: "",
+    frontmatter: undefined,
+    addChild: function (child: MarkdownRenderChild): void {
+      throw new Error("Function not implemented.");
+    },
+    getSectionInfo: function (el: HTMLElement): MarkdownSectionInformation | null {
+      throw new Error("Function not implemented.");
+    }
+  }, mockApp as any);
 
   const wrapper = container.querySelector('.timeline-wrapper');
   assert.ok(wrapper, 'Timeline wrapper should exist for cross-note block table');
@@ -490,7 +501,17 @@ schemas = [
   categories = {"region", "timeline"}
 ]`;
 
-  await renderTimelineBlockAsync(code, container, { sourcePath: 'note.md' }, mockApp);
+  await renderTimelineBlockAsync(code, container, {
+    sourcePath: 'note.md',
+    docId: "",
+    frontmatter: undefined,
+    addChild: function (child: MarkdownRenderChild): void {
+      throw new Error("Function not implemented.");
+    },
+    getSectionInfo: function (el: HTMLElement): MarkdownSectionInformation | null {
+      throw new Error("Function not implemented.");
+    }
+  }, mockApp as any);
 
   const wrapper = container.querySelector('.timeline-wrapper');
   assert.ok(wrapper, 'Timeline wrapper should exist');
@@ -731,7 +752,17 @@ void test('renderTimelineBlock tooltips update on mouse events, parse wikilinks,
     },
   ]);
 
-  renderTimelineBlock(code, container, { sourcePath: 'index.md' }, mockApp);
+  renderTimelineBlock(code, container, {
+    sourcePath: 'index.md',
+    docId: "",
+    frontmatter: undefined,
+    addChild: function (child: MarkdownRenderChild): void {
+      throw new Error("Function not implemented.");
+    },
+    getSectionInfo: function (el: HTMLElement): MarkdownSectionInformation | null {
+      throw new Error("Function not implemented.");
+    }
+  }, mockApp as any);
   await new Promise((resolve) => setTimeout(resolve, 50));
 
   const wrapper = container.querySelector('.timeline-wrapper') as HTMLElement;
@@ -802,8 +833,8 @@ void test('renderTimelineBlock tooltip positions correctly with scroll and viewp
   (global as any).requestAnimationFrame = (cb: Function) => cb();
   (global as any).cancelAnimationFrame = () => {};
 
-  dom.window.innerWidth = 1000;
-  dom.window.innerHeight = 800;
+  Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: 1000 });
+  Object.defineProperty(dom.window, 'innerHeight', { configurable: true, value: 800 });
 
   const container = dom.window.document.getElementById('container') as HTMLElement;
   const code = JSON.stringify([

@@ -38,7 +38,7 @@
         "typescript-eslint": "^8.73.0"
     },
     "dependencies": {
-        "@codemirror/view": "6.43.13",
+        "@codemirror/view": "6.43.15",
         "@observablehq/plot": "^0.6.19",
         "@types/leaflet": "^1.9.22",
         "abcjs": "^6.7.3",
@@ -46,7 +46,7 @@
         "d3": "^7.9.2",
         "leaflet": "^1.9.4",
         "markdown-tables-to-json": "^0.1.7",
-        "svelte": "^5.58.0",
+        "svelte": "^5.58.1",
         "vanilla-picker": "^2.12.3"
     },
     "moduleFileExtensions": [

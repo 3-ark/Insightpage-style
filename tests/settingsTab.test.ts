@@ -161,8 +161,11 @@ void test('ChartSettingTab declarative color action adds a color and refreshes t
   const definitions = tab.getSettingDefinitions();
   const colorsGroup = definitions.find((definition) => 'items' in definition);
   assert.ok(colorsGroup && 'items' in colorsGroup, 'Should define a Colors group');
-  const addColorItem = colorsGroup.items.find((item) => item.name === 'Add Color');
-  assert.ok(addColorItem && 'action' in addColorItem, 'Should define the Add Color action');
+  const addColorItem = colorsGroup.items?.find((item) => 'name' in item && item.name === 'Add Color');
+  assert.ok(
+    addColorItem && 'action' in addColorItem && typeof addColorItem.action === 'function',
+    'Should define the Add Color action',
+  );
 
   addColorItem.action(tab.containerEl, 0);
   await new Promise((resolve) => setTimeout(resolve, 10));

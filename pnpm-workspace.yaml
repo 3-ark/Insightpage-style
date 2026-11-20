@@ -2,7 +2,7 @@ allowBuilds:
   esbuild: false
   svelte-preprocess: false
 minimumReleaseAgeExclude:
-  - svelte@5.57.2
+  - svelte@5.57.2 || 5.58.1
   - '@rollup/rollup-android-arm-eabi@4.64.6 || 4.64.10 || 4.66.0 || 4.68.2 || 4.68.5 || 4.68.7'
   - '@rollup/rollup-android-arm64@4.64.6 || 4.64.10 || 4.66.0 || 4.68.2 || 4.68.5 || 4.68.7'
   - '@rollup/rollup-darwin-arm64@4.64.6 || 4.64.10 || 4.66.0 || 4.68.2 || 4.68.5 || 4.68.7'

@@ -1366,8 +1366,9 @@ void test('codeblock processor is registered on plugin', async () => {
 
   plugin.registerMarkdownCodeBlockProcessor = (name: string, _fn: any) => {
     registeredCodeblocks.push(name);
+    return {} as any;
   };
-  plugin.registerMarkdownPostProcessor = () => {};
+  plugin.registerMarkdownPostProcessor = (postProcessor: any) => postProcessor;
   plugin.registerEditorExtension = () => {};
 
   await plugin.onload();

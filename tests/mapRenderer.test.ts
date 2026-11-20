@@ -242,7 +242,7 @@ void test('renderMapBlock attaches MarkdownRenderChild and handles reading view 
   const yamlSource = `center: [37.7749, -122.4194]
 zoom: 10`;
 
-  renderMapBlock(yamlSource, container, mockCtx);
+  renderMapBlock(yamlSource, container, mockCtx as any);
 
   assert.ok(childRegistered, 'MarkdownRenderChild should be registered with ctx.addChild');
   assert.strictEqual(typeof childRegistered.onload, 'function');
@@ -298,7 +298,7 @@ zoom: 10`;
     addChild: (c: any) => { childRegistered = c; },
   };
 
-  renderMapBlock(yamlSource, detachedContainer, mockCtx);
+  renderMapBlock(yamlSource, detachedContainer, mockCtx as any);
 
   assert.ok(resizeCallback, 'ResizeObserver callback should be created');
   assert.ok(intersectionCallback, 'IntersectionObserver callback should be created');
