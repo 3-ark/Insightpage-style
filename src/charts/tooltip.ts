@@ -2,7 +2,8 @@ export function getOrCreateTooltip(container: HTMLElement): HTMLElement {
   // Performance optimization: Cache tooltip element reference on the container object
   // to avoid repeated querySelector(':scope > .chart-plot-tooltip') DOM scans when binding
   // tooltips across many chart elements (pie slices, radar vertices, Sankey flow paths).
-  let tooltip = (container as any)._chartTooltip as HTMLElement | undefined;
+  const tooltipContainer = container as HTMLElement & { _chartTooltip?: HTMLElement };
+  let tooltip = tooltipContainer._chartTooltip;
   if (!tooltip || !container.contains(tooltip)) {
     tooltip = (container.querySelector(':scope > .chart-plot-tooltip') as HTMLElement) || undefined;
     if (!tooltip) {
@@ -14,7 +15,7 @@ export function getOrCreateTooltip(container: HTMLElement): HTMLElement {
       }
       container.appendChild(tooltip);
     }
-    (container as any)._chartTooltip = tooltip;
+    tooltipContainer._chartTooltip = tooltip;
   }
   return tooltip;
 }

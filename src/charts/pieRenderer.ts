@@ -66,17 +66,17 @@ export function renderPieChart(
     .innerRadius(isDoughnut ? radius * 0.5 : 0)
     .outerRadius(radius);
 
-  const svg = document.createElementNS(svgNs, 'svg');
+  const svg = activeDocument.createElementNS(svgNs, 'svg');
   svg.setAttribute('class', 'chart-interactive-svg');
   svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
   svg.setAttribute('width', `${size}`);
   svg.setAttribute('height', `${size}`);
 
-  const g = document.createElementNS(svgNs, 'g');
+  const g = activeDocument.createElementNS(svgNs, 'g');
   g.setAttribute('transform', `translate(${size / 2}, ${size / 2})`);
 
   arcs.forEach((slice, idx) => {
-    const path = document.createElementNS(svgNs, 'path');
+    const path = activeDocument.createElementNS(svgNs, 'path');
     const dStr = arcGen(slice);
     if (dStr) path.setAttribute('d', dStr);
     const color = baseColors[idx % baseColors.length];

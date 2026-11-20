@@ -4,13 +4,13 @@ export function createTlSvgIcon(
   attrs: Record<string, string>,
   children: Array<{ tag: string; attrs: Record<string, string> }>
 ): SVGSVGElement {
-  const svg = document.createElementNS(SVG_NS, 'svg');
+  const svg = activeDocument.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('xmlns', SVG_NS);
   for (const [k, v] of Object.entries(attrs)) {
     svg.setAttribute(k, v);
   }
   for (const child of children) {
-    const el = document.createElementNS(SVG_NS, child.tag);
+    const el = activeDocument.createElementNS(SVG_NS, child.tag);
     for (const [k, v] of Object.entries(child.attrs)) {
       el.setAttribute(k, v);
     }

@@ -125,7 +125,7 @@ export function renderTimelineD3Chart(
   const innerHeight = height - margin.top - margin.bottom - padding.top - padding.bottom;
 
   const compStyle = typeof window !== 'undefined' && window.getComputedStyle ? window.getComputedStyle(container) : null;
-  const isDarkMode = (typeof document !== 'undefined' && document.body && document.body.classList.contains('theme-dark')) ||
+  const isDarkMode = (typeof activeDocument !== 'undefined' && activeDocument.body && activeDocument.body.classList.contains('theme-dark')) ||
     compStyle?.getPropertyValue('--background-primary')?.trim().startsWith('#2') ||
     false;
 

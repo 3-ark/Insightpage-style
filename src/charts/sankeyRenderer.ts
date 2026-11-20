@@ -240,12 +240,12 @@ export function renderSankeyChart(
     }
   }
 
-  const svg = document.createElementNS(svgNs, 'svg');
+  const svg = activeDocument.createElementNS(svgNs, 'svg');
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.setAttribute('width', '100%');
   svg.setAttribute('height', `${height}`);
 
-  const defs = document.createElementNS(svgNs, 'defs');
+  const defs = activeDocument.createElementNS(svgNs, 'defs');
   svg.appendChild(defs);
 
   const currentOutY: Record<string, number> = {};
@@ -296,7 +296,7 @@ export function renderSankeyChart(
 
     if (cFrom && cTo) {
       const gradId = `${gradientPrefix}-${idx}`;
-      const grad = document.createElementNS(svgNs, 'linearGradient');
+      const grad = activeDocument.createElementNS(svgNs, 'linearGradient');
       grad.setAttribute('id', gradId);
       grad.setAttribute('gradientUnits', 'userSpaceOnUse');
       grad.setAttribute('x1', `${srcX}`);
@@ -304,11 +304,11 @@ export function renderSankeyChart(
       grad.setAttribute('x2', `${tgtX}`);
       grad.setAttribute('y2', `${tgtY}`);
 
-      const stop1 = document.createElementNS(svgNs, 'stop');
+      const stop1 = activeDocument.createElementNS(svgNs, 'stop');
       stop1.setAttribute('offset', '0%');
       stop1.setAttribute('stop-color', cFrom);
 
-      const stop2 = document.createElementNS(svgNs, 'stop');
+      const stop2 = activeDocument.createElementNS(svgNs, 'stop');
       stop2.setAttribute('offset', '100%');
       stop2.setAttribute('stop-color', cTo);
 
@@ -326,7 +326,7 @@ export function renderSankeyChart(
     const dx = (tgtX - srcX) * 0.5;
     const dStr = `M ${srcX} ${srcY} C ${srcX + dx} ${srcY}, ${tgtX - dx} ${tgtY}, ${tgtX} ${tgtY}`;
 
-    const path = document.createElementNS(svgNs, 'path');
+    const path = activeDocument.createElementNS(svgNs, 'path');
     path.setAttribute('d', dStr);
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', strokeColor);
@@ -346,7 +346,7 @@ export function renderSankeyChart(
 
     const nodeColor = colorFromMap[n] || colorToMap[n] || baseColors[idx % baseColors.length];
 
-    const rect = document.createElementNS(svgNs, 'rect');
+    const rect = activeDocument.createElementNS(svgNs, 'rect');
     rect.setAttribute('x', `${coord.x}`);
     rect.setAttribute('y', `${coord.y}`);
     rect.setAttribute('width', `${nodeWidth}`);
@@ -358,7 +358,7 @@ export function renderSankeyChart(
     bindPlotStyleTooltip(rect, container, () => `${n}\nTotal Flow: ${nodeValues[n]}`);
     svg.appendChild(rect);
 
-    const text = document.createElementNS(svgNs, 'text');
+    const text = activeDocument.createElementNS(svgNs, 'text');
     const depth = nodeDepths[n];
 
     if (depth === 0) {

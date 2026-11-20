@@ -157,7 +157,7 @@ export async function executePlotJs(
     }
   }
 
-  const doc = el?.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  const doc = el?.ownerDocument || (typeof activeDocument !== 'undefined' ? activeDocument : null);
   if (doc) {
     extractTablesFromDom(doc, tablesMap, allTables);
   }

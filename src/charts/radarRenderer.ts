@@ -59,20 +59,20 @@ export function renderRadarChart(
   const d3Inst = getD3();
   const rScale = d3Inst.scaleLinear().domain([minYVal, effectiveMaxY]).range([0, maxRadius]);
 
-  const svg = document.createElementNS(svgNs, 'svg');
+  const svg = activeDocument.createElementNS(svgNs, 'svg');
   svg.setAttribute('class', 'chart-interactive-svg');
   svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
   svg.setAttribute('width', `${size}`);
   svg.setAttribute('height', `${size}`);
 
-  const g = document.createElementNS(svgNs, 'g');
+  const g = activeDocument.createElementNS(svgNs, 'g');
   g.setAttribute('transform', `translate(${center}, ${center})`);
 
   // Draw Grid Rings
   const numRings = 4;
   for (let rIdx = 1; rIdx <= numRings; rIdx++) {
     const ringRadius = (maxRadius / numRings) * rIdx;
-    const circle = document.createElementNS(svgNs, 'circle');
+    const circle = activeDocument.createElementNS(svgNs, 'circle');
     circle.setAttribute('r', `${ringRadius}`);
     circle.setAttribute('fill', 'none');
     circle.setAttribute('stroke', gridColor);
@@ -86,7 +86,7 @@ export function renderRadarChart(
     const x2 = maxRadius * Math.cos(angle);
     const y2 = maxRadius * Math.sin(angle);
 
-    const line = document.createElementNS(svgNs, 'line');
+    const line = activeDocument.createElementNS(svgNs, 'line');
     line.setAttribute('x1', '0');
     line.setAttribute('y1', '0');
     line.setAttribute('x2', `${x2}`);
@@ -96,7 +96,7 @@ export function renderRadarChart(
 
     const labelX = (maxRadius + 18) * Math.cos(angle);
     const labelY = (maxRadius + 18) * Math.sin(angle);
-    const text = document.createElementNS(svgNs, 'text');
+    const text = activeDocument.createElementNS(svgNs, 'text');
     text.setAttribute('x', `${labelX}`);
     text.setAttribute('y', `${labelY}`);
     text.setAttribute('text-anchor', 'middle');
@@ -137,7 +137,7 @@ export function renderRadarChart(
         .map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]},${p[1]}`)
         .join(' ') + ' Z';
 
-      const path = document.createElementNS(svgNs, 'path');
+      const path = activeDocument.createElementNS(svgNs, 'path');
       path.setAttribute('d', pathD);
       path.setAttribute('fill', seriesInnerColor);
       path.setAttribute('stroke', seriesColor);
@@ -153,7 +153,7 @@ export function renderRadarChart(
       polyPoints.forEach((p, cIdx) => {
         const catLabel = categoryLabels[cIdx];
         const pt = ptMap.get(String(catLabel)) || { y: 0 };
-        const dot = document.createElementNS(svgNs, 'circle');
+        const dot = activeDocument.createElementNS(svgNs, 'circle');
         dot.setAttribute('cx', `${p[0]}`);
         dot.setAttribute('cy', `${p[1]}`);
         dot.setAttribute('r', '4');
@@ -186,7 +186,7 @@ export function renderRadarChart(
 
         const pathD = arcGen({} as any);
         if (pathD) {
-          const path = document.createElementNS(svgNs, 'path');
+          const path = activeDocument.createElementNS(svgNs, 'path');
           path.setAttribute('d', pathD);
           path.setAttribute('fill', innerColor);
           path.setAttribute('stroke', color);
