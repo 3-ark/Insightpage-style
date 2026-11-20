@@ -1,10 +1,23 @@
 import { bindPlotStyleTooltip } from './tooltip';
 import type { ChartDataPoint } from './pieRenderer';
 
+export interface RadarChartConfig {
+  type?: string;
+  title?: string | number;
+  chartTitle?: string | number;
+  subtitle?: string | number;
+  caption?: string | number;
+  legend?: boolean;
+  rMax?: number;
+  beginAtZero?: boolean;
+}
+
+type PolarArcDatum = Record<string, never>;
+
 export function renderRadarChart(
-  yaml: any,
+  yaml: RadarChartConfig,
   dataPoints: ChartDataPoint[],
-  labels: any[],
+  labels: unknown[],
   baseColors: string[],
   innerColors: string[],
   gridColor: string,
@@ -144,7 +157,7 @@ export function renderRadarChart(
       path.setAttribute('stroke-width', '2');
       path.setAttribute('class', 'chart-interactive-path');
 
-      const tooltipText = `${seriesName}\n${pts.map((p) => `${p.x}: ${p.y}`).join('\n')}`;
+      const tooltipText = `${seriesName}\n${pts.map((p) => `${String(p.x)}: ${p.y}`).join('\n')}`;
       bindPlotStyleTooltip(path, container, () => tooltipText);
 
       g.appendChild(path);
@@ -159,7 +172,7 @@ export function renderRadarChart(
         dot.setAttribute('r', '4');
         dot.setAttribute('fill', seriesColor);
         dot.setAttribute('class', 'chart-interactive-dot');
-        bindPlotStyleTooltip(dot, container, () => `${seriesName}\n${catLabel}: ${pt.y}`);
+        bindPlotStyleTooltip(dot, container, () => `${seriesName}\n${String(catLabel)}: ${pt.y}`);
         g.appendChild(dot);
       });
     } else {
@@ -178,13 +191,13 @@ export function renderRadarChart(
         const r = rScale(pt.y);
 
         const arcGen = d3Inst
-          .arc<any>()
+          .arc<PolarArcDatum>()
           .innerRadius(0)
           .outerRadius(r)
           .startAngle(startAngle + Math.PI / 2)
           .endAngle(endAngle + Math.PI / 2);
 
-        const pathD = arcGen({} as any);
+        const pathD = arcGen({});
         if (pathD) {
           const path = activeDocument.createElementNS(svgNs, 'path');
           path.setAttribute('d', pathD);
@@ -196,7 +209,7 @@ export function renderRadarChart(
           const tooltipPrefix = isSingleSeriesPolarArea && (seriesName.startsWith('Series ') || !seriesName)
             ? ''
             : `${seriesName}\n`;
-          bindPlotStyleTooltip(path, container, () => `${tooltipPrefix}${catLabel}: ${pt.y}`);
+          bindPlotStyleTooltip(path, container, () => `${tooltipPrefix}${String(catLabel)}: ${pt.y}`);
           g.appendChild(path);
         }
       });

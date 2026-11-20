@@ -106,11 +106,10 @@ g[aria-label="tip"] text {
   font-size: 12px;
   font-family: var(--font-interface, var(--font-text, sans-serif));
   line-height: 1.4;
-  border-radius: 4px;
+  border-radius: 3px;
   background-color: var(--background-secondary, #f8f8f8) !important;
   color: var(--text-normal, #222222) !important;
   border: 1px solid var(--background-modifier-border, rgba(128, 128, 128, 0.35)) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
   white-space: pre-wrap;
   transition: opacity 0.1s ease-in-out;
   opacity: 0;
