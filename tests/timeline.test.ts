@@ -6,7 +6,7 @@ import { JSDOM } from 'jsdom';
 import Module from 'node:module';
 
 // Mock 'obsidian' module for Node runtime BEFORE loading chart modules
-const originalRequire = Module.prototype.require;
+const originalRequire = Reflect.get(Module.prototype, 'require');
 Module.prototype.require = function (id: string) {
   if (id === 'obsidian') {
     return {
@@ -25,7 +25,7 @@ Module.prototype.require = function (id: string) {
   return originalRequire.apply(this, arguments as any);
 };
 
-test('parseEventDate correctly normalizes dates, timestamps, strings and fallbacks', async () => {
+void test('parseEventDate correctly normalizes dates, timestamps, strings and fallbacks', async () => {
   const { parseEventDate } = await import('../src/timelineRenderer');
   const fallback = new Date('2020-01-01');
 
@@ -120,7 +120,7 @@ test('parseEventDate correctly normalizes dates, timestamps, strings and fallbac
   assert.equal(d20.getDate(), 15);
 });
 
-test('renderTimelineBlock correctly handles negative start and end date ranges', async () => {
+void test('renderTimelineBlock correctly handles negative start and end date ranges', async () => {
   const { renderTimelineBlockAsync } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -148,7 +148,7 @@ test('renderTimelineBlock correctly handles negative start and end date ranges',
   assert.ok(width > 0, 'Event bar width should be greater than 0 for negative year range');
 });
 
-test('formatTimelineTick dynamically formats tick labels based on domain span and tick interval', async () => {
+void test('formatTimelineTick dynamically formats tick labels based on domain span and tick interval', async () => {
   const { formatTimelineTick } = await import('../src/timelineRenderer');
 
   const DAY_MS = 86400000;
@@ -179,7 +179,7 @@ test('formatTimelineTick dynamically formats tick labels based on domain span an
   assert.equal(formatTimelineTick(d, shortDomain), 'May 15, 2020');
 });
 
-test('formatDisplayDate formats BC dates and years under 1000 with month and era', async () => {
+void test('formatDisplayDate formats BC dates and years under 1000 with month and era', async () => {
   const { renderTimelineBlockAsync } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -217,7 +217,7 @@ test('formatDisplayDate formats BC dates and years under 1000 with month and era
   assert.equal(tooltipDate.textContent, 'Jan 200 BC – May 200 BC');
 });
 
-test('mapRawRowsToTimelineData supports case-insensitive schema mapping field matching', async () => {
+void test('mapRawRowsToTimelineData supports case-insensitive schema mapping field matching', async () => {
   const { mapRawRowsToTimelineData } = await import('../src/timelineRenderer');
   const rawRows = [
     {
@@ -246,7 +246,7 @@ test('mapRawRowsToTimelineData supports case-insensitive schema mapping field ma
   assert.deepEqual(mapped.categories, ['GeoRegion', 'PeriodName']);
 });
 
-test('renderTimelineBlockAsync resolves cross-note block IDs (NoteName#^blockId) and error states', async () => {
+void test('renderTimelineBlockAsync resolves cross-note block IDs (NoteName#^blockId) and error states', async () => {
   const { renderTimelineBlockAsync } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -294,7 +294,7 @@ schemas = [
   assert.ok(eventBar, 'Should render event from cross-note table');
 });
 
-test('parseTimelineCode correctly parses array of events and auto-discovers categories', async () => {
+void test('parseTimelineCode correctly parses array of events and auto-discovers categories', async () => {
   const { parseTimelineCode } = await import('../src/timelineRenderer');
   const code = JSON.stringify([
     {
@@ -327,7 +327,7 @@ test('parseTimelineCode correctly parses array of events and auto-discovers cate
   assert.equal(parsed.activeCategory, parsed.categories[0]);
 });
 
-test('parseTimelineConfig parses external CSV dataset config with loose schema mapping syntax', async () => {
+void test('parseTimelineConfig parses external CSV dataset config with loose schema mapping syntax', async () => {
   const { parseTimelineConfig } = await import('../src/timelineRenderer');
   const configCode = `data = [5-Data/datasets/civilization_timelines.csv]
 schemas = [
@@ -348,7 +348,7 @@ schemas = [
   assert.deepEqual(config.schemas.categories, ['region', 'timeline']);
 });
 
-test('parseTimelineConfig parses YAML configuration syntax for external datasets', async () => {
+void test('parseTimelineConfig parses YAML configuration syntax for external datasets', async () => {
   const { parseTimelineConfig } = await import('../src/timelineRenderer');
   const yamlConfig = `data: 5-Data/datasets/civilization_timelines.csv
 schemas:
@@ -370,7 +370,7 @@ schemas:
   assert.deepEqual(config.schemas.categories, ['region', 'timeline']);
 });
 
-test('parseTimelineConfig parses block ID table reference syntax', async () => {
+void test('parseTimelineConfig parses block ID table reference syntax', async () => {
   const { parseTimelineConfig } = await import('../src/timelineRenderer');
   const tableConfig = `id: table
 schemas = [
@@ -387,7 +387,7 @@ schemas = [
   assert.equal(config.schemas.title, 'civilization');
 });
 
-test('parseCsvOrTsv and mapRawRowsToTimelineData correctly parse CSV rows and map schema fields', async () => {
+void test('parseCsvOrTsv and mapRawRowsToTimelineData correctly parse CSV rows and map schema fields', async () => {
   const { parseCsvOrTsv, mapRawRowsToTimelineData } = await import('../src/timelineRenderer');
   const csvContent = `civilization,start,end,startLabel,endLabel,region,timeline
 Aegean civilization,-2000,-1200,,,Europe (and colonial offshoots),ANCIENT WORLD
@@ -413,7 +413,7 @@ British India,1800,1945,,WWII,South Asia,MODERN WORLD`;
   assert.equal(mapped.events[1].collection?.[0], 'WWII');
 });
 
-test('parseMarkdownTableRows extracts table rows accurately', async () => {
+void test('parseMarkdownTableRows extracts table rows accurately', async () => {
   const { parseMarkdownTableRows } = await import('../src/timelineRenderer');
   const tableContent = `| civilization | start | end | startLabel | endLabel | region | timeline |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -427,7 +427,7 @@ test('parseMarkdownTableRows extracts table rows accurately', async () => {
   assert.equal(rows[1].endLabel, 'WWII');
 });
 
-test('parseMarkdownTableRows correctly parses cells containing wikilinks with pipes without splitting event blocks', async () => {
+void test('parseMarkdownTableRows correctly parses cells containing wikilinks with pipes without splitting event blocks', async () => {
   const { parseMarkdownTableRows } = await import('../src/timelineRenderer');
   const tableContent = `| civilization | start | end | startLabel | endLabel | region | timeline |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -447,7 +447,7 @@ test('parseMarkdownTableRows correctly parses cells containing wikilinks with pi
   assert.equal(rows[1].region, 'South Asia');
 });
 
-test('renderTimelineBlockAsync loads data from table id and renders timeline SVG', async () => {
+void test('renderTimelineBlockAsync loads data from table id and renders timeline SVG', async () => {
   const { renderTimelineBlockAsync } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -499,7 +499,7 @@ schemas = [
   assert.equal(eventGroups.length, 2, 'Should render 2 events from table');
 });
 
-test('renderTimelineBlock renders timeline SVG, event groups, top & bottom axes, draggable legend, and action buttons', async () => {
+void test('renderTimelineBlock renders timeline SVG, event groups, top & bottom axes, draggable legend, and action buttons', async () => {
   const { renderTimelineBlock } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -556,7 +556,7 @@ test('renderTimelineBlock renders timeline SVG, event groups, top & bottom axes,
   assert.equal(collectionNodes.length, 2, 'Should render 2 collection nodes for MSc event');
 });
 
-test('renderTimelineBlock handles multiple categories with radio buttons and re-renders on change', async () => {
+void test('renderTimelineBlock handles multiple categories with radio buttons and re-renders on change', async () => {
   const { renderTimelineBlock } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -601,7 +601,7 @@ test('renderTimelineBlock handles multiple categories with radio buttons and re-
   assert.equal(updatedRadioInputs[1].checked, true);
 });
 
-test('parseTimelineCode correctly parses JS object literal syntax with Date.now() and double braces', async () => {
+void test('parseTimelineCode correctly parses JS object literal syntax with Date.now() and double braces', async () => {
   const { parseTimelineCode } = await import('../src/timelineRenderer');
   const jsInput = ` {{start: "2022-03-01", end: Date.now(), test:a, institution: "Aarhus University", title: "Postdoctoral Researcher", type: "academia", collection: ["mapblender"]},
   {start: "2019-03-01", end: "2022-02-26", test:a, institution: "Aarhus University", title: "Ph.D. Student", type: "academia", collection: ["ProSample", "ProSteer", "ReVize", "ReVis", "ReData", "ColorBrewer-lite", "VisFlow-lite"]},
@@ -618,7 +618,7 @@ test('parseTimelineCode correctly parses JS object literal syntax with Date.now(
   assert.deepEqual([...parsed.categories].sort(), ['institution', 'test', 'type'].sort());
 });
 
-test('parseTimelineCode handles variable key-value spacing (with or without spaces after :)', async () => {
+void test('parseTimelineCode handles variable key-value spacing (with or without spaces after :)', async () => {
   const { parseTimelineCode } = await import('../src/timelineRenderer');
   const noSpaces = `{start:"2020-01-01",end:"2021-01-01",title:Project A,type:work,category:engineering}`;
   const parsed1 = parseTimelineCode(noSpaces);
@@ -633,7 +633,7 @@ test('parseTimelineCode handles variable key-value spacing (with or without spac
   assert.equal(parsed2.events[0].type, 'work');
 });
 
-test('renderTimelineBlock displays "Today" indicator line for dynamic Date.now() ongoing events', async () => {
+void test('renderTimelineBlock displays "Today" indicator line for dynamic Date.now() ongoing events', async () => {
   const { renderTimelineBlock } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -651,7 +651,7 @@ test('renderTimelineBlock displays "Today" indicator line for dynamic Date.now()
   assert.match(nowIndicator.textContent || '', /Today/);
 });
 
-test('parseTimelineCode parses simple YAML input syntax', async () => {
+void test('parseTimelineCode parses simple YAML input syntax', async () => {
   const { parseTimelineCode } = await import('../src/timelineRenderer');
   const yamlInput = `- start: 2020-01-01
   end: 2021-01-01
@@ -664,7 +664,7 @@ test('parseTimelineCode parses simple YAML input syntax', async () => {
   assert.equal(parsed.events[0].type, 'open-source');
 });
 
-test('renderTimelineBlock displays error block on invalid data', async () => {
+void test('renderTimelineBlock displays error block on invalid data', async () => {
   const { renderTimelineBlock } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -681,7 +681,7 @@ test('renderTimelineBlock displays error block on invalid data', async () => {
   assert.match(errorDiv.textContent || '', /Unable to render timeline chart/);
 });
 
-test('stripWikilinks and parseWikilinksToHtml process wikilinks correctly', async () => {
+void test('stripWikilinks and parseWikilinksToHtml process wikilinks correctly', async () => {
   const { stripWikilinks, parseWikilinksToHtml } = await import('../src/timelineRenderer');
 
   assert.equal(stripWikilinks('[[Note Title]]'), 'Note Title');
@@ -698,7 +698,7 @@ test('stripWikilinks and parseWikilinksToHtml process wikilinks correctly', asyn
   );
 });
 
-test('renderTimelineBlock tooltips update on mouse events, parse wikilinks, and support link clicks', async () => {
+void test('renderTimelineBlock tooltips update on mouse events, parse wikilinks, and support link clicks', async () => {
   const { renderTimelineBlock } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -789,7 +789,7 @@ test('renderTimelineBlock tooltips update on mouse events, parse wikilinks, and 
   assert.ok(tooltip.classList.contains('timeline-tooltip-hidden'), 'Tooltip should hide after mouseleave delay');
 });
 
-test('renderTimelineBlock tooltip positions correctly with scroll and viewport constraints', async () => {
+void test('renderTimelineBlock tooltip positions correctly with scroll and viewport constraints', async () => {
   const { renderTimelineBlock } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>', {
     url: 'http://localhost/',
@@ -864,7 +864,7 @@ test('renderTimelineBlock tooltip positions correctly with scroll and viewport c
   assert.match(tooltip.style.transform, /^translate3d\(568px,\s*403px,\s*0(?:px)?\)$/);
 });
 
-test('renderTimelineBlock scales axis ticks on zoom-out (k < 1.0)', async () => {
+void test('renderTimelineBlock scales axis ticks on zoom-out (k < 1.0)', async () => {
   const { renderTimelineBlock } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -909,7 +909,7 @@ test('renderTimelineBlock scales axis ticks on zoom-out (k < 1.0)', async () => 
   );
 });
 
-test('renderTimelineBlock displays needle cursor indicator on mousemove and hides on mouseleave and zoom', async () => {
+void test('renderTimelineBlock displays needle cursor indicator on mousemove and hides on mouseleave and zoom', async () => {
   const { renderTimelineBlock } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -973,7 +973,7 @@ test('renderTimelineBlock displays needle cursor indicator on mousemove and hide
   assert.equal(needleG.style.display, 'none', 'Needle group should hide on mouseleave');
 });
 
-test('renderTimelineBlock applies refined styling attributes to event labels, event bars, and legend text', async () => {
+void test('renderTimelineBlock applies refined styling attributes to event labels, event bars, and legend text', async () => {
   const { renderTimelineBlock } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;
@@ -1038,7 +1038,7 @@ test('renderTimelineBlock applies refined styling attributes to event labels, ev
   await new Promise((resolve) => setTimeout(resolve, 250));
 });
 
-test('renderTimelineBlock collection node and collapsed badge tooltips display and update on mouse events', async () => {
+void test('renderTimelineBlock collection node and collapsed badge tooltips display and update on mouse events', async () => {
   const { renderTimelineBlock } = await import('../src/timelineRenderer');
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
   (global as any).window = dom.window;

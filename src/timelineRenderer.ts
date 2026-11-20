@@ -1,3 +1,4 @@
+import type { App, MarkdownPostProcessorContext } from 'obsidian';
 import {
   parseEventDate,
   parseTimelineCode,
@@ -57,19 +58,28 @@ export {
 
 // Polyfill Element.prototype.isShown if missing (Obsidian defines it on HTMLElement.prototype,
 // but SVG elements inherit from Element/SVGElement, causing TypeError when e.isShown() is called).
+interface WithInstanceOf {
+  instanceOf?: (ctor: unknown) => boolean;
+  constructor?: { name?: string };
+  isShown?: () => boolean;
+  style?: CSSStyleDeclaration;
+}
+
 function ensureIsShownPolyfill() {
   if (typeof Element !== 'undefined' && !('isShown' in Element.prototype)) {
     Object.defineProperty(Element.prototype, 'isShown', {
       value: function (this: Element) {
         const Ctor = this.ownerDocument?.defaultView?.HTMLElement || (typeof HTMLElement !== 'undefined' ? HTMLElement : null);
-        const isHtml = typeof (this as any).instanceOf === 'function' && Ctor
-          ? (this as any).instanceOf(Ctor)
-          : (typeof HTMLElement !== 'undefined' && (this as any).constructor?.name === 'HTMLElement');
-        if (typeof (HTMLElement.prototype as any)?.isShown === 'function' && isHtml) {
-          return (HTMLElement.prototype as any).isShown.call(this);
+        const elWithMeta = this as unknown as WithInstanceOf;
+        const isHtml = typeof elWithMeta.instanceOf === 'function' && Ctor
+          ? elWithMeta.instanceOf(Ctor)
+          : (typeof HTMLElement !== 'undefined' && elWithMeta.constructor?.name === 'HTMLElement');
+        const protoWithIsShown = (typeof HTMLElement !== 'undefined' ? HTMLElement.prototype : null) as unknown as WithInstanceOf | null;
+        if (typeof protoWithIsShown?.isShown === 'function' && isHtml) {
+          return protoWithIsShown.isShown.call(this);
         }
         if (this.getAttribute && this.getAttribute('display') === 'none') return false;
-        const style = (this as any).style;
+        const style = elWithMeta.style;
         return style ? style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0' : true;
       },
       configurable: true,
@@ -83,17 +93,17 @@ let _d3: typeof import('d3') | null = null;
 
 function getD3(): typeof import('d3') {
   if (!_d3) {
-    const loaded = require('d3');
+    const loaded = require('d3') as (typeof import('d3') & { default?: typeof import('d3') });
     _d3 = loaded.default ?? loaded;
   }
-  return _d3!;
+  return _d3;
 }
 
 export async function renderTimelineBlockAsync(
   code: string,
   container: HTMLElement,
-  ctx?: any,
-  app?: any
+  ctx?: MarkdownPostProcessorContext,
+  app?: App
 ): Promise<void> {
   ensureIsShownPolyfill();
   const wrapper = createDiv();
@@ -102,10 +112,11 @@ export async function renderTimelineBlockAsync(
   let parsedData: ParsedTimelineData;
   try {
     parsedData = await resolveTimelineData(code, ctx, app);
-  } catch (err: any) {
+  } catch (err: unknown) {
     const errorNotice = createDiv();
     errorNotice.className = 'chart-error my-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm';
-    errorNotice.textContent = `Unable to render timeline chart: ${err?.message || err}`;
+    const errMessage = err instanceof Error ? err.message : String(err);
+    errorNotice.textContent = `Unable to render timeline chart: ${errMessage}`;
 
     const rawCode = createEl('pre');
     rawCode.className = 'p-3 bg-muted rounded text-xs overflow-x-auto font-mono';
@@ -146,9 +157,10 @@ export async function renderTimelineBlockAsync(
       const a = createEl('a');
       a.href = url;
       a.download = 'timeline.svg';
-      document.body.appendChild(a);
+      const targetDoc = downloadBtn.ownerDocument || (typeof activeDocument !== 'undefined' ? activeDocument : document);
+      targetDoc.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      targetDoc.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Failed to download timeline SVG', err);
@@ -228,8 +240,8 @@ export async function renderTimelineBlockAsync(
 export function renderTimelineBlock(
   code: string,
   container: HTMLElement,
-  ctx?: any,
-  app?: any
+  ctx?: MarkdownPostProcessorContext,
+  app?: App
 ): void {
   void renderTimelineBlockAsync(code, container, ctx, app);
 }

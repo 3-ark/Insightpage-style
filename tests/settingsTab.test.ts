@@ -114,7 +114,7 @@ class MockSetting {
   }
 }
 
-const originalRequire = Module.prototype.require;
+const originalRequire = Reflect.get(Module.prototype, 'require');
 Module.prototype.require = function (id: string) {
   if (id === 'obsidian') {
     return {
@@ -140,7 +140,7 @@ Module.prototype.require = function (id: string) {
   return originalRequire.apply(this, arguments as any);
 };
 
-test('ChartSettingTab declarative color action adds a color and refreshes the tab', async () => {
+void test('ChartSettingTab declarative color action adds a color and refreshes the tab', async () => {
   const { ChartSettingTab } = await import('../src/ui/settingsTab');
 
   let saved = false;
@@ -172,7 +172,7 @@ test('ChartSettingTab declarative color action adds a color and refreshes the ta
   assert.equal((tab as any).updateCount, 1, 'Should refresh with update() after saving');
 });
 
-test('ChartSettingTab implements getSettingDefinitions() declarative API', async () => {
+void test('ChartSettingTab implements getSettingDefinitions() declarative API', async () => {
   const { ChartSettingTab } = await import('../src/ui/settingsTab');
 
   let saved = false;

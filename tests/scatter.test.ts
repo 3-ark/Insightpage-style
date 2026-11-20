@@ -6,7 +6,7 @@ import { JSDOM } from 'jsdom';
 import Module from 'node:module';
 
 // Mock 'obsidian' and '.svelte' modules for Node runtime
-const originalRequire = Module.prototype.require;
+const originalRequire = Reflect.get(Module.prototype, 'require');
 Module.prototype.require = function (id: string) {
   if (id.endsWith('.svelte')) {
     return {};
@@ -138,7 +138,7 @@ const mockApp = {
   },
 };
 
-test('renders basic scatter chart with tuple pairs [x, y] in series data', async () => {
+void test('renders basic scatter chart with tuple pairs [x, y] in series data', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -181,7 +181,7 @@ test('renders basic scatter chart with tuple pairs [x, y] in series data', async
   assert.equal(dots.length, 3, 'Should render 3 scatter points');
 });
 
-test('renders scatter chart with object format {x, y} and multiple series', async () => {
+void test('renders scatter chart with object format {x, y} and multiple series', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -224,7 +224,7 @@ test('renders scatter chart with object format {x, y} and multiple series', asyn
   assert.equal(dots.length, 4, 'Should render 4 scatter points across 2 groups');
 });
 
-test('renders scatter chart with direct data array format and custom series field', async () => {
+void test('renders scatter chart with direct data array format and custom series field', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -256,7 +256,7 @@ test('renders scatter chart with direct data array format and custom series fiel
   assert.equal(dots.length, 3, 'Should render 3 scatter points from direct data array');
 });
 
-test('renders scatter chart with numeric data and labels mapped to x coordinates', async () => {
+void test('renders scatter chart with numeric data and labels mapped to x coordinates', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -290,7 +290,7 @@ test('renders scatter chart with numeric data and labels mapped to x coordinates
   assert.equal(dots.length, 3, 'Should render 3 scatter points mapped from labels');
 });
 
-test('supports log scales on x and y axes', async () => {
+void test('supports log scales on x and y axes', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -324,7 +324,7 @@ test('supports log scales on x and y axes', async () => {
   assert.equal((prepared.plotOptions?.y as any)?.type, 'log');
 });
 
-test('supports trendline (linear regression) with custom stroke and ci', async () => {
+void test('supports trendline (linear regression) with custom stroke and ci', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -369,7 +369,7 @@ test('supports trendline (linear regression) with custom stroke and ci', async (
   assert.ok(paths.length > 0, 'Should render linear regression path');
 });
 
-test('supports markLine / markLines with custom value, axis, and labels', async () => {
+void test('supports markLine / markLines with custom value, axis, and labels', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -421,7 +421,7 @@ test('supports markLine / markLines with custom value, axis, and labels', async 
   assert.ok(texts.includes('Threshold Y'), 'Should render Threshold Y markLine label');
 });
 
-test('ChartPlugin postprocessor processes scatter chart with series data', async () => {
+void test('ChartPlugin postprocessor processes scatter chart with series data', async () => {
   const PluginModule = await import('../src/main');
   const ChartPlugin = PluginModule.default;
 
@@ -451,7 +451,7 @@ test('ChartPlugin postprocessor processes scatter chart with series data', async
   assert.equal(renderedYaml.series.length, 1);
 });
 
-test('renders scatter chart DSL referencing a markdown table with log scales, labels, fill, trendline, and markLines', async () => {
+void test('renders scatter chart DSL referencing a markdown table with log scales, labels, fill, trendline, and markLines', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -541,12 +541,13 @@ test('renders scatter chart DSL referencing a markdown table with log scales, la
     sourcePath: 'countries.md',
     addChild: (child: any) => {
       renderedChild = child;
-      onloadPromise = child.onload();
+      child.onload();
+      onloadPromise = child.loadPromise;
     },
   } as any);
 
   if (onloadPromise) {
-    await onloadPromise;
+    await Promise.resolve(onloadPromise);
   }
 
   assert.notEqual(renderedChild, null);
@@ -574,7 +575,7 @@ test('renders scatter chart DSL referencing a markdown table with log scales, la
   assert.ok(paths.length > 0, 'Should render linear regression trendline path');
 });
 
-test('renders scatter chart DSL with explicit x and y column mappings and custom fill', async () => {
+void test('renders scatter chart DSL with explicit x and y column mappings and custom fill', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -613,7 +614,7 @@ test('renders scatter chart DSL with explicit x and y column mappings and custom
   assert.ok(allTexts.some((t) => t.includes('Delhi')), 'Should render Delhi text label');
 });
 
-test('renders scatter chart DSL loading external CSV data file', async () => {
+void test('renders scatter chart DSL loading external CSV data file', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -668,12 +669,13 @@ Shanghai,6340,27050000`;
     sourcePath: 'cities.md',
     addChild: (child: any) => {
       renderedChild = child;
-      onloadPromise = child.onload();
+      child.onload();
+      onloadPromise = child.loadPromise;
     },
   } as any);
 
   if (onloadPromise) {
-    await onloadPromise;
+    await Promise.resolve(onloadPromise);
   }
 
   assert.notEqual(renderedChild, null);
@@ -683,7 +685,7 @@ Shanghai,6340,27050000`;
   assert.equal(dots.length, 3, 'Should render 3 dots from external CSV');
 });
 
-test('renders scatter chart DSL loading external countries.csv with named labels, trending, and r/fill matching', async () => {
+void test('renders scatter chart DSL loading external countries.csv with named labels, trending, and r/fill matching', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -748,12 +750,13 @@ Indonesia,1904569,273523615,144`;
     sourcePath: 'report.md',
     addChild: (child: any) => {
       renderedChild = child;
-      onloadPromise = child.onload();
+      child.onload();
+      onloadPromise = child.loadPromise;
     },
   } as any);
 
   if (onloadPromise) {
-    await onloadPromise;
+    await Promise.resolve(onloadPromise);
   }
 
   assert.notEqual(renderedChild, null);
@@ -773,7 +776,7 @@ Indonesia,1904569,273523615,144`;
   assert.notEqual(regressionPath, null, 'Trendline path should be rendered');
 });
 
-test('auto-aligns color ruler scale to log when x or y is log, and supports label filtering', async () => {
+void test('auto-aligns color ruler scale to log when x or y is log, and supports label filtering', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 

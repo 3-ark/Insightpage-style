@@ -2,11 +2,20 @@ import { App, MarkdownView, Modal } from "obsidian";
 import type Renderer from "../chartRenderer"
 import type { ChartPluginSettings } from "../constants/settingsConstants";
 
+interface SvelteRuntime {
+	mount(component: unknown, options: { target: HTMLElement; props: Record<string, unknown> }): unknown;
+	unmount(component: unknown): unknown;
+}
+
+interface HelperModalModule {
+	default?: unknown;
+}
+
 export class CreationHelperModal extends Modal {
 	view: MarkdownView;
 	settings: ChartPluginSettings;
 	renderer: Renderer;
-	component: any = null;
+	component: unknown = null;
 
 	constructor(app: App, view: MarkdownView, settings: ChartPluginSettings, renderer: Renderer) {
 		super(app);
@@ -16,11 +25,14 @@ export class CreationHelperModal extends Modal {
 	}
 
 	onOpen() {
-		let { contentEl, view, renderer} = this;
+		const { contentEl, view, renderer} = this;
 		contentEl.empty();
-		const { mount } = require("svelte");
-		const HelperModal = require('./HelperModal.svelte').default ?? require('./HelperModal.svelte');
-		this.component = mount(HelperModal, {
+		const svelte = require("svelte") as SvelteRuntime;
+		const loadedModal = require('./HelperModal.svelte') as unknown;
+		const HelperModal = typeof loadedModal === 'object' && loadedModal !== null && 'default' in loadedModal
+			? (loadedModal as HelperModalModule).default
+			: loadedModal;
+		this.component = svelte.mount(HelperModal, {
 			target: contentEl,
 			props: {
 				editor: view.editor,
@@ -32,11 +44,11 @@ export class CreationHelperModal extends Modal {
 
 	onClose() {
 		if (this.component) {
-			const { unmount } = require("svelte");
-			unmount(this.component);
+			const svelte = require("svelte") as SvelteRuntime;
+			svelte.unmount(this.component);
 			this.component = null;
 		}
-		let { contentEl } = this;
+		const { contentEl } = this;
 		contentEl.empty();
 	}
 }

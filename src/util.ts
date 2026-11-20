@@ -1,7 +1,9 @@
-let _chroma: any = null;
-function getChroma(): any {
+import chroma from 'chroma-js';
+
+let _chroma: typeof chroma | null = null;
+function getChroma(): typeof chroma {
   if (!_chroma) {
-    const loaded = require('chroma-js');
+    const loaded = require('chroma-js') as typeof chroma & { default?: typeof chroma };
     _chroma = loaded.default ?? loaded;
   }
   return _chroma;
@@ -26,12 +28,15 @@ export function generateInnerColors(colors: string[], alpha = 0.25) {
     });
 }
 
-export function renderError(error: any, el: HTMLElement) {
+export function renderError(error: unknown, el: HTMLElement) {
     console.error("Chart Rendering Error:", error);
-    if (typeof (el as any).createDiv === 'function') {
-        const errorEl = (el as any).createDiv({ cls: "chart-error" });
+    const errObj = error as { stack?: string; toString?: () => string } | null | undefined;
+    const errText = errObj?.stack ?? (typeof errObj?.toString === 'function' ? errObj.toString() : String(error));
+
+    if (typeof el.createDiv === 'function') {
+        const errorEl = el.createDiv({ cls: "chart-error" });
         errorEl.createEl("b", { text: "Couldn't render Chart:" });
-        errorEl.createEl("pre").createEl("code", { text: error?.stack ?? error?.toString?.() ?? error });
+        errorEl.createEl("pre").createEl("code", { text: errText });
         errorEl.createEl("hr");
         const span = errorEl.createSpan();
         span.appendText("You might also want to look for further Errors in the Console: Press ");
@@ -49,7 +54,7 @@ export function renderError(error: any, el: HTMLElement) {
         errorEl.appendChild(b);
         const pre = createEl("pre");
         const code = createEl("code");
-        code.textContent = String(error?.stack ?? error?.toString?.() ?? error);
+        code.textContent = errText;
         pre.appendChild(code);
         errorEl.appendChild(pre);
         el.appendChild(errorEl);

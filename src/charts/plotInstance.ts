@@ -1,6 +1,24 @@
 let _Plot: typeof import('@observablehq/plot') | null = null;
 let _d3: typeof import('d3') | null = null;
 
+type PlotModule = typeof import('@observablehq/plot');
+type D3Module = typeof import('d3');
+type UnknownFunction = (...args: unknown[]) => unknown;
+
+type PlotRecord = Record<PropertyKey, unknown>;
+
+function isRecord(value: unknown): value is PlotRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+function asFunction(value: unknown): UnknownFunction | null {
+  return typeof value === 'function' ? value as UnknownFunction : null;
+}
+
+function isIterable(value: unknown): value is Iterable<unknown> {
+  return isRecord(value) && typeof value[Symbol.iterator] === 'function';
+}
+
 const VALID_FRAME_ANCHORS = new Set([
   'middle',
   'top-left',
@@ -31,21 +49,22 @@ const FRAME_ANCHOR_MARKS = new Set([
  * across collections of data items, automatically grouping and emitting composite
  * marks without throwing "invalid frameAnchor" errors.
  */
-export function wrapPlotInstance(originalPlot: any): any {
-  if (!originalPlot || originalPlot.__isWrapped) {
+export function wrapPlotInstance(originalPlot: PlotModule): PlotModule {
+  if (!originalPlot || (originalPlot as unknown as PlotRecord).__isWrapped) {
     return originalPlot;
   }
 
-  const handler: ProxyHandler<any> = {
+  const handler: ProxyHandler<PlotModule> = {
     get(target, prop, receiver) {
-      const orig = Reflect.get(target, prop, receiver);
+      const orig = Reflect.get(target, prop, receiver) as unknown;
 
       if (prop === 'lineY' && typeof orig === 'function') {
-        return function (data: any, options: any = {}) {
+        const origLineY = orig as UnknownFunction;
+        return function (data: unknown, options: Record<string, unknown> = {}) {
           if (options.tip && options.stroke !== undefined) {
-            const line = orig.call(target, data, { ...options, tip: false });
+            const line = origLineY.call(target, data, { ...options, tip: false });
             // A hidden fill-coded point mark gives the tooltip the line's categorical color channel.
-            const dotOptions: any = {
+            const dotOptions: Record<string, unknown> = {
               ...(options.x !== undefined ? { x: options.x } : {}),
               ...(options.y !== undefined ? { y: options.y } : {}),
               fill: options.stroke,
@@ -54,51 +73,66 @@ export function wrapPlotInstance(originalPlot: any): any {
               tip: options.tip,
             };
             if (options.title !== undefined) dotOptions.title = options.title;
-            const tooltipDots = target.dot(data, dotOptions);
-            return target.marks([line, tooltipDots]);
+            const dotFn = asFunction((target as unknown as PlotRecord).dot);
+            const marksFn = asFunction((target as unknown as PlotRecord).marks);
+            if (!dotFn || !marksFn) return origLineY.call(target, data, options);
+            const tooltipDots = dotFn.call(target, data, dotOptions);
+            return marksFn.call(target, [line, tooltipDots]);
           }
-          return orig.call(target, data, options);
+          return origLineY.call(target, data, options);
         };
       }
 
       if (typeof prop === 'string' && FRAME_ANCHOR_MARKS.has(prop) && typeof orig === 'function') {
-        return function (data: any, options: any = {}) {
-          if (options && options.frameAnchor !== undefined && !VALID_FRAME_ANCHORS.has(options.frameAnchor)) {
+        const origMarkFn = orig as UnknownFunction;
+        return function (data: unknown, options: Record<string, unknown> = {}) {
+          if (options.frameAnchor !== undefined && (
+            typeof options.frameAnchor === 'function' ||
+            (typeof options.frameAnchor === 'string' && !VALID_FRAME_ANCHORS.has(options.frameAnchor))
+          )) {
             const dataArr = Array.isArray(data)
               ? data
-              : data && typeof data[Symbol.iterator] === 'function'
+              : isIterable(data)
               ? Array.from(data)
               : null;
 
             if (dataArr && dataArr.length > 0) {
               const anchorGetter =
                 typeof options.frameAnchor === 'function'
-                  ? options.frameAnchor
-                  : (d: any) => d?.[options.frameAnchor];
+                  ? (options.frameAnchor as (d: unknown) => unknown)
+                  : typeof options.frameAnchor === 'string'
+                  ? (d: unknown) => isRecord(d) ? d[options.frameAnchor as string] : undefined
+                  : null;
 
               const dxGetter =
                 typeof options.dx === 'function'
-                  ? options.dx
+                  ? (options.dx as (d: unknown) => unknown)
                   : typeof options.dx === 'string' && isNaN(Number(options.dx))
-                  ? (d: any) => d?.[options.dx]
+                  ? (d: unknown) => isRecord(d) ? d[options.dx as string] : undefined
                   : null;
 
               const dyGetter =
                 typeof options.dy === 'function'
-                  ? options.dy
+                  ? (options.dy as (d: unknown) => unknown)
                   : typeof options.dy === 'string' && isNaN(Number(options.dy))
-                  ? (d: any) => d?.[options.dy]
+                  ? (d: unknown) => isRecord(d) ? d[options.dy as string] : undefined
                   : null;
 
               // Group items by resolved (anchor, dx, dy)
-              const groups = new Map<string, { anchor: string; dx: any; dy: any; items: any[] }>();
+              const groups = new Map<string, { anchor: string; dx: unknown; dy: unknown; items: unknown[] }>();
 
               for (const d of dataArr) {
-                const anchorVal = anchorGetter(d);
-                if (VALID_FRAME_ANCHORS.has(anchorVal)) {
+                const anchorVal = anchorGetter ? anchorGetter(d) : undefined;
+                if (typeof anchorVal === 'string' && VALID_FRAME_ANCHORS.has(anchorVal)) {
                   const resolvedDx = dxGetter ? dxGetter(d) : options.dx;
                   const resolvedDy = dyGetter ? dyGetter(d) : options.dy;
-                  const groupKey = `${anchorVal}___${resolvedDx}___${resolvedDy}`;
+                  const dxKey = typeof resolvedDx === 'string' || typeof resolvedDx === 'number' || typeof resolvedDx === 'boolean'
+                    ? String(resolvedDx)
+                    : '';
+                  const dyKey = typeof resolvedDy === 'string' || typeof resolvedDy === 'number' || typeof resolvedDy === 'boolean'
+                    ? String(resolvedDy)
+                    : '';
+                  const groupKey = `${anchorVal}___${dxKey}___${dyKey}`;
 
                   if (!groups.has(groupKey)) {
                     groups.set(groupKey, {
@@ -113,19 +147,20 @@ export function wrapPlotInstance(originalPlot: any): any {
               }
 
               if (groups.size > 0) {
-                const markList: any[] = [];
+                const markList: unknown[] = [];
                 for (const { anchor, dx, dy, items } of groups.values()) {
-                  const subOptions = { ...options, frameAnchor: anchor };
+                  const subOptions: Record<string, unknown> = { ...options, frameAnchor: anchor };
                   if (dx !== undefined) subOptions.dx = dx;
                   if (dy !== undefined) subOptions.dy = dy;
-                  markList.push(orig.call(target, items, subOptions));
+                  markList.push(origMarkFn.call(target, items, subOptions));
                 }
-                return typeof target.marks === 'function' ? target.marks(markList) : markList;
+                const marksFn = asFunction((target as unknown as PlotRecord).marks);
+                return marksFn ? marksFn.call(target, markList) : markList;
               }
             }
           }
 
-          return orig.call(target, data, options);
+          return origMarkFn.call(target, data, options);
         };
       }
 
@@ -134,30 +169,36 @@ export function wrapPlotInstance(originalPlot: any): any {
   };
 
   const proxy = new Proxy(originalPlot, handler);
-  proxy.__isWrapped = true;
+  Object.defineProperty(proxy, '__isWrapped', { value: true });
   return proxy;
 }
 
-export function getPlot(): typeof import('@observablehq/plot') {
+export function getPlot(): PlotModule {
   if (!_Plot) {
-    const loaded = require('@observablehq/plot');
-    _Plot = wrapPlotInstance(loaded.default ?? loaded);
+    const loaded = require('@observablehq/plot') as unknown;
+    const module = isRecord(loaded) && 'default' in loaded
+      ? loaded.default
+      : loaded;
+    _Plot = wrapPlotInstance(module as PlotModule);
   }
-  return _Plot!;
+  return _Plot;
 }
 
-export function setPlot(val: any): void {
+export function setPlot(val: PlotModule): void {
   _Plot = wrapPlotInstance(val);
 }
 
-export function getD3(): typeof import('d3') {
+export function getD3(): D3Module {
   if (!_d3) {
-    const loaded = require('d3');
-    _d3 = loaded.default ?? loaded;
+    const loaded = require('d3') as unknown;
+    const module = isRecord(loaded) && 'default' in loaded
+      ? loaded.default
+      : loaded;
+    _d3 = module as D3Module;
   }
-  return _d3!;
+  return _d3;
 }
 
-export function setD3(val: any): void {
+export function setD3(val: D3Module): void {
   _d3 = val;
 }

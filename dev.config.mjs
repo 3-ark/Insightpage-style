@@ -6,7 +6,7 @@ import { sveltePreprocess } from "svelte-preprocess";
 const ctx = await esbuild.context({
     entryPoints: ['src/main.ts'],
     bundle: true,
-    external: ['obsidian'],
+    external: ['obsidian', '@codemirror/state', '@codemirror/view'],
     format: 'cjs',
     minify: true,
     logLevel: "info",

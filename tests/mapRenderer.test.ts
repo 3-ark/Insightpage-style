@@ -6,7 +6,7 @@ import { JSDOM } from 'jsdom';
 import Module from 'node:module';
 
 // Mock 'obsidian' module for Node runtime before requiring project files
-const originalRequire = Module.prototype.require;
+const originalRequire = Reflect.get(Module.prototype, 'require');
 Module.prototype.require = function (id: string) {
   if (id === 'obsidian') {
     return {
@@ -112,7 +112,7 @@ function setupDom() {
   return dom;
 }
 
-test('renderMapBlock initializes Leaflet map container and tile layer with YAML options', async () => {
+void test('renderMapBlock initializes Leaflet map container and tile layer with YAML options', async () => {
   const { renderMapBlock } = await import('../src/mapRenderer');
   const dom = setupDom();
 
@@ -138,7 +138,7 @@ tileServer: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'`;
   assert.ok(tilePane, 'Tile pane layer should be present');
 });
 
-test('renderMapBlock supports markers with popups, tooltips, and custom colors', async () => {
+void test('renderMapBlock supports markers with popups, tooltips, and custom colors', async () => {
   const { renderMapBlock } = await import('../src/mapRenderer');
   const dom = setupDom();
 
@@ -166,7 +166,7 @@ markers:
   assert.ok(svgContent.includes('#ef4444'), 'Marker SVG should contain custom color');
 });
 
-test('renderMapBlock supports polylines, polygons, circles, and GeoJSON features', async () => {
+void test('renderMapBlock supports polylines, polygons, circles, and GeoJSON features', async () => {
   const { renderMapBlock } = await import('../src/mapRenderer');
   const dom = setupDom();
 
@@ -197,7 +197,7 @@ geojson: {"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"
   assert.ok(svgPaths.length >= 3, 'Should render SVG vector paths for polyline, polygon, circle');
 });
 
-test('getLeaflet returns Leaflet instance', async () => {
+void test('getLeaflet returns Leaflet instance', async () => {
   const { getLeaflet } = await import('../src/mapRenderer');
   const L = getLeaflet();
   assert.ok(L, 'Leaflet object should exist');
@@ -205,7 +205,7 @@ test('getLeaflet returns Leaflet instance', async () => {
   assert.strictEqual(typeof L.marker, 'function', 'L.marker should be a function');
 });
 
-test('window.L property setter allows setting window.L without throwing TypeError', async () => {
+void test('window.L property setter allows setting window.L without throwing TypeError', async () => {
   const { getLeaflet, setLeaflet } = await import('../src/mapRenderer');
   const dom = setupDom();
 
@@ -227,7 +227,7 @@ test('window.L property setter allows setting window.L without throwing TypeErro
   setLeaflet(originalLeaflet);
 });
 
-test('renderMapBlock attaches MarkdownRenderChild and handles reading view lifecycle & invalidateSize', async () => {
+void test('renderMapBlock attaches MarkdownRenderChild and handles reading view lifecycle & invalidateSize', async () => {
   const { renderMapBlock } = await import('../src/mapRenderer');
   const dom = setupDom();
 
@@ -259,7 +259,7 @@ zoom: 10`;
   }, 'Calling child onunload should clean up observers and map without throwing');
 });
 
-test('renderMapBlock supports ResizeObserver and IntersectionObserver callbacks without premature disconnection', async () => {
+void test('renderMapBlock supports ResizeObserver and IntersectionObserver callbacks without premature disconnection', async () => {
   const { renderMapBlock } = await import('../src/mapRenderer');
   const dom = setupDom();
 

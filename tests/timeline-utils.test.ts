@@ -11,7 +11,7 @@ import {
   preventTickOverlap,
 } from '../src/lib/timeline-utils';
 
-test('getTimeGranularity determines correct granularity based on duration in ms', () => {
+void test('getTimeGranularity determines correct granularity based on duration in ms', () => {
   assert.equal(getTimeGranularity(30 * 1000), 'second');
   assert.equal(getTimeGranularity(10 * 60 * 1000), 'minute');
   assert.equal(getTimeGranularity(5 * 3600 * 1000), 'hour');
@@ -20,7 +20,7 @@ test('getTimeGranularity determines correct granularity based on duration in ms'
   assert.equal(getTimeGranularity(500 * 86400 * 1000), 'year');
 });
 
-test('createAdaptiveTickFormatter formats dates accurately across granularities and BC/AD eras', () => {
+void test('createAdaptiveTickFormatter formats dates accurately across granularities and BC/AD eras', () => {
   const d = new Date('2023-05-15T14:30:45');
 
   // Second granularity
@@ -55,7 +55,7 @@ test('createAdaptiveTickFormatter formats dates accurately across granularities 
   assert.equal(fmtBc(adDate), '800 AD');
 });
 
-test('formatCursorDate returns precise date badges based on duration granularity', () => {
+void test('formatCursorDate returns precise date badges based on duration granularity', () => {
   const d = new Date('2023-05-15T14:30:45');
 
   assert.equal(formatCursorDate(d, 30 * 1000), 'May 15, 2023 14:30:45');
@@ -65,7 +65,7 @@ test('formatCursorDate returns precise date badges based on duration granularity
   assert.equal(formatCursorDate(d, 500 * 86400 * 1000), 'May 15, 2023');
 });
 
-test('calculateOptimalTickCount calculates density based on width and granularity', () => {
+void test('calculateOptimalTickCount calculates density based on width and granularity', () => {
   const innerWidth = 800;
   // Second granularity (minPxPerTick = 140) -> floor(800 / 140) = 5
   assert.equal(calculateOptimalTickCount(innerWidth, 30 * 1000), 5);
@@ -74,7 +74,7 @@ test('calculateOptimalTickCount calculates density based on width and granularit
   assert.equal(calculateOptimalTickCount(innerWidth, 500 * 86400 * 1000), 10);
 });
 
-test('preventTickOverlap hides overlapping tick label elements', () => {
+void test('preventTickOverlap hides overlapping tick label elements', () => {
   const dom = new JSDOM('<!DOCTYPE html><html><body><svg><g id="axis"></g></svg></body></html>');
   const axisG = dom.window.document.getElementById('axis') as unknown as SVGGElement;
 

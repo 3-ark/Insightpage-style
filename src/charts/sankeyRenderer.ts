@@ -2,19 +2,56 @@ import { bindPlotStyleTooltip } from './tooltip';
 
 let sankeyGradCounter = 0;
 
+type ChartConfig = Record<string, unknown>;
+
+function asChartConfig(value: unknown): ChartConfig {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as ChartConfig
+    : {};
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function asStringRecord(value: unknown): Record<string, string> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
+  const result: Record<string, string> = {};
+  Object.entries(value).forEach(([key, item]) => {
+    if (typeof item === 'number' || typeof item === 'string') {
+      result[key] = String(item);
+    }
+  });
+  return result;
+}
+
+function asNumberRecord(value: unknown): Record<string, number> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
+  const result: Record<string, number> = {};
+  Object.entries(value).forEach(([key, item]) => {
+    if (typeof item === 'number' && isFinite(item)) {
+      result[key] = item;
+    } else if (typeof item === 'string' && item.trim() !== '' && isFinite(Number(item))) {
+      result[key] = Number(item);
+    }
+  });
+  return result;
+}
+
 export function renderSankeyChart(
-  yaml: any,
-  rawSeries: any[],
+  yaml: unknown,
+  rawSeries: unknown[],
   baseColors: string[],
   textColor: string,
   widthStr: string
 ) {
+  const config = asChartConfig(yaml);
   const container = createDiv({ cls: 'chart-relative-container' });
 
   // Unified Title, Subtitle, Caption support
-  const title = yaml.title ?? yaml.chartTitle;
-  const subtitle = yaml.subtitle;
-  const caption = yaml.caption;
+  const title = asString(config.title) ?? asString(config.chartTitle);
+  const subtitle = asString(config.subtitle);
+  const caption = asString(config.caption);
 
   if (title) {
     const titleEl = createEl('h2', { cls: 'chart-heading-title' });
@@ -30,7 +67,9 @@ export function renderSankeyChart(
     container.appendChild(subEl);
   }
 
-  const explicitLabels: string[] = Array.isArray(yaml.labels) ? yaml.labels.map(String) : [];
+  const explicitLabels: string[] = Array.isArray(config.labels)
+    ? config.labels.filter((label): label is string => typeof label === 'string')
+    : [];
 
   const explicitLabelsSet = new Set(explicitLabels);
   const normalizedLabelMap = new Map<string, string>();
@@ -70,42 +109,50 @@ export function renderSankeyChart(
   };
 
   const sankeyFlows: Array<{ from: string; to: string; flow: number }> = [];
-  const rawPriorityMap: Record<string, number> = { ...(yaml.priority ?? {}) };
-  const rawColorFromMap: Record<string, string> = { ...(yaml.colorFrom ?? {}) };
-  const rawColorToMap: Record<string, string> = { ...(yaml.colorTo ?? {}) };
+  const rawPriorityMap: Record<string, number> = asNumberRecord(config.priority);
+  const rawColorFromMap: Record<string, string> = asStringRecord(config.colorFrom);
+  const rawColorToMap: Record<string, string> = asStringRecord(config.colorTo);
 
-  rawSeries.forEach((s: any) => {
-    if (s.priority && typeof s.priority === 'object') {
-      Object.assign(rawPriorityMap, s.priority);
+  rawSeries.forEach((rawSeriesItem: unknown) => {
+    const s = asChartConfig(rawSeriesItem);
+    if (s.priority !== undefined) {
+      Object.assign(rawPriorityMap, asNumberRecord(s.priority));
     }
-    if (s.colorFrom && typeof s.colorFrom === 'object') {
-      Object.assign(rawColorFromMap, s.colorFrom);
+    if (s.colorFrom !== undefined) {
+      Object.assign(rawColorFromMap, asStringRecord(s.colorFrom));
     }
-    if (s.colorTo && typeof s.colorTo === 'object') {
-      Object.assign(rawColorToMap, s.colorTo);
+    if (s.colorTo !== undefined) {
+      Object.assign(rawColorToMap, asStringRecord(s.colorTo));
     }
 
-    const sData = s.data ?? [];
-    sData.forEach((item: any) => {
+    const sData = Array.isArray(s.data) ? s.data : [];
+    sData.forEach((item: unknown) => {
       if (Array.isArray(item)) {
         if (item.length >= 3) {
+          const itemFrom = typeof item[0] === 'string' ? item[0] : String(item[0] ?? '');
+          const itemSecond = typeof item[1] === 'string' ? item[1] : String(item[1] ?? '');
+          const itemThird = typeof item[2] === 'string' ? item[2] : String(item[2] ?? '');
           const val1IsNum = typeof item[1] === 'number' || (!isNaN(Number(item[1])) && isNaN(Number(item[2])));
           if (val1IsNum) {
-            const from = resolveNodeName(item[0]);
+            const from = resolveNodeName(itemFrom);
             const flow = Number(item[1]) || 0;
-            const to = resolveNodeName(item[2]);
+            const to = resolveNodeName(itemThird);
             sankeyFlows.push({ from, to, flow });
           } else {
-            const from = resolveNodeName(item[0]);
-            const to = resolveNodeName(item[1]);
+            const from = resolveNodeName(itemFrom);
+            const to = resolveNodeName(itemSecond);
             const flow = Number(item[2]) || 0;
             sankeyFlows.push({ from, to, flow });
           }
         }
-      } else if (item && typeof item === 'object') {
-        const from = resolveNodeName(item.from ?? item.source ?? '');
-        const to = resolveNodeName(item.to ?? item.target ?? '');
-        const flow = Number(item.flow ?? item.value ?? 0) || 0;
+      } else if (typeof item === 'object' && item !== null) {
+        const flowItem = asChartConfig(item);
+        const rawFrom = asString(flowItem.from) ?? asString(flowItem.source) ?? '';
+        const rawTo = asString(flowItem.to) ?? asString(flowItem.target) ?? '';
+        const rawFlow = flowItem.flow ?? flowItem.value ?? 0;
+        const from = resolveNodeName(rawFrom);
+        const to = resolveNodeName(rawTo);
+        const flow = Number(rawFlow) || 0;
         if (from && to) {
           sankeyFlows.push({ from, to, flow });
         }
@@ -240,12 +287,12 @@ export function renderSankeyChart(
     }
   }
 
-  const svg = document.createElementNS(svgNs, 'svg');
+  const svg = activeDocument.createElementNS(svgNs, 'svg');
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.setAttribute('width', '100%');
   svg.setAttribute('height', `${height}`);
 
-  const defs = document.createElementNS(svgNs, 'defs');
+  const defs = activeDocument.createElementNS(svgNs, 'defs');
   svg.appendChild(defs);
 
   const currentOutY: Record<string, number> = {};
@@ -296,7 +343,7 @@ export function renderSankeyChart(
 
     if (cFrom && cTo) {
       const gradId = `${gradientPrefix}-${idx}`;
-      const grad = document.createElementNS(svgNs, 'linearGradient');
+      const grad = activeDocument.createElementNS(svgNs, 'linearGradient');
       grad.setAttribute('id', gradId);
       grad.setAttribute('gradientUnits', 'userSpaceOnUse');
       grad.setAttribute('x1', `${srcX}`);
@@ -304,11 +351,11 @@ export function renderSankeyChart(
       grad.setAttribute('x2', `${tgtX}`);
       grad.setAttribute('y2', `${tgtY}`);
 
-      const stop1 = document.createElementNS(svgNs, 'stop');
+      const stop1 = activeDocument.createElementNS(svgNs, 'stop');
       stop1.setAttribute('offset', '0%');
       stop1.setAttribute('stop-color', cFrom);
 
-      const stop2 = document.createElementNS(svgNs, 'stop');
+      const stop2 = activeDocument.createElementNS(svgNs, 'stop');
       stop2.setAttribute('offset', '100%');
       stop2.setAttribute('stop-color', cTo);
 
@@ -326,7 +373,7 @@ export function renderSankeyChart(
     const dx = (tgtX - srcX) * 0.5;
     const dStr = `M ${srcX} ${srcY} C ${srcX + dx} ${srcY}, ${tgtX - dx} ${tgtY}, ${tgtX} ${tgtY}`;
 
-    const path = document.createElementNS(svgNs, 'path');
+    const path = activeDocument.createElementNS(svgNs, 'path');
     path.setAttribute('d', dStr);
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', strokeColor);
@@ -346,7 +393,7 @@ export function renderSankeyChart(
 
     const nodeColor = colorFromMap[n] || colorToMap[n] || baseColors[idx % baseColors.length];
 
-    const rect = document.createElementNS(svgNs, 'rect');
+    const rect = activeDocument.createElementNS(svgNs, 'rect');
     rect.setAttribute('x', `${coord.x}`);
     rect.setAttribute('y', `${coord.y}`);
     rect.setAttribute('width', `${nodeWidth}`);
@@ -358,7 +405,7 @@ export function renderSankeyChart(
     bindPlotStyleTooltip(rect, container, () => `${n}\nTotal Flow: ${nodeValues[n]}`);
     svg.appendChild(rect);
 
-    const text = document.createElementNS(svgNs, 'text');
+    const text = activeDocument.createElementNS(svgNs, 'text');
     const depth = nodeDepths[n];
 
     if (depth === 0) {

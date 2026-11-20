@@ -16,7 +16,7 @@ global.Node = dom.window.Node;
 
 import { extractEmojiAndContent, extractEmojiAndTitle, processCommentCallouts, transformCommentHtml } from '../src/commentCallout';
 
-test('extractEmojiAndContent correctly extracts emoji and content', () => {
+void test('extractEmojiAndContent correctly extracts emoji and content', () => {
   const result1 = extractEmojiAndContent('💡 Secret Comment');
   assert.equal(result1.emoji, '💡');
   assert.equal(result1.content, 'Secret Comment');
@@ -38,9 +38,11 @@ test('extractEmojiAndContent correctly extracts emoji and content', () => {
   assert.equal(result5.title, 'Important Note');
 });
 
-test('processCommentCallouts transforms ::cmt[😂 comment] syntax and toggles title-less popover on click', async () => {
+void test('processCommentCallouts transforms ::cmt[😂 comment] syntax and toggles title-less popover on click', async () => {
   const container = document.createElement('div');
-  container.innerHTML = `<p>Here is an inline comment ::cmt[😂 comment] in a sentence.</p>`;
+  const paragraph = document.createElement('p');
+  paragraph.textContent = 'Here is an inline comment ::cmt[😂 comment] in a sentence.';
+  container.append(paragraph);
   document.body.appendChild(container);
 
   processCommentCallouts(container);
@@ -68,14 +70,24 @@ test('processCommentCallouts transforms ::cmt[😂 comment] syntax and toggles t
   document.body.removeChild(container);
 });
 
-test('processCommentCallouts transforms legacy block callouts inline as well', () => {
+void test('processCommentCallouts transforms legacy block callouts inline as well', () => {
   const container = document.createElement('div');
-  container.innerHTML = `
-    <div class="callout" data-callout="comment">
-      <div class="callout-title"><div class="callout-title-inner">💡 My Title</div></div>
-      <div class="callout-content"><p>Body text</p></div>
-    </div>
-  `;
+  const callout = document.createElement('div');
+  callout.className = 'callout';
+  callout.dataset.callout = 'comment';
+  const title = document.createElement('div');
+  title.className = 'callout-title';
+  const titleInner = document.createElement('div');
+  titleInner.className = 'callout-title-inner';
+  titleInner.textContent = '💡 My Title';
+  title.append(titleInner);
+  const content = document.createElement('div');
+  content.className = 'callout-content';
+  const body = document.createElement('p');
+  body.textContent = 'Body text';
+  content.append(body);
+  callout.append(title, content);
+  container.append(callout);
   document.body.appendChild(container);
 
   processCommentCallouts(container);
@@ -93,7 +105,7 @@ test('processCommentCallouts transforms legacy block callouts inline as well', (
   document.body.removeChild(container);
 });
 
-test('transformCommentHtml protects code blocks from comment transformation', () => {
+void test('transformCommentHtml protects code blocks from comment transformation', () => {
   const html = '<p>Code sample: <code>::cmt[😂 comment]</code> and text ::cmt[😂 real comment]</p>';
   const transformed = transformCommentHtml(html);
 
@@ -101,9 +113,15 @@ test('transformCommentHtml protects code blocks from comment transformation', ()
   assert.ok(transformed.includes('real comment'), 'Text comment should be transformed');
 });
 
-test('processCommentCallouts handles inline comment with nested brackets', () => {
+void test('processCommentCallouts handles inline comment with nested brackets', () => {
   const container = document.createElement('div');
-  container.innerHTML = `<blockquote><p>"The important thing is not to stop questioning. Curiosity has its own reason for existence."</p><p>– Albert Einstein::cmt[Who knows. This is for your information, I am not sure if Einstein[^1] had said that or not.]</p></blockquote>`;
+  const blockquote = document.createElement('blockquote');
+  const quote = document.createElement('p');
+  quote.textContent = '"The important thing is not to stop questioning. Curiosity has its own reason for existence."';
+  const comment = document.createElement('p');
+  comment.textContent = '– Albert Einstein::cmt[Who knows. This is for your information, I am not sure if Einstein[^1] had said that or not.]';
+  blockquote.append(quote, comment);
+  container.append(blockquote);
   document.body.appendChild(container);
 
   processCommentCallouts(container);
@@ -123,13 +141,17 @@ test('processCommentCallouts handles inline comment with nested brackets', () =>
   document.body.removeChild(container);
 });
 
-test('processCommentCallouts handles all syntax variants ::cmt [...], ::cmt{...}, and ::cmt {...}', () => {
+void test('processCommentCallouts handles all syntax variants ::cmt [...], ::cmt{...}, and ::cmt {...}', () => {
   const container = document.createElement('div');
-  container.innerHTML = `
-    <p>Space before bracket: ::cmt [Comment 1]</p>
-    <p>Braces without space: ::cmt{Comment 2}</p>
-    <p>Braces with space: ::cmt {Comment 3}</p>
-  `;
+  for (const text of [
+    'Space before bracket: ::cmt [Comment 1]',
+    'Braces without space: ::cmt{Comment 2}',
+    'Braces with space: ::cmt {Comment 3}',
+  ]) {
+    const paragraph = document.createElement('p');
+    paragraph.textContent = text;
+    container.append(paragraph);
+  }
   document.body.appendChild(container);
 
   processCommentCallouts(container);
@@ -145,9 +167,20 @@ test('processCommentCallouts handles all syntax variants ::cmt [...], ::cmt{...}
   document.body.removeChild(container);
 });
 
-test('processCommentCallouts handles inline comment with formatted HTML elements', () => {
+void test('processCommentCallouts handles inline comment with formatted HTML elements', () => {
   const container = document.createElement('div');
-  container.innerHTML = `<div class="callout" data-callout="quote"><div class="callout-content"><p>::cmt[💡 <b>example</b>. This is a comment.]</p></div></div>`;
+  const callout = document.createElement('div');
+  callout.className = 'callout';
+  callout.dataset.callout = 'quote';
+  const content = document.createElement('div');
+  content.className = 'callout-content';
+  const paragraph = document.createElement('p');
+  const emphasis = document.createElement('b');
+  emphasis.textContent = 'example';
+  paragraph.append('::cmt[💡 ', emphasis, '. This is a comment.]');
+  content.append(paragraph);
+  callout.append(content);
+  container.append(callout);
   document.body.appendChild(container);
 
   processCommentCallouts(container);

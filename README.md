@@ -389,6 +389,9 @@ pnpm install
 # Run unit tests
 npx tsx --test tests/*.test.ts
 
+# Check TypeScript source and tests with ESLint
+pnpm lint
+
 # Build production bundle
 pnpm run build
 ```

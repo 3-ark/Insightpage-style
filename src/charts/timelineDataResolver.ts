@@ -1,3 +1,4 @@
+import type { App, BlockCache, MarkdownPostProcessorContext, TFile } from 'obsidian';
 import {
   parseTimelineConfig,
   parseMarkdownTableRows,
@@ -5,12 +6,16 @@ import {
   type ParsedTimelineData,
 } from './timelineParser';
 import { parseCsvOrTsv } from './tabularDataParser';
-import { createCustomFetch } from './customFetch';
+import { createCustomFetch, toTFile } from './customFetch';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 export async function resolveTimelineData(
   code: string,
-  ctx?: any,
-  app?: any
+  ctx?: MarkdownPostProcessorContext,
+  app?: App
 ): Promise<ParsedTimelineData> {
   const config = parseTimelineConfig(code);
 
@@ -22,7 +27,7 @@ export async function resolveTimelineData(
     };
   }
 
-  let obsidianModule: any = null;
+  let obsidianModule: unknown = null;
   if (typeof require === 'function') {
     try {
       obsidianModule = require('obsidian');
@@ -33,7 +38,7 @@ export async function resolveTimelineData(
 
   const customFetch = createCustomFetch(app, obsidianModule, ctx?.sourcePath || '');
 
-  let rawRows: Record<string, any>[] = [];
+  let rawRows: Record<string, unknown>[] = [];
 
   if (config.data) {
     const res = await customFetch(config.data);
@@ -42,8 +47,10 @@ export async function resolveTimelineData(
     const trimmedText = text.trim();
     if (trimmedText.startsWith('[') || trimmedText.startsWith('{')) {
       try {
-        const json = JSON.parse(trimmedText);
-        rawRows = Array.isArray(json) ? json : [json];
+        const json: unknown = JSON.parse(trimmedText);
+        rawRows = Array.isArray(json)
+          ? json.filter(isRecord)
+          : isRecord(json) ? [json] : [];
       } catch {
         rawRows = parseCsvOrTsv(text);
       }
@@ -51,7 +58,7 @@ export async function resolveTimelineData(
       rawRows = parseCsvOrTsv(text);
     }
   } else if (config.id) {
-    let rawId = config.id.trim();
+    const rawId = config.id.trim();
     let fileRef = '';
     let cleanId = rawId;
 
@@ -64,20 +71,22 @@ export async function resolveTimelineData(
     }
     const caretId = '^' + cleanId;
 
-    let targetFile: any = null;
+    let targetFile: TFile | null = null;
 
     if (app) {
       if (fileRef) {
-        if (app.metadataCache?.getFirstLinkpathDest) {
+        if (app.metadataCache.getFirstLinkpathDest) {
           targetFile = app.metadataCache.getFirstLinkpathDest(fileRef, ctx?.sourcePath || '');
         }
-        if (!targetFile && app.vault?.getAbstractFileByPath) {
-          targetFile = app.vault.getAbstractFileByPath(fileRef.endsWith('.md') ? fileRef : `${fileRef}.md`);
+        if (!targetFile && app.vault.getAbstractFileByPath) {
+          targetFile = toTFile(
+            app.vault.getAbstractFileByPath(fileRef.endsWith('.md') ? fileRef : `${fileRef}.md`)
+          );
         }
       } else if (app.workspace) {
         targetFile = app.workspace.getActiveFile?.() || null;
-        if (ctx?.sourcePath && app.vault?.getAbstractFileByPath) {
-          targetFile = app.vault.getAbstractFileByPath(ctx.sourcePath) || targetFile;
+        if (ctx?.sourcePath && app.vault.getAbstractFileByPath) {
+          targetFile = toTFile(app.vault.getAbstractFileByPath(ctx.sourcePath)) || targetFile;
         }
       }
     }
@@ -85,19 +94,19 @@ export async function resolveTimelineData(
     if (targetFile && app?.vault?.cachedRead) {
       const fullText = await app.vault.cachedRead(targetFile);
 
-      let blockText = '';
-      const fileCache = app.metadataCache?.getFileCache?.(targetFile);
+      let blockText: string;
+      const fileCache = app.metadataCache.getFileCache(targetFile);
 
-      let pos: any = undefined;
+      let pos: BlockCache['position'] | undefined;
       if (fileCache?.blocks) {
         const exactBlock = fileCache.blocks[cleanId] ?? fileCache.blocks[caretId];
         if (exactBlock) {
           pos = exactBlock.position;
         } else {
           const cleanLower = cleanId.toLowerCase();
-          for (const k in fileCache.blocks) {
+          for (const k of Object.keys(fileCache.blocks)) {
             if (k.toLowerCase() === cleanLower) {
-              pos = fileCache.blocks[k]?.position;
+              pos = fileCache.blocks[k].position;
               break;
             }
           }
@@ -108,7 +117,7 @@ export async function resolveTimelineData(
         blockText = fullText.substring(pos.start.offset, pos.end.offset);
       } else {
         const lines = fullText.split(/\r?\n/);
-        const blockIdx = lines.findIndex((l: string) => l.trim() === caretId || l.trim() === `^${cleanId}`);
+        const blockIdx = lines.findIndex((line) => line.trim() === caretId || line.trim() === `^${cleanId}`);
         if (blockIdx > 0) {
           let startIdx = blockIdx - 1;
           while (startIdx >= 0 && lines[startIdx].trim().includes('|')) {
@@ -126,7 +135,7 @@ export async function resolveTimelineData(
     }
 
     if (rawRows.length === 0) {
-      throw new Error(`Referenced block ID '${config.id}' not found in ${targetFile ? targetFile.path : 'vault'}`);
+      throw new Error(`Referenced block ID '${config.id}' not found in ${targetFile?.path ?? 'vault'}`);
     }
   }
 

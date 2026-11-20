@@ -1,30 +1,54 @@
+import { MarkdownRenderChild, parseYaml } from 'obsidian';
+import type { MarkdownPostProcessorContext } from 'obsidian';
 import { renderError } from './util';
 
-let _leaflet: any = null;
+let _leaflet: typeof import('leaflet') | null = null;
 
-export function getLeaflet(): any {
+export function getLeaflet(): typeof import('leaflet') {
   if (!_leaflet) {
-    const loaded = require('leaflet');
+    const loaded = require('leaflet') as typeof import('leaflet') & { default?: typeof import('leaflet') };
     _leaflet = loaded.default ?? loaded;
   }
   return _leaflet;
 }
 
-export function setLeaflet(val: any): void {
+export function setLeaflet(val: typeof import('leaflet')): void {
   _leaflet = val;
 }
 
-function parseMapYaml(source: string): any {
-  const obsidian = require('obsidian');
-  if (obsidian && typeof obsidian.parseYaml === 'function') {
-    return obsidian.parseYaml(source);
-  }
-  return JSON.parse(source);
+type MapConfig = Record<string, unknown>;
+
+function isRecord(value: unknown): value is MapConfig {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseMapYaml(source: string): MapConfig {
+  const parsed = parseYaml(source) as unknown;
+  return isRecord(parsed) ? parsed : {};
+}
+
+function toArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function toNumber(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toColor(value: unknown, fallback: string): string {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function toText(value: unknown): string | undefined {
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ? String(value)
+    : undefined;
 }
 
 const DEFAULT_MARKER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36"><path fill="#2563eb" stroke="#ffffff" stroke-width="1.5" d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12zm0 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>`;
 
-function createSvgIcon(L: any, color?: string): any {
+function createSvgIcon(L: typeof import('leaflet'), color?: string): import('leaflet').DivIcon {
   let svg = DEFAULT_MARKER_SVG;
   if (color) {
     svg = svg.replace('#2563eb', color);
@@ -39,7 +63,7 @@ function createSvgIcon(L: any, color?: string): any {
   });
 }
 
-function parseLatLng(val: any): [number, number] | null {
+function parseLatLng(val: unknown): [number, number] | null {
   if (!val) return null;
   if (Array.isArray(val) && val.length >= 2) {
     const lat = typeof val[0] === 'number' ? val[0] : Number(val[0]);
@@ -57,7 +81,7 @@ function parseLatLng(val: any): [number, number] | null {
       if (!isNaN(lat) && !isNaN(lng)) return [lat, lng];
     }
   }
-  if (typeof val === 'object') {
+  if (isRecord(val)) {
     const rawLat = val.lat ?? val.latitude;
     const rawLng = val.lng ?? val.long ?? val.longitude ?? val.lon;
     if (rawLat !== undefined && rawLng !== undefined) {
@@ -69,29 +93,41 @@ function parseLatLng(val: any): [number, number] | null {
   return null;
 }
 
-export function renderMapBlock(source: string, container: HTMLElement, ctx?: any): void {
+export function renderMapBlock(
+  source: string,
+  container: HTMLElement,
+  ctx?: MarkdownPostProcessorContext,
+): void {
   const L = getLeaflet();
 
-  let config: any = {};
+  let config: MapConfig = {};
   if (source && source.trim().length > 0) {
     try {
       config = parseMapYaml(source.replace(/\t/g, '    '));
-      if (typeof config !== 'object' || config === null) {
-        config = {};
-      }
     } catch (err) {
       try {
-        config = JSON.parse(source);
+        const parsed = JSON.parse(source) as unknown;
+        config = isRecord(parsed) ? parsed : {};
       } catch {
-        renderError(`Map Config Error: ${err}`, container);
+        renderError(`Map Config Error: ${String(err)}`, container);
         return;
       }
     }
   }
 
   // Determine container dimensions
-  const height = config.height ? (typeof config.height === 'number' ? `${config.height}px` : String(config.height)) : '400px';
-  const width = config.width ? (typeof config.width === 'number' ? `${config.width}px` : String(config.width)) : '100%';
+  const heightValue = config.height;
+  const widthValue = config.width;
+  const height = typeof heightValue === 'number'
+    ? `${heightValue}px`
+    : typeof heightValue === 'string'
+    ? heightValue
+    : '400px';
+  const width = typeof widthValue === 'number'
+    ? `${widthValue}px`
+    : typeof widthValue === 'string'
+    ? widthValue
+    : '100%';
 
   const mapDiv = createDiv();
   mapDiv.className = 'leaflet-map-wrapper';
@@ -109,9 +145,9 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
     }
   }
 
-  const zoom = Number(config.zoom ?? config.defaultZoom ?? (centerCoords ? 13 : 2));
-  const minZoom = Number(config.minZoom ?? 1);
-  const maxZoom = Number(config.maxZoom ?? 19);
+  const zoom = toNumber(config.zoom ?? config.defaultZoom, centerCoords ? 13 : 2);
+  const minZoom = toNumber(config.minZoom, 1);
+  const maxZoom = toNumber(config.maxZoom, 19);
 
   // Fallback center if none provided
   const initialCenter = centerCoords || [0, 0];
@@ -123,7 +159,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
       ? !!mapDiv.createEl('canvas')?.getContext?.('2d')
       : !!createEl('canvas')?.getContext?.('2d'));
 
-  let map: any;
+  let map: import('leaflet').Map;
   try {
     map = L.map(mapDiv, {
       center: initialCenter,
@@ -133,14 +169,18 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
       preferCanvas: supportsCanvas,
     });
   } catch (err) {
-    renderError(`Leaflet Map Initialization Error: ${err}`, container);
+    renderError(`Leaflet Map Initialization Error: ${String(err)}`, container);
     return;
   }
 
   // Tile layer configuration
-  const tileUrl = config.tileServer ?? config.url ?? config.tile ?? config.tiles ?? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-  const attribution = config.attribution ?? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-  const subdomains = config.subdomains ?? 'abc';
+  const tileUrl = typeof (config.tileServer ?? config.url ?? config.tile ?? config.tiles) === 'string'
+    ? String(config.tileServer ?? config.url ?? config.tile ?? config.tiles)
+    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const attribution = typeof config.attribution === 'string'
+    ? config.attribution
+    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const subdomains = typeof config.subdomains === 'string' ? config.subdomains : 'abc';
 
   L.tileLayer(tileUrl, {
     attribution,
@@ -178,7 +218,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
 
   // Handle Markers
   const rawMarkers = config.markers ?? config.marker;
-  const markerList: any[] = Array.isArray(rawMarkers) ? rawMarkers : rawMarkers ? [rawMarkers] : [];
+  const markerList: unknown[] = toArray(rawMarkers);
 
   markerList.forEach((m) => {
     let coords: [number, number] | null = null;
@@ -189,20 +229,20 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
 
     if (Array.isArray(m)) {
       coords = parseLatLng([m[0], m[1]]);
-      popupText = m[2];
-      titleText = m[3];
-    } else if (typeof m === 'object' && m !== null) {
+      popupText = m[2] === undefined ? undefined : String(m[2]);
+      titleText = m[3] === undefined ? undefined : String(m[3]);
+    } else if (isRecord(m)) {
       coords = parseLatLng(m);
-      popupText = m.popup;
-      titleText = m.title;
-      tooltipText = m.tooltip;
-      color = m.color;
+      popupText = toText(m.popup);
+      titleText = toText(m.title);
+      tooltipText = toText(m.tooltip);
+      color = typeof m.color === 'string' ? m.color : undefined;
     }
 
     if (coords) {
       updateBounds(coords);
       const icon = createSvgIcon(L, color);
-      const markerOpts: any = { icon };
+      const markerOpts: import('leaflet').MarkerOptions = { icon };
       if (titleText) markerOpts.title = titleText;
 
       const marker = L.marker(coords, markerOpts).addTo(map);
@@ -218,25 +258,24 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
 
   // Handle Lines / Polylines
   const rawLines = config.lines ?? config.polylines ?? config.line;
-  const linesList: any[] = Array.isArray(rawLines) ? rawLines : rawLines ? [rawLines] : [];
+  const linesList: unknown[] = toArray(rawLines);
 
   linesList.forEach((line) => {
-    let pts: [number, number][] = [];
+    const pts: [number, number][] = [];
     let color = '#2563eb';
     let weight = 3;
     let popupText: string | undefined = undefined;
 
     // Performance optimization: Single-pass coordinate parsing and bounds accumulation.
     // Eliminates intermediate map/filter array object allocations per line feature.
-    let rawPts: any[] = [];
+    let rawPts: unknown[] = [];
     if (Array.isArray(line)) {
       rawPts = line;
-    } else if (typeof line === 'object' && line !== null) {
-      rawPts = line.points ?? line.coordinates ?? line.path;
-      if (!Array.isArray(rawPts)) rawPts = [];
-      color = line.color ?? color;
-      weight = Number(line.weight ?? weight);
-      popupText = line.popup;
+    } else if (isRecord(line)) {
+      rawPts = toArray(line.points ?? line.coordinates ?? line.path);
+      color = toColor(line.color, color);
+      weight = toNumber(line.weight, weight);
+      popupText = toText(line.popup);
     }
 
     for (let i = 0; i < rawPts.length; i++) {
@@ -257,10 +296,10 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
 
   // Handle Polygons
   const rawPolygons = config.polygons ?? config.polygon;
-  const polygonsList: any[] = Array.isArray(rawPolygons) ? rawPolygons : rawPolygons ? [rawPolygons] : [];
+  const polygonsList: unknown[] = toArray(rawPolygons);
 
   polygonsList.forEach((poly) => {
-    let pts: [number, number][] = [];
+    const pts: [number, number][] = [];
     let color = '#2563eb';
     let fillColor = '#3b82f6';
     let fillOpacity = 0.4;
@@ -268,16 +307,15 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
 
     // Performance optimization: Single-pass coordinate parsing and bounds accumulation.
     // Eliminates intermediate map/filter array object allocations per polygon feature.
-    let rawPts: any[] = [];
+    let rawPts: unknown[] = [];
     if (Array.isArray(poly)) {
       rawPts = poly;
-    } else if (typeof poly === 'object' && poly !== null) {
-      rawPts = poly.points ?? poly.coordinates ?? poly.path;
-      if (!Array.isArray(rawPts)) rawPts = [];
-      color = poly.color ?? color;
-      fillColor = poly.fillColor ?? fillColor;
-      fillOpacity = Number(poly.fillOpacity ?? fillOpacity);
-      popupText = poly.popup;
+    } else if (isRecord(poly)) {
+      rawPts = toArray(poly.points ?? poly.coordinates ?? poly.path);
+      color = toColor(poly.color, color);
+      fillColor = toColor(poly.fillColor, fillColor);
+      fillOpacity = toNumber(poly.fillOpacity, fillOpacity);
+      popupText = toText(poly.popup);
     }
 
     for (let i = 0; i < rawPts.length; i++) {
@@ -298,7 +336,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
 
   // Handle Circles
   const rawCircles = config.circles ?? config.circle;
-  const circlesList: any[] = Array.isArray(rawCircles) ? rawCircles : rawCircles ? [rawCircles] : [];
+  const circlesList: unknown[] = toArray(rawCircles);
 
   circlesList.forEach((c) => {
     let coords: [number, number] | null = null;
@@ -310,15 +348,15 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
 
     if (Array.isArray(c)) {
       coords = parseLatLng([c[0], c[1]]);
-      radius = Number(c[2] ?? radius);
-      popupText = c[3];
-    } else if (typeof c === 'object' && c !== null) {
+      radius = toNumber(c[2], radius);
+      popupText = c[3] === undefined ? undefined : String(c[3]);
+    } else if (isRecord(c)) {
       coords = parseLatLng(c);
-      radius = Number(c.radius ?? radius);
-      color = c.color ?? color;
-      fillColor = c.fillColor ?? fillColor;
-      fillOpacity = Number(c.fillOpacity ?? fillOpacity);
-      popupText = c.popup;
+      radius = toNumber(c.radius, radius);
+      color = toColor(c.color, color);
+      fillColor = toColor(c.fillColor, fillColor);
+      fillOpacity = toNumber(c.fillOpacity, fillOpacity);
+      popupText = toText(c.popup);
     }
 
     if (coords) {
@@ -334,12 +372,16 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   const geojson = config.geojson ?? config.geoJson;
   if (geojson) {
     try {
-      const geoObj = typeof geojson === 'string' ? JSON.parse(geojson) : geojson;
+      const parsedGeo = typeof geojson === 'string'
+        ? JSON.parse(geojson) as unknown
+        : geojson;
+      const geoObj = parsedGeo as Parameters<typeof L.geoJSON>[0];
       const geoLayer = L.geoJSON(geoObj, {
-        onEachFeature: (feature: any, layer: any) => {
-          if (feature?.properties) {
-            const popup = feature.properties.popup ?? feature.properties.name ?? feature.properties.title;
-            if (popup) layer.bindPopup(String(popup));
+        onEachFeature: (feature, layer) => {
+          if (isRecord(feature.properties)) {
+            const properties = feature.properties;
+            const popup = toText(properties.popup ?? properties.name ?? properties.title);
+            if (popup) layer.bindPopup(popup);
           }
         },
       }).addTo(map);
@@ -372,7 +414,7 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
   let isCleanedUp = false;
   let resizeObserver: ResizeObserver | null = null;
   let intersectionObserver: IntersectionObserver | null = null;
-  const timeoutIds: any[] = [];
+  const timeoutIds: number[] = [];
 
   const triggerInvalidate = () => {
     if (isCleanedUp || !map || typeof map.invalidateSize !== 'function') return;
@@ -416,10 +458,6 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
     intersectionObserver.observe(mapDiv);
   }
 
-  // Integrate with Obsidian's MarkdownRenderChild lifecycle if available
-  const obsidian = require('obsidian');
-  const MarkdownRenderChildClass = obsidian?.MarkdownRenderChild;
-
   const cleanup = () => {
     if (isCleanedUp) return;
     isCleanedUp = true;
@@ -442,8 +480,8 @@ export function renderMapBlock(source: string, container: HTMLElement, ctx?: any
     }
   };
 
-  if (ctx && typeof ctx.addChild === 'function' && MarkdownRenderChildClass) {
-    const child = new MarkdownRenderChildClass(container);
+  if (ctx && typeof ctx.addChild === 'function') {
+    const child = new MarkdownRenderChild(container);
     child.onload = () => {
       triggerInvalidate();
       // Delay check in case layout settling occurs right after onload

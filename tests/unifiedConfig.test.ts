@@ -6,7 +6,7 @@ import { JSDOM } from 'jsdom';
 import Module from 'node:module';
 
 // Mock 'obsidian' and '.svelte' modules for Node runtime
-const originalRequire = Module.prototype.require;
+const originalRequire = Reflect.get(Module.prototype, 'require');
 Module.prototype.require = function (id: string) {
   if (id.endsWith('.svelte')) {
     return {};
@@ -79,7 +79,7 @@ const mockPlugin: any = {
   app: mockApp,
 };
 
-test('unified chart DSL: line and bar charts support markLines', async () => {
+void test('unified chart DSL: line and bar charts support markLines', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);
@@ -137,7 +137,7 @@ test('unified chart DSL: line and bar charts support markLines', async () => {
   assert.ok(barTexts.some((t) => t.includes('Target')), 'Bar chart should render markLine label Target');
 });
 
-test('unified chart DSL: line and bar charts support log scales across DSL options', async () => {
+void test('unified chart DSL: line and bar charts support log scales across DSL options', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);
@@ -181,7 +181,7 @@ test('unified chart DSL: line and bar charts support log scales across DSL optio
   assert.equal((nestedPrep.plotOptions?.y as any)?.type, 'log');
 });
 
-test('unified chart DSL: unified fill and fillOpacity support for line and bar charts', async () => {
+void test('unified chart DSL: unified fill and fillOpacity support for line and bar charts', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);
@@ -207,7 +207,7 @@ test('unified chart DSL: unified fill and fillOpacity support for line and bar c
   assert.ok(paths.length >= 2, 'Should render both area fill and line stroke paths');
 });
 
-test('unified chart DSL: dataLabels and showLabels support on bar and line charts', async () => {
+void test('unified chart DSL: dataLabels and showLabels support on bar and line charts', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);
@@ -229,7 +229,7 @@ test('unified chart DSL: dataLabels and showLabels support on bar and line chart
   assert.ok(texts.includes('99'), 'Should render data label 99 on bar chart');
 });
 
-test('unified chart DSL: pie, radar, and sankey support title, subtitle, and caption', async () => {
+void test('unified chart DSL: pie, radar, and sankey support title, subtitle, and caption', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);
@@ -281,7 +281,7 @@ test('unified chart DSL: pie, radar, and sankey support title, subtitle, and cap
   assert.equal(sankeyPrep.customElement?.querySelector('h3')?.textContent, '2026 Projections');
 });
 
-test('auto-adaptive ticks adjust based on chart width and support custom ticks override', async () => {
+void test('auto-adaptive ticks adjust based on chart width and support custom ticks override', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -305,8 +305,9 @@ test('auto-adaptive ticks adjust based on chart width and support custom ticks o
     series: [{ title: 'Metrics', data: Array.from({ length: 30 }, (_, i) => i * 2) }],
   };
   const narrowPrep = await renderer.datasetPrep(narrowYaml, container);
-  assert.ok(Array.isArray(narrowPrep.plotOptions?.x?.ticks));
-  assert.ok(narrowPrep.plotOptions!.x!.ticks!.length <= 6, 'Ticks should adaptively downsample on narrow width');
+  const narrowTicks = narrowPrep.plotOptions?.x?.ticks;
+  assert.ok(Array.isArray(narrowTicks));
+  assert.ok(narrowTicks.length <= 6, 'Ticks should adaptively downsample on narrow width');
 
   // 2. Wide width line chart (800px)
   const wideYaml = {
@@ -316,8 +317,9 @@ test('auto-adaptive ticks adjust based on chart width and support custom ticks o
     series: [{ title: 'Metrics', data: Array.from({ length: 30 }, (_, i) => i * 2) }],
   };
   const widePrep = await renderer.datasetPrep(wideYaml, container);
-  assert.ok(Array.isArray(widePrep.plotOptions?.x?.ticks));
-  assert.ok(widePrep.plotOptions!.x!.ticks!.length >= narrowPrep.plotOptions!.x!.ticks!.length);
+  const wideTicks = widePrep.plotOptions?.x?.ticks;
+  assert.ok(Array.isArray(wideTicks));
+  assert.ok(wideTicks.length >= narrowTicks.length);
 
   // 3. User explicit ticks override
   const overrideYaml = {
@@ -341,7 +343,7 @@ test('auto-adaptive ticks adjust based on chart width and support custom ticks o
   assert.equal(typeof horizontalPrep.plotOptions?.x?.ticks, 'number', 'Horizontal bar x-axis should use numeric tick count, not downsampled category strings');
 });
 
-test('horizontal bar charts with unordered string labels preserve label order on y axis', async () => {
+void test('horizontal bar charts with unordered string labels preserve label order on y axis', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);

@@ -51,7 +51,7 @@ export function renderWikilinksToDom(text: string, targetEl: HTMLElement): void 
   targetEl.replaceChildren();
   if (typeof text !== 'string' || !text) return;
   if (!text.includes('[[')) {
-    targetEl.appendChild(document.createTextNode(text));
+    targetEl.appendChild(activeDocument.createTextNode(text));
     return;
   }
   WIKILINK_PARSE_REGEX.lastIndex = 0;
@@ -60,7 +60,7 @@ export function renderWikilinksToDom(text: string, targetEl: HTMLElement): void 
 
   while ((match = WIKILINK_PARSE_REGEX.exec(text)) !== null) {
     if (match.index > lastIdx) {
-      targetEl.appendChild(document.createTextNode(text.slice(lastIdx, match.index)));
+      targetEl.appendChild(activeDocument.createTextNode(text.slice(lastIdx, match.index)));
     }
     const target = match[1].trim();
     const alias = match[2] ? match[2].trim() : target;
@@ -74,6 +74,6 @@ export function renderWikilinksToDom(text: string, targetEl: HTMLElement): void 
   }
 
   if (lastIdx < text.length) {
-    targetEl.appendChild(document.createTextNode(text.slice(lastIdx)));
+    targetEl.appendChild(activeDocument.createTextNode(text.slice(lastIdx)));
   }
 }

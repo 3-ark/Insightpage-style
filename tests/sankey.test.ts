@@ -6,7 +6,7 @@ import { JSDOM } from 'jsdom';
 import Module from 'node:module';
 
 // Mock 'obsidian' module for Node runtime
-const originalRequire = Module.prototype.require;
+const originalRequire = Reflect.get(Module.prototype, 'require');
 Module.prototype.require = function (id: string) {
   if (id === 'obsidian') {
     return {
@@ -59,7 +59,7 @@ const mockApp = {
   },
 };
 
-test('renders multi-stage Sankey diagram with user exact rendering case and label mismatch normalization', async () => {
+void test('renders multi-stage Sankey diagram with user exact rendering case and label mismatch normalization', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 
@@ -139,7 +139,7 @@ test('renders multi-stage Sankey diagram with user exact rendering case and labe
   assert.ok(gradients.length > 0, 'Linear gradients should be generated for colorFrom/colorTo links');
 });
 
-test('handles varied flow array formats and object flow definitions', async () => {
+void test('handles varied flow array formats and object flow definitions', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
 

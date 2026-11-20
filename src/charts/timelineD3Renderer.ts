@@ -17,7 +17,7 @@ export interface SVGGroupElementWithRefs extends SVGGElement {
   __rectBar?: SVGRectElement | null;
   __leaderLine?: SVGLineElement | null;
   __colsG?: SVGGElement | null;
-  __colsGSelection?: d3.Selection<SVGGElement, any, null, undefined> | null;
+  __colsGSelection?: d3.Selection<SVGGElement, ProcessedEvent, null, undefined> | null;
 }
 
 export interface EventNodeItem {
@@ -26,7 +26,7 @@ export interface EventNodeItem {
   rectBarNode: SVGRectElement;
   leaderLineNode: SVGLineElement;
   colsGNode: SVGGElement | null;
-  colsGSelection: d3.Selection<SVGGElement, any, null, undefined> | null;
+  colsGSelection: d3.Selection<SVGGElement, ProcessedEvent, null, undefined> | null;
   yPos: number;
   color: string;
   isHidden: boolean;
@@ -57,7 +57,7 @@ export function renderTimelineD3Chart(
   let hasOngoingEvent = false;
 
   const numEvents = rawEvents.length;
-  const processedEvents: ProcessedEvent[] = new Array(numEvents);
+  const processedEvents: ProcessedEvent[] = [];
   const categoryValuesSet = new Set<string>();
 
   for (let idx = 0; idx < numEvents; idx++) {
@@ -97,7 +97,13 @@ export function renderTimelineD3Chart(
     if (startTime < minTime) minTime = startTime;
     if (endTime > maxTime) maxTime = endTime;
 
-    const categoryVal = String(evt[activeCat] ?? 'default');
+    const rawCategoryValue = evt[activeCat];
+    const categoryVal =
+      typeof rawCategoryValue === 'string' ||
+      typeof rawCategoryValue === 'number' ||
+      typeof rawCategoryValue === 'boolean'
+        ? String(rawCategoryValue)
+        : 'default';
     categoryValuesSet.add(categoryVal);
     const collections = Array.isArray(evt.collection) ? evt.collection : [];
 
@@ -125,7 +131,7 @@ export function renderTimelineD3Chart(
   const innerHeight = height - margin.top - margin.bottom - padding.top - padding.bottom;
 
   const compStyle = typeof window !== 'undefined' && window.getComputedStyle ? window.getComputedStyle(container) : null;
-  const isDarkMode = (typeof document !== 'undefined' && document.body && document.body.classList.contains('theme-dark')) ||
+  const isDarkMode = (typeof activeDocument !== 'undefined' && activeDocument.body && activeDocument.body.classList.contains('theme-dark')) ||
     compStyle?.getPropertyValue('--background-primary')?.trim().startsWith('#2') ||
     false;
 
@@ -160,7 +166,7 @@ export function renderTimelineD3Chart(
 
   const timeScale = d3.scaleTime().domain(dateExtent).range([0, innerWidth]).nice();
 
-  const eventIds: string[] = new Array(numEvents);
+  const eventIds: string[] = Array.from({ length: numEvents }, () => '');
   for (let idx = 0; idx < numEvents; idx++) {
     eventIds[idx] = processedEvents[idx].id;
   }
@@ -170,7 +176,7 @@ export function renderTimelineD3Chart(
   const circleRadius = Math.max(3.5, eventHeight * 0.32);
 
   let activeScaleX = timeScale;
-  let initialSpanMs = dateExtent[1].getTime() - dateExtent[0].getTime();
+  const initialSpanMs = dateExtent[1].getTime() - dateExtent[0].getTime();
 
   const getOptimalTicks = () => {
     const dom = activeScaleX.domain() as [Date, Date];
@@ -279,7 +285,7 @@ export function renderTimelineD3Chart(
     .on('start', function () {
       d3.select(this).style('cursor', 'grabbing');
     })
-    .on('drag', function (event) {
+    .on('drag', function (event: d3.D3DragEvent<SVGGElement, unknown, unknown>) {
       currentLegendOffsetX += event.dx;
       currentLegendOffsetX = Math.max(minLegendDragOffset, Math.min(maxLegendDragOffset, currentLegendOffsetX));
       d3.select(this).attr('transform', `translate(${currentLegendOffsetX}, 0)`);
@@ -292,7 +298,7 @@ export function renderTimelineD3Chart(
     legendContentG.call(dragBehavior);
   }
 
-  const eventNodeList: EventNodeItem[] = new Array(numEvents);
+  const eventNodeList: EventNodeItem[] = [];
 
   let nowG: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
   let nowLineNode: SVGLineElement | null = null;
@@ -469,9 +475,9 @@ export function renderTimelineD3Chart(
       .attr('fill', 'var(--text-normal, #222222)')
       .text(stripWikilinks(evt.title));
 
-    let colsGSelection: d3.Selection<SVGGElement, any, null, undefined> | null = null;
+    let colsGSelection: d3.Selection<SVGGElement, ProcessedEvent, null, undefined> | null = null;
     if (evt.collections.length > 0) {
-      colsGSelection = evtG.append('g').attr('class', 'collections') as any;
+      colsGSelection = evtG.append('g').attr('class', 'collections');
     }
 
     const gNode = evtG.node() as SVGGElement;
@@ -659,7 +665,8 @@ export function renderTimelineD3Chart(
       needleG.style('display', 'none');
       hideTooltip(true);
     })
-    .on('zoom', ({ transform }) => {
+    .on('zoom', (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
+      const { transform } = event;
       updateZoom(transform);
     })
     .on('end', () => {

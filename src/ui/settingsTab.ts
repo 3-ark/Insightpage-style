@@ -10,11 +10,29 @@ import {
 } from 'obsidian';
 import type ChartPlugin from '../main';
 
-let _Picker: any = null;
-function getPicker(): any {
+interface PickerOptions {
+  parent: HTMLElement;
+  onDone: (color: { hex: string }) => void | Promise<void>;
+  popup: 'left';
+  color: string;
+  alpha: boolean;
+}
+
+interface VanillaPickerConstructor {
+  new (options: PickerOptions): unknown;
+}
+
+interface VanillaPickerModule {
+  default?: VanillaPickerConstructor;
+}
+
+let _Picker: VanillaPickerConstructor | null = null;
+function getPicker(): VanillaPickerConstructor {
   if (!_Picker) {
-    const loaded = require('vanilla-picker');
-    _Picker = loaded.default ?? loaded;
+    const loaded = require('vanilla-picker') as VanillaPickerModule | VanillaPickerConstructor;
+    _Picker = typeof loaded === 'function'
+      ? loaded
+      : loaded.default ?? (loaded as unknown as VanillaPickerConstructor);
   }
   return _Picker;
 }
@@ -82,7 +100,7 @@ export class ChartSettingTab extends PluginSettingTab {
               const Picker = getPicker();
               new Picker({
                 parent: btn.buttonEl,
-                onDone: async (col: any) => {
+                onDone: async (col: { hex: string }) => {
                   this.plugin.settings.colors[idx] = col.hex;
                   await this.plugin.saveSettings();
                   this.refreshTab();
@@ -143,11 +161,19 @@ export class ChartSettingTab extends PluginSettingTab {
   }
 
   getControlValue(key: string): unknown {
-    return (this.plugin.settings as any)[key];
+    if (key === 'contextMenu') return this.plugin.settings.contextMenu;
+    if (key === 'themeable') return this.plugin.settings.themeable;
+    return undefined;
   }
 
   async setControlValue(key: string, value: unknown): Promise<void> {
-    (this.plugin.settings as any)[key] = value;
+    if (key === 'contextMenu' && typeof value === 'boolean') {
+      this.plugin.settings.contextMenu = value;
+    } else if (key === 'themeable' && typeof value === 'boolean') {
+      this.plugin.settings.themeable = value;
+    } else {
+      return;
+    }
     await this.plugin.saveSettings();
     if (key === 'themeable') {
       this.refreshTab();

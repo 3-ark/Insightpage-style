@@ -20,7 +20,7 @@ Object.defineProperty(global, 'navigator', {
 });
 
 // Mock 'obsidian' and '.svelte' modules for Node runtime BEFORE loading chart modules
-const originalRequire = Module.prototype.require;
+const originalRequire = Reflect.get(Module.prototype, 'require');
 Module.prototype.require = function (id: string) {
   if (id.endsWith('.svelte')) {
     return {};
@@ -118,7 +118,7 @@ const mockPlugin: any = {
 // -------------------------------------------------------------
 // SYSTEM 1: Standard Chart DSL (Bar, Line, Pie, Radar, Sankey)
 // -------------------------------------------------------------
-test('edge case [DSL 1 - Bar/Line]: all-zero, negative, and NaN/missing series values', async () => {
+void test('edge case [DSL 1 - Bar/Line]: all-zero, negative, and NaN/missing series values', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);
@@ -161,7 +161,7 @@ test('edge case [DSL 1 - Bar/Line]: all-zero, negative, and NaN/missing series v
   assert.ok(el3 instanceof HTMLElement || el3 instanceof SVGElement);
 });
 
-test('edge case [DSL 1 - Bar/Line]: mismatched series vs labels length and single data point', async () => {
+void test('edge case [DSL 1 - Bar/Line]: mismatched series vs labels length and single data point', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);
@@ -200,7 +200,39 @@ test('edge case [DSL 1 - Bar/Line]: mismatched series vs labels length and singl
   assert.ok(el3 instanceof HTMLElement || el3 instanceof SVGElement);
 });
 
-test('edge case [DSL 1 - Pie/Donut/Radar/Sankey]: empty data, zeros, and single node flows', async () => {
+void test('edge case [DSL 1 - Bar/Line]: non-finite values, radii, and tick arrays', async () => {
+  const RendererModule = await import('../src/chartRenderer');
+  const Renderer = RendererModule.default;
+  const renderer = new Renderer(mockPlugin);
+
+  const yaml = {
+    type: 'line',
+    labels: ['A', 'B', 'C'],
+    series: [{ title: 'Mixed', data: [Infinity, NaN, -Infinity] }],
+    pointRadius: 'not-a-number',
+    xTicks: ['A', 'C'],
+  };
+  const container = document.createElement('div');
+  const prep = await renderer.datasetPrep(yaml, container);
+  assert.ok(prep.plotOptions);
+  assert.deepEqual((prep.plotOptions?.x as any)?.ticks, ['A', 'C']);
+
+  const rendered = await renderer.renderRaw(prep, container);
+  assert.ok(rendered instanceof HTMLElement || rendered instanceof SVGElement);
+
+  const negativeRadiusYaml = {
+    type: 'line',
+    labels: ['A'],
+    series: [{ title: 'Mixed', data: [1] }],
+    pointRadius: -5,
+  };
+  const negativeContainer = document.createElement('div');
+  const negativePrep = await renderer.datasetPrep(negativeRadiusYaml, negativeContainer);
+  assert.ok(negativePrep.plotOptions);
+  await renderer.renderRaw(negativePrep, negativeContainer);
+});
+
+void test('edge case [DSL 1 - Pie/Donut/Radar/Sankey]: empty data, zeros, and single node flows', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);
@@ -249,7 +281,7 @@ test('edge case [DSL 1 - Pie/Donut/Radar/Sankey]: empty data, zeros, and single 
 // -------------------------------------------------------------
 // SYSTEM 2: Scatter Chart DSL (scatter, scatterplot)
 // -------------------------------------------------------------
-test('edge case [DSL 2 - Scatter]: empty series, 1D array, single point, and negative values', async () => {
+void test('edge case [DSL 2 - Scatter]: empty series, 1D array, single point, and negative values', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);
@@ -313,7 +345,7 @@ test('edge case [DSL 2 - Scatter]: empty series, 1D array, single point, and neg
   assert.ok(el4 instanceof HTMLElement || el4 instanceof SVGElement);
 });
 
-test('edge case [DSL 2 - Scatter]: tabular rows with missing columns, custom radius and log color scale', async () => {
+void test('edge case [DSL 2 - Scatter]: tabular rows with missing columns, custom radius and log color scale', async () => {
   const { extractScatterData, buildScatterPlotOptions } = await import('../src/charts/scatterRenderer');
   const Plot = await import('@observablehq/plot');
 
@@ -338,7 +370,7 @@ test('edge case [DSL 2 - Scatter]: tabular rows with missing columns, custom rad
   assert.equal(points[0].x, 10);
   assert.equal(points[0].r, 5);
 
-  const plotOpts = buildScatterPlotOptions(scatterYaml, points, ['#3b82f6'], '#ccc', '#222', Plot as any);
+  const plotOpts = buildScatterPlotOptions(scatterYaml, points, ['#3b82f6'], '#ccc', '#222', Plot);
   assert.equal(plotOpts.x.type, 'log', 'X scale should be log');
   assert.equal(plotOpts.color.type, 'log', 'Color scale should auto-align to log scale');
 });
@@ -346,7 +378,7 @@ test('edge case [DSL 2 - Scatter]: tabular rows with missing columns, custom rad
 // -------------------------------------------------------------
 // SYSTEM 3: Observable Plot JS Codeblock (plot, observable)
 // -------------------------------------------------------------
-test('edge case [Plot JS]: empty code, comments only, and auto-return of variable assignment', async () => {
+void test('edge case [Plot JS]: empty code, comments only, and auto-return of variable assignment', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);
@@ -380,7 +412,7 @@ test('edge case [Plot JS]: empty code, comments only, and auto-return of variabl
   assert.ok(res4 instanceof HTMLElement || res4 instanceof SVGElement, 'Code fences should be stripped and rendered');
 });
 
-test('edge case [Plot JS]: top-level await and display() function multiple calls', async () => {
+void test('edge case [Plot JS]: top-level await and display() function multiple calls', async () => {
   const RendererModule = await import('../src/chartRenderer');
   const Renderer = RendererModule.default;
   const renderer = new Renderer(mockPlugin);
@@ -400,7 +432,7 @@ test('edge case [Plot JS]: top-level await and display() function multiple calls
 // -------------------------------------------------------------
 // SYSTEM 4: Zoomable Timeline DSL (timeline)
 // -------------------------------------------------------------
-test('edge case [Timeline DSL]: single event with no duration (instant event)', async () => {
+void test('edge case [Timeline DSL]: single event with no duration (instant event)', async () => {
   const { renderTimelineBlockAsync } = await import('../src/timelineRenderer');
   const container = document.createElement('div');
 
@@ -418,7 +450,7 @@ test('edge case [Timeline DSL]: single event with no duration (instant event)', 
   assert.ok(eventGroup, 'Event group should exist for single instant event');
 });
 
-test('edge case [Timeline DSL]: inverted start and end dates (end < start auto-swap)', async () => {
+void test('edge case [Timeline DSL]: inverted start and end dates (end < start auto-swap)', async () => {
   const { renderTimelineBlockAsync } = await import('../src/timelineRenderer');
   const container = document.createElement('div');
 
@@ -436,7 +468,7 @@ test('edge case [Timeline DSL]: inverted start and end dates (end < start auto-s
   assert.ok(width > 0, 'Inverted dates should auto-swap so event bar has positive width');
 });
 
-test('edge case [Timeline DSL]: ongoing events with various keywords (present, now, current)', async () => {
+void test('edge case [Timeline DSL]: ongoing events with various keywords (present, now, current)', async () => {
   const { renderTimelineBlockAsync } = await import('../src/timelineRenderer');
   const container = document.createElement('div');
 
@@ -453,7 +485,7 @@ test('edge case [Timeline DSL]: ongoing events with various keywords (present, n
   assert.ok(nowIndicator, 'Timeline should render "Today" line indicator for ongoing events');
 });
 
-test('edge case [Timeline DSL]: BC dates and era-spanning events', async () => {
+void test('edge case [Timeline DSL]: BC dates and era-spanning events', async () => {
   const { renderTimelineBlockAsync } = await import('../src/timelineRenderer');
   const container = document.createElement('div');
 
@@ -469,7 +501,7 @@ test('edge case [Timeline DSL]: BC dates and era-spanning events', async () => {
   assert.equal(eventGroups.length, 2, 'Should render both BC and BC-to-AD era events');
 });
 
-test('edge case [Timeline DSL]: special characters, HTML tags, and wikilinks in title', async () => {
+void test('edge case [Timeline DSL]: special characters, HTML tags, and wikilinks in title', async () => {
   const { renderTimelineBlockAsync } = await import('../src/timelineRenderer');
   const container = document.createElement('div');
 
@@ -493,7 +525,7 @@ test('edge case [Timeline DSL]: special characters, HTML tags, and wikilinks in 
   );
 });
 
-test('edge case [Timeline DSL]: empty or malformed dataset renders clean error block', async () => {
+void test('edge case [Timeline DSL]: empty or malformed dataset renders clean error block', async () => {
   const { renderTimelineBlockAsync } = await import('../src/timelineRenderer');
 
   // 1. Empty events array

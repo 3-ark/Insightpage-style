@@ -33,8 +33,8 @@ export interface CommonChartConfig {
   isYLog: boolean;
   xLabel: string | null;
   yLabel: string | null;
-  xDomain?: any[];
-  yDomain?: any[];
+  xDomain?: unknown[];
+  yDomain?: unknown[];
   xReverse?: boolean;
   yReverse?: boolean;
   xDisplay?: boolean;
@@ -51,34 +51,48 @@ export interface CommonChartConfig {
   labelFontSize?: number;
 }
 
+type ChartDsl = Record<string, unknown>;
+
+function asChartDsl(value: unknown): ChartDsl | null {
+  return value && typeof value === 'object' ? value as ChartDsl : null;
+}
+
 /**
  * Standardizes log scale detection across all chart types and DSL permutations:
  * - xLog / yLog (boolean)
  * - xScale: 'log' | 'logarithmic'
  * - xType / x.type / scales.x.type / options.scales.x.type: 'log' | 'logarithmic'
  */
-export function isLogScale(yaml: any, axis: 'x' | 'y'): boolean {
-  if (!yaml || typeof yaml !== 'object') return false;
+export function isLogScale(yaml: unknown, axis: 'x' | 'y'): boolean {
+  const config = asChartDsl(yaml);
+  if (!config) return false;
   const a = axis;
+  const axisConfig = asChartDsl(config[a]);
+  const axisLabel = asChartDsl(config[`${a}Axis`]);
+  const scales = asChartDsl(config.scales);
+  const scaleConfig = scales ? asChartDsl(scales[a]) : null;
+  const options = asChartDsl(config.options);
+  const optionScales = options ? asChartDsl(options.scales) : null;
+  const optionScaleConfig = optionScales ? asChartDsl(optionScales[a]) : null;
 
   return Boolean(
-    yaml[`${a}Log`] ||
-    yaml[`${a}Scale`] === 'log' ||
-    yaml[`${a}Scale`] === 'logarithmic' ||
-    yaml[`${a}Type`] === 'log' ||
-    yaml[`${a}Type`] === 'logarithmic' ||
-    yaml[a]?.type === 'log' ||
-    yaml[a]?.type === 'logarithmic' ||
-    yaml[a]?.scale === 'log' ||
-    yaml[a]?.scale === 'logarithmic' ||
-    yaml[`${a}Axis`]?.type === 'log' ||
-    yaml[`${a}Axis`]?.type === 'logarithmic' ||
-    yaml.scales?.[a]?.type === 'log' ||
-    yaml.scales?.[a]?.type === 'logarithmic' ||
-    yaml.options?.scales?.[a]?.type === 'log' ||
-    yaml.options?.scales?.[a]?.type === 'logarithmic' ||
-    yaml.options?.[`${a}Log`] ||
-    yaml.options?.[`${a}Scale`] === 'log'
+    config[`${a}Log`] ||
+    config[`${a}Scale`] === 'log' ||
+    config[`${a}Scale`] === 'logarithmic' ||
+    config[`${a}Type`] === 'log' ||
+    config[`${a}Type`] === 'logarithmic' ||
+    axisConfig?.type === 'log' ||
+    axisConfig?.type === 'logarithmic' ||
+    axisConfig?.scale === 'log' ||
+    axisConfig?.scale === 'logarithmic' ||
+    axisLabel?.type === 'log' ||
+    axisLabel?.type === 'logarithmic' ||
+    scaleConfig?.type === 'log' ||
+    scaleConfig?.type === 'logarithmic' ||
+    optionScaleConfig?.type === 'log' ||
+    optionScaleConfig?.type === 'logarithmic' ||
+    options?.[`${a}Log`] ||
+    options?.[`${a}Scale`] === 'log'
   );
 }
 
@@ -87,16 +101,18 @@ export function isLogScale(yaml: any, axis: 'x' | 'y'): boolean {
  * - markLine / markLines / markline / marklines / marks
  * - options.markLine / options.markLines
  */
-export function extractMarkLines(yaml: any): MarkLineConfig[] {
-  if (!yaml || typeof yaml !== 'object') return [];
+export function extractMarkLines(yaml: unknown): MarkLineConfig[] {
+  const config = asChartDsl(yaml);
+  if (!config) return [];
+  const options = asChartDsl(config.options);
   const raw =
-    yaml.markLine ||
-    yaml.markLines ||
-    yaml.markline ||
-    yaml.marklines ||
-    yaml.marks ||
-    yaml.options?.markLine ||
-    yaml.options?.markLines;
+    config.markLine ||
+    config.markLines ||
+    config.markline ||
+    config.marklines ||
+    config.marks ||
+    options?.markLine ||
+    options?.markLines;
 
   if (!raw) return [];
   const list = Array.isArray(raw) ? raw : [raw];
@@ -104,7 +120,7 @@ export function extractMarkLines(yaml: any): MarkLineConfig[] {
 
   for (const item of list) {
     if (item && typeof item === 'object') {
-      results.push(item);
+      results.push(item as MarkLineConfig);
     }
   }
   return results;
@@ -117,8 +133,8 @@ export function extractMarkLines(yaml: any): MarkLineConfig[] {
 export function buildPlotMarkLines(
   markLines: MarkLineConfig[],
   PlotInst: typeof import('@observablehq/plot')
-): any[] {
-  const marks: any[] = [];
+): Array<import('@observablehq/plot').RenderableMark> {
+  const marks: Array<import('@observablehq/plot').RenderableMark> = [];
   if (!markLines || markLines.length === 0) return marks;
 
   for (const ml of markLines) {
@@ -199,27 +215,31 @@ export function buildPlotMarkLines(
 /**
  * Resolves standard fill and opacity configurations across DSLs.
  */
-export function resolveFillConfig(yaml: any, defaultFill: boolean | string = false): {
+export function resolveFillConfig(yaml: unknown, defaultFill: boolean | string = false): {
   fill: boolean | string;
   fillOpacity: number;
 } {
+  const config = asChartDsl(yaml) ?? {};
   const fill =
-    yaml.fill !== undefined
-      ? yaml.fill
-      : yaml.filled !== undefined
-      ? yaml.filled
-      : yaml.area !== undefined
-      ? yaml.area
+    config.fill !== undefined
+      ? (typeof config.fill === 'boolean' || typeof config.fill === 'string' ? config.fill : defaultFill)
+      : config.filled !== undefined
+      ? (typeof config.filled === 'boolean' || typeof config.filled === 'string' ? config.filled : defaultFill)
+      : config.area !== undefined
+      ? (typeof config.area === 'boolean' || typeof config.area === 'string' ? config.area : defaultFill)
       : defaultFill;
 
-  const fillOpacity =
-    typeof yaml.fillOpacity === 'number'
-      ? yaml.fillOpacity
-      : typeof yaml.transparency === 'number'
-      ? yaml.transparency
-      : typeof yaml.opacity === 'number'
-      ? yaml.opacity
+  const rawFillOpacity =
+    typeof config.fillOpacity === 'number'
+      ? config.fillOpacity
+      : typeof config.transparency === 'number'
+      ? config.transparency
+      : typeof config.opacity === 'number'
+      ? config.opacity
       : 0.25;
+  const fillOpacity = Number.isFinite(rawFillOpacity)
+    ? Math.max(0, Math.min(1, rawFillOpacity))
+    : 0.25;
 
   return { fill, fillOpacity };
 }
@@ -227,21 +247,22 @@ export function resolveFillConfig(yaml: any, defaultFill: boolean | string = fal
 /**
  * Resolves unified label / dataLabels configuration across chart DSLs.
  */
-export function resolveLabelConfig(yaml: any): {
+export function resolveLabelConfig(yaml: unknown): {
   showLabels: boolean;
   filterSet?: Set<string>;
   fontSize: number;
 } {
+  const config = asChartDsl(yaml) ?? {};
   const rawLabelsConfig =
-    yaml.dataLabels !== undefined
-      ? yaml.dataLabels
-      : yaml.showLabels !== undefined
-      ? yaml.showLabels
-      : yaml.labelFilter !== undefined
-      ? yaml.labelFilter
-      : yaml.pointLabels !== undefined
-      ? yaml.pointLabels
-      : yaml.labelsConfig;
+    config.dataLabels !== undefined
+      ? config.dataLabels
+      : config.showLabels !== undefined
+      ? config.showLabels
+      : config.labelFilter !== undefined
+      ? config.labelFilter
+      : config.pointLabels !== undefined
+      ? config.pointLabels
+      : config.labelsConfig;
 
   let showLabels = false;
   let filterSet: Set<string> | undefined = undefined;
@@ -262,52 +283,63 @@ export function resolveLabelConfig(yaml: any): {
     filterSet = new Set(parts);
   }
 
-  const fontSize = typeof yaml.fontSize === 'number' ? yaml.fontSize : 10;
+  const fontSize = typeof config.fontSize === 'number' ? config.fontSize : 10;
   return { showLabels, filterSet, fontSize };
 }
 
 /**
  * Resolves universal axis configurations (labels, domain, reverse, display, log type).
  */
-export function resolveAxisConfig(yaml: any, axis: 'x' | 'y') {
+export function resolveAxisConfig(yaml: unknown, axis: 'x' | 'y') {
+  const config = asChartDsl(yaml) ?? {};
   const isX = axis === 'x';
   const isLog = isLogScale(yaml, axis);
 
-  const axisRaw = yaml[axis];
+  const axisRaw = config[axis];
   const axisIsString = typeof axisRaw === 'string';
+  const axisConfig = asChartDsl(axisRaw);
+  const scales = asChartDsl(config.scales);
+  const scaleConfig = scales ? asChartDsl(scales[axis]) : null;
+  const options = asChartDsl(config.options);
+  const optionScales = options ? asChartDsl(options.scales) : null;
+  const optionScaleConfig = optionScales ? asChartDsl(optionScales[axis]) : null;
 
-  const label =
-    (isX ? yaml.xTitle : yaml.yTitle) ??
-    (axisIsString ? axisRaw : (axisRaw?.label ?? axisRaw?.title)) ??
-    yaml.scales?.[axis]?.label ??
-    yaml.options?.scales?.[axis]?.label ??
-    yaml.options?.scales?.[axis]?.title ??
+  const labelCandidate =
+    (isX ? config.xTitle : config.yTitle) ??
+    (axisIsString ? axisRaw : (axisConfig?.label ?? axisConfig?.title)) ??
+    scaleConfig?.label ??
+    optionScaleConfig?.label ??
+    optionScaleConfig?.title ??
     null;
+  const label = typeof labelCandidate === 'string' ? labelCandidate : null;
 
-  const minVal = isX ? yaml.xMin : yaml.yMin;
-  const maxVal = isX ? yaml.xMax : yaml.yMax;
+  const minVal = isX ? config.xMin : config.yMin;
+  const maxVal = isX ? config.xMax : config.yMax;
   const domain =
     minVal !== undefined && maxVal !== undefined
       ? [minVal, maxVal]
-      : (!axisIsString ? axisRaw?.domain : undefined) ?? yaml.scales?.[axis]?.domain;
+      : (!axisIsString ? axisConfig?.domain : undefined) ?? scaleConfig?.domain;
+  const domainArray = Array.isArray(domain) ? domain : undefined;
 
-  const reverse = isX ? yaml.xReverse ?? (!axisIsString ? axisRaw?.reverse : undefined) : yaml.yReverse ?? (!axisIsString ? axisRaw?.reverse : undefined);
+  const reverse = isX
+    ? config.xReverse ?? (!axisIsString ? axisConfig?.reverse : undefined)
+    : config.yReverse ?? (!axisIsString ? axisConfig?.reverse : undefined);
 
   const display =
-    (isX ? yaml.xDisplay : yaml.yDisplay) ??
-    (!axisIsString ? (axisRaw?.display ?? axisRaw?.visible) : undefined) ??
-    yaml.scales?.[axis]?.display;
+    (isX ? config.xDisplay : config.yDisplay) ??
+    (!axisIsString ? (axisConfig?.display ?? axisConfig?.visible) : undefined) ??
+    scaleConfig?.display;
 
   const grid =
-    (!axisIsString ? axisRaw?.grid : undefined) ??
-    yaml.scales?.[axis]?.grid ??
-    yaml.grid ??
+    (!axisIsString ? axisConfig?.grid : undefined) ??
+    scaleConfig?.grid ??
+    config.grid ??
     true;
 
   return {
     type: isLog ? 'log' : undefined,
     label,
-    domain,
+    domain: domainArray,
     reverse: Boolean(reverse),
     axis: display === false ? null : undefined,
     grid: Boolean(grid),
@@ -317,8 +349,9 @@ export function resolveAxisConfig(yaml: any, axis: 'x' | 'y') {
 /**
  * Extracts and unifies common chart DSL configurations into a structured representation.
  */
-export function parseCommonChartConfig(yaml: any): CommonChartConfig {
-  if (!yaml || typeof yaml !== 'object') {
+export function parseCommonChartConfig(yaml: unknown): CommonChartConfig {
+  const config = asChartDsl(yaml);
+  if (!config) {
     return {
       legend: true,
       isXLog: false,
@@ -332,15 +365,18 @@ export function parseCommonChartConfig(yaml: any): CommonChartConfig {
     };
   }
 
-  const title = yaml.title ?? yaml.chartTitle ?? undefined;
-  const subtitle = yaml.subtitle ?? undefined;
-  const caption = yaml.caption ?? undefined;
+  const title = typeof (config.title ?? config.chartTitle) === 'string'
+    ? (config.title ?? config.chartTitle) as string
+    : undefined;
+  const subtitle = typeof config.subtitle === 'string' ? config.subtitle : undefined;
+  const caption = typeof config.caption === 'string' ? config.caption : undefined;
+  const options = asChartDsl(config.options);
 
   const legend =
-    yaml.legend !== undefined
-      ? Boolean(yaml.legend)
-      : yaml.options?.legend !== undefined
-      ? Boolean(yaml.options.legend)
+    config.legend !== undefined
+      ? Boolean(config.legend)
+      : options?.legend !== undefined
+      ? Boolean(options.legend)
       : true;
 
   const isXLog = isLogScale(yaml, 'x');
@@ -353,11 +389,15 @@ export function parseCommonChartConfig(yaml: any): CommonChartConfig {
   const markLines = extractMarkLines(yaml);
 
   const trendline =
-    yaml.trendline ??
-    yaml.trending ??
-    yaml.trend ??
-    yaml.bestFit ??
-    yaml.options?.trendline;
+    config.trendline ??
+    config.trending ??
+    config.trend ??
+    config.bestFit ??
+    options?.trendline;
+  const trendlineConfig =
+    typeof trendline === 'boolean' || (trendline && typeof trendline === 'object')
+      ? trendline as TrendlineConfig | boolean
+      : undefined;
 
   const { showLabels, fontSize: labelFontSize } = resolveLabelConfig(yaml);
 
@@ -376,14 +416,14 @@ export function parseCommonChartConfig(yaml: any): CommonChartConfig {
     yReverse: yCfg.reverse,
     xDisplay: xCfg.axis !== null,
     yDisplay: yCfg.axis !== null,
-    beginAtZero: yaml.beginAtZero,
-    grid: yaml.grid !== false,
+    beginAtZero: typeof config.beginAtZero === 'boolean' ? config.beginAtZero : undefined,
+    grid: config.grid !== false,
     xGrid: xCfg.grid,
     yGrid: yCfg.grid,
     fill,
     fillOpacity,
     markLines,
-    trendline,
+    trendline: trendlineConfig,
     showLabels,
     labelFontSize,
   };

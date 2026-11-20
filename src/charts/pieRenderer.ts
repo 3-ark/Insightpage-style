@@ -1,17 +1,26 @@
 import { bindPlotStyleTooltip } from './tooltip';
 
 export interface ChartDataPoint {
-  x: any;
+  x: unknown;
   y: number;
   series: string;
   index: number;
   seriesIndex: number;
 }
 
+export interface PieChartConfig {
+  type?: string;
+  title?: string | number;
+  chartTitle?: string | number;
+  subtitle?: string | number;
+  caption?: string | number;
+  legend?: boolean;
+}
+
 export function renderPieChart(
-  yaml: any,
+  yaml: PieChartConfig,
   dataPoints: ChartDataPoint[],
-  labels: any[],
+  labels: unknown[],
   baseColors: string[],
   gridColor: string,
   textColor: string,
@@ -62,21 +71,21 @@ export function renderPieChart(
 
   const arcs = pie(pieData);
   const arcGen = d3Inst
-    .arc<any>()
+    .arc<d3.PieArcDatum<ChartDataPoint>>()
     .innerRadius(isDoughnut ? radius * 0.5 : 0)
     .outerRadius(radius);
 
-  const svg = document.createElementNS(svgNs, 'svg');
+  const svg = activeDocument.createElementNS(svgNs, 'svg');
   svg.setAttribute('class', 'chart-interactive-svg');
   svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
   svg.setAttribute('width', `${size}`);
   svg.setAttribute('height', `${size}`);
 
-  const g = document.createElementNS(svgNs, 'g');
+  const g = activeDocument.createElementNS(svgNs, 'g');
   g.setAttribute('transform', `translate(${size / 2}, ${size / 2})`);
 
   arcs.forEach((slice, idx) => {
-    const path = document.createElementNS(svgNs, 'path');
+    const path = activeDocument.createElementNS(svgNs, 'path');
     const dStr = arcGen(slice);
     if (dStr) path.setAttribute('d', dStr);
     const color = baseColors[idx % baseColors.length];
@@ -86,8 +95,8 @@ export function renderPieChart(
     path.setAttribute('class', 'chart-interactive-path');
 
     const tooltipText = slice.data.series && slice.data.series !== 'Series 1'
-      ? `${slice.data.series}\n${slice.data.x}: ${slice.data.y}`
-      : `${slice.data.x}: ${slice.data.y}`;
+      ? `${slice.data.series}\n${String(slice.data.x)}: ${slice.data.y}`
+      : `${String(slice.data.x)}: ${slice.data.y}`;
 
     bindPlotStyleTooltip(path, container, () => tooltipText);
     g.appendChild(path);
@@ -111,7 +120,7 @@ export function renderPieChart(
       swatch.style.backgroundColor = baseColors[idx % baseColors.length];
 
       const textSpan = createSpan();
-      textSpan.textContent = hasMultipleSeries && item.series ? `${item.x} (${item.series})` : String(item.x);
+      textSpan.textContent = hasMultipleSeries && item.series ? `${String(item.x)} (${item.series})` : String(item.x);
 
       itemDiv.appendChild(swatch);
       itemDiv.appendChild(textSpan);

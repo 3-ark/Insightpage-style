@@ -4,7 +4,7 @@ export interface TimelineEvent {
   title: string;
   ongoing?: boolean;
   collection?: string[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface TimelineSchemaMapping {
@@ -59,6 +59,30 @@ const BLOCK_REF_SUFFIX_REGEX = /\s*\^[a-zA-Z0-9_-]+\s*$/;
 // Performance optimization: Hoist JS reserved literal keyword set to module scope to avoid
 // allocating temporary arrays inside regex replace callbacks during loose object parsing.
 const JS_KEYWORDS_SET = new Set(['true', 'false', 'null', 'undefined']);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function stringifyValue(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(stringifyValue).join(',');
+  return JSON.stringify(value) ?? '';
+}
+
+function toTimelineEvents(value: unknown): TimelineEvent[] {
+  if (!Array.isArray(value)) return [];
+  const events: unknown[] = value;
+  return events as TimelineEvent[];
+}
 
 export function parseEventDate(val: string | number | Date | undefined, fallback: Date): Date {
   if (val === undefined || val === null || val === '') return fallback;
@@ -172,7 +196,7 @@ export function parseEventDate(val: string | number | Date | undefined, fallback
   return fallback;
 }
 
-export function parseYamlValue(val: string): any {
+export function parseYamlValue(val: string): unknown {
   if (!val) return '';
   const trimmed = val.trim();
   if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
@@ -195,13 +219,13 @@ export function parseYamlValue(val: string): any {
   return trimmed;
 }
 
-export function parseSimpleYaml(str: string): any {
+export function parseSimpleYaml(str: string): unknown {
   const lines = str.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'));
   if (lines.length === 0) return null;
 
   if (lines.some((l) => l.startsWith('- '))) {
-    const items: any[] = [];
-    let currentItem: any = null;
+    const items: Record<string, unknown>[] = [];
+    let currentItem: Record<string, unknown> | null = null;
     for (const line of lines) {
       if (line.startsWith('- ')) {
         currentItem = {};
@@ -224,8 +248,8 @@ export function parseSimpleYaml(str: string): any {
     return items.length > 0 ? items : null;
   }
 
-  const root: any = {};
-  let currentParent: any = root;
+  const root: Record<string, unknown> = {};
+  let currentParent = root;
   let currentSubKey: string | null = null;
 
   for (const rawLine of str.split('\n')) {
@@ -245,29 +269,25 @@ export function parseSimpleYaml(str: string): any {
           currentParent = root;
           currentSubKey = null;
         } else {
-          root[key] = {};
-          currentParent = root[key];
+          const nested: Record<string, unknown> = {};
+          root[key] = nested;
+          currentParent = nested;
           currentSubKey = key;
         }
       } else {
         if (val) {
-          if (typeof currentParent === 'object' && !Array.isArray(currentParent)) {
-            currentParent[key] = parseYamlValue(val);
-          }
+          currentParent[key] = parseYamlValue(val);
           currentSubKey = key;
         } else {
-          if (typeof currentParent === 'object' && !Array.isArray(currentParent)) {
-            currentParent[key] = [];
-          }
+          currentParent[key] = [];
           currentSubKey = key;
         }
       }
     } else if (trimmed.startsWith('- ')) {
       const itemVal = parseYamlValue(trimmed.slice(2).trim());
-      if (currentSubKey && currentParent && Array.isArray(currentParent[currentSubKey])) {
-        currentParent[currentSubKey].push(itemVal);
-      } else if (Array.isArray(currentParent)) {
-        currentParent.push(itemVal);
+      if (currentSubKey) {
+        const values = currentParent[currentSubKey];
+        if (isUnknownArray(values)) values[values.length] = itemVal;
       }
     }
   }
@@ -275,10 +295,10 @@ export function parseSimpleYaml(str: string): any {
   return Object.keys(root).length > 0 ? root : null;
 }
 
-export function safeParseYaml(str: string): any {
+export function safeParseYaml(str: string): unknown {
   try {
-    const obs = require('obsidian');
-    if (obs && typeof obs.parseYaml === 'function') {
+    const obs = require('obsidian') as { parseYaml?: (yaml: string) => unknown };
+    if (typeof obs.parseYaml === 'function') {
       const parsed = obs.parseYaml(str);
       if (parsed !== null && parsed !== undefined && typeof parsed === 'object') return parsed;
     }
@@ -288,7 +308,7 @@ export function safeParseYaml(str: string): any {
   return parseSimpleYaml(str);
 }
 
-export function parseLooseObjectLiteral(code: string): any {
+export function parseLooseObjectLiteral(code: string): unknown {
   let cleaned = code.trim();
   if (cleaned.includes('Date.now()')) {
     cleaned = cleaned.replace(/\bDate\.now\(\)/g, String(Date.now()));
@@ -301,7 +321,7 @@ export function parseLooseObjectLiteral(code: string): any {
   cleaned = cleaned.replace(/\x27([^\x27\\]*(\\.[^\x27\\]*)*)\x27/g, '"$1"');
   cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
 
-  cleaned = cleaned.replace(/(:\s*)([^"'\s{},[\]][^{},[\]]*?)(?=\s*[,}\]])/g, (match, prefix, val) => {
+  cleaned = cleaned.replace(/(:\s*)([^"'\s{},[\]][^{},[\]]*?)(?=\s*[,}\]])/g, (match: string, prefix: string, val: string) => {
     const trimmedVal = val.trim();
     if (!trimmedVal) return match;
     if (JS_KEYWORDS_SET.has(trimmedVal)) return prefix + trimmedVal;
@@ -309,7 +329,7 @@ export function parseLooseObjectLiteral(code: string): any {
     return `${prefix}"${trimmedVal}"`;
   });
 
-  cleaned = cleaned.replace(/(\[\s*|,\s*)([^"'\s\d.,{}[\]][^{}[\]]*?)(?=\s*[,\]])/g, (match, prefix, val) => {
+  cleaned = cleaned.replace(/(\[\s*|,\s*)([^"'\s\d.,{}[\]][^{}[\]]*?)(?=\s*[,\]])/g, (match: string, prefix: string, val: string) => {
     const trimmedVal = val.trim();
     if (!trimmedVal) return match;
     if (JS_KEYWORDS_SET.has(trimmedVal)) return prefix + trimmedVal;
@@ -319,7 +339,7 @@ export function parseLooseObjectLiteral(code: string): any {
 
   cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
 
-  return JSON.parse(cleaned);
+  return JSON.parse(cleaned) as unknown;
 }
 
 // Performance optimization: Fast-path native string split for plain markdown table rows.
@@ -431,7 +451,7 @@ export function parseMarkdownTableRows(tableText: string): Record<string, string
 }
 
 export function mapRawRowsToTimelineData(
-  rows: Record<string, any>[],
+  rows: Record<string, unknown>[],
   schema?: TimelineSchemaMapping
 ): ParsedTimelineData {
   if (!rows || rows.length === 0) {
@@ -473,24 +493,30 @@ export function mapRawRowsToTimelineData(
 
   // Performance optimization: Pre-allocate target events array and use direct index loops instead of
   // higher-order rows.map() and forEach() closures to minimize GC pressure during dataset transformation.
-  const events: TimelineEvent[] = new Array(rows.length);
+  const events: TimelineEvent[] = new Array<TimelineEvent>(rows.length);
   for (let r = 0; r < rows.length; r++) {
     const row = rows[r];
-    const title = String(row[titleKey] ?? '').trim();
-    const start = row[startKey] !== undefined ? row[startKey] : '';
-    const end = endKey && row[endKey] !== undefined ? row[endKey] : undefined;
+    const title = stringifyValue(row[titleKey]).trim();
+    const rawStart = row[startKey];
+    const start = typeof rawStart === 'string' || typeof rawStart === 'number' || rawStart instanceof Date
+      ? rawStart
+      : stringifyValue(rawStart);
+    const rawEnd = endKey ? row[endKey] : undefined;
+    const end = typeof rawEnd === 'string' || typeof rawEnd === 'number' || rawEnd instanceof Date
+      ? rawEnd
+      : stringifyValue(rawEnd);
 
     const collections: string[] = [];
     for (let c = 0; c < collectionKeys.length; c++) {
       const colKey = collectionKeys[c];
       const val = row[colKey];
-      if (val !== undefined && val !== null && String(val).trim() !== '') {
+      if (val !== undefined && val !== null && stringifyValue(val).trim() !== '') {
         if (Array.isArray(val)) {
           for (let k = 0; k < val.length; k++) {
-            collections.push(String(val[k]));
+            collections.push(stringifyValue(val[k]));
           }
         } else {
-          const str = String(val).trim();
+          const str = stringifyValue(val).trim();
           if (str) collections.push(str);
         }
       }
@@ -542,29 +568,32 @@ export function parseTimelineConfig(code: string): TimelineConfig {
   let blockId: string | undefined;
   let schemaMap: TimelineSchemaMapping | undefined;
 
-  let yamlParsed: any = null;
+  let yamlParsed: unknown = null;
   try {
     yamlParsed = safeParseYaml(cleaned);
   } catch {
     /* ignore */
   }
 
-  if (yamlParsed && typeof yamlParsed === 'object' && (yamlParsed.data || yamlParsed.id || yamlParsed.events || yamlParsed.schemas || yamlParsed.schema)) {
+  if (
+    isRecord(yamlParsed) &&
+    (yamlParsed.data || yamlParsed.id || yamlParsed.events || yamlParsed.schemas || yamlParsed.schema)
+  ) {
     if (yamlParsed.data) {
-      dataPath = String(yamlParsed.data).trim().replace(/^[["'`\s]+|[\]"'`\s]+$/g, '');
+      dataPath = stringifyValue(yamlParsed.data).trim().replace(/^[["'`\s]+|[\]"'`\s]+$/g, '');
     }
     if (yamlParsed.id) {
-      blockId = String(yamlParsed.id).trim().replace(/^[["'`\s]+|[\]"'`\s]+$/g, '').replace(/^\^/, '');
+      blockId = stringifyValue(yamlParsed.id).trim().replace(/^[["'`\s]+|[\]"'`\s]+$/g, '').replace(/^\^/, '');
     }
     const s = yamlParsed.schemas || yamlParsed.schema;
-    if (s && typeof s === 'object') {
+    if (isRecord(s)) {
       schemaMap = {};
-      if (s.title) schemaMap.title = String(s.title);
-      if (s.start) schemaMap.start = String(s.start);
-      if (s.end) schemaMap.end = String(s.end);
-      if (Array.isArray(s.collection)) schemaMap.collection = s.collection.map((i: any) => String(i).replace(/^- /, '').trim());
+      if (s.title) schemaMap.title = stringifyValue(s.title);
+      if (s.start) schemaMap.start = stringifyValue(s.start);
+      if (s.end) schemaMap.end = stringifyValue(s.end);
+      if (Array.isArray(s.collection)) schemaMap.collection = s.collection.map((item) => stringifyValue(item).replace(/^- /, '').trim());
       else if (typeof s.collection === 'string') schemaMap.collection = [s.collection.trim()];
-      if (Array.isArray(s.categories)) schemaMap.categories = s.categories.map((i: any) => String(i).replace(/^- /, '').trim());
+      if (Array.isArray(s.categories)) schemaMap.categories = s.categories.map((item) => stringifyValue(item).replace(/^- /, '').trim());
       else if (typeof s.categories === 'string') schemaMap.categories = [s.categories.trim()];
     }
   }
@@ -642,10 +671,10 @@ export function parseTimelineCode(code: string): ParsedTimelineData {
     cleaned = cleaned.replace(/\bDate\.now\(\)/g, String(Date.now()));
   }
 
-  let rawParsed: any = null;
+  let rawParsed: unknown = null;
 
   try {
-    rawParsed = JSON.parse(cleaned);
+    rawParsed = JSON.parse(cleaned) as unknown;
   } catch {
     /* ignore */
   }
@@ -662,7 +691,7 @@ export function parseTimelineCode(code: string): ParsedTimelineData {
       wrapped = '[' + wrapped + ']';
     }
     try {
-      rawParsed = JSON.parse(wrapped);
+      rawParsed = JSON.parse(wrapped) as unknown;
     } catch {
       /* ignore */
     }
@@ -701,26 +730,26 @@ export function parseTimelineCode(code: string): ParsedTimelineData {
     // Performance optimization: Flatten and validate raw parsed event array in a single pass without
     // allocating intermediate array objects from .flat().filter().
     for (let i = 0; i < rawParsed.length; i++) {
-      const item = rawParsed[i];
+      const item = (rawParsed as unknown[])[i];
       if (Array.isArray(item)) {
         for (let j = 0; j < item.length; j++) {
-          const sub = item[j];
+          const sub = (item as unknown[])[j];
           if (sub && typeof sub === 'object') {
-            eventsArr.push(sub);
+            eventsArr.push(sub as unknown as TimelineEvent);
           }
         }
       } else if (item && typeof item === 'object') {
-        eventsArr.push(item);
+        eventsArr.push(item as unknown as TimelineEvent);
       }
     }
-  } else if (typeof rawParsed === 'object' && rawParsed !== null) {
-    if (Array.isArray(rawParsed.events)) eventsArr = rawParsed.events;
-    else if (Array.isArray(rawParsed.data)) eventsArr = rawParsed.data;
-    else if (Array.isArray(rawParsed.yourData)) eventsArr = rawParsed.yourData;
-    else eventsArr = [rawParsed];
+  } else if (isRecord(rawParsed)) {
+    if (Array.isArray(rawParsed.events)) eventsArr = toTimelineEvents(rawParsed.events);
+    else if (Array.isArray(rawParsed.data)) eventsArr = toTimelineEvents(rawParsed.data);
+    else if (Array.isArray(rawParsed.yourData)) eventsArr = toTimelineEvents(rawParsed.yourData);
+    else eventsArr = [rawParsed as unknown as TimelineEvent];
 
     if (Array.isArray(rawParsed.categories)) {
-      userCategories = rawParsed.categories.map(String);
+      userCategories = (rawParsed.categories as unknown[]).map(String);
     }
     if (typeof rawParsed.activeCategory === 'string') {
       userActiveCategory = rawParsed.activeCategory;
