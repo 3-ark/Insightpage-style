@@ -1,9 +1,21 @@
-import type { TFile } from 'obsidian';
+import type { App, TFile } from 'obsidian';
 import { extractTablesFromMarkdown, extractTablesFromDom } from 'src/chartFromTable';
 import { toTFile, createCustomFetch } from './customFetch';
 import { getPlot, getD3 } from './plotInstance';
 
-const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+type AsyncFunctionConstructor = new (...args: string[]) => (...args: unknown[]) => Promise<unknown>;
+
+interface WindowWithDisplay extends Window {
+  display?: (value: unknown) => unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+const AsyncFunction = (
+  Object.getPrototypeOf(async function (): Promise<void> {}) as { constructor: AsyncFunctionConstructor }
+).constructor;
 
 const TABLE_COMMENT_REGEX1 = /^\/\/\s*table\s*:\s*(.+)$/i;
 const TABLE_COMMENT_REGEX2 = /^\/\*\s*table\s*:\s*(.+)\s*\*\/$/i;
@@ -13,14 +25,17 @@ const FILE_COMMENT_REGEX1 = /^\/\/\s*file\s*:\s*(.+)$/i;
 const FILE_COMMENT_REGEX2 = /^\/\*\s*file\s*:\s*(.+)\s*\*\/$/i;
 const VALID_IDENTIFIER_REGEX = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 
-export function resolveToDomElement(val: any, PlotInst: any): HTMLElement | SVGElement | null {
+export function resolveToDomElement(
+  val: unknown,
+  PlotInst: typeof import('@observablehq/plot')
+): HTMLElement | SVGElement | null {
   if (!val) return null;
   if (val instanceof HTMLElement || val instanceof SVGElement) {
     return val;
   }
-  if (typeof val.plot === 'function') {
+  if (isRecord(val) && typeof val.plot === 'function') {
     try {
-      const plotEl = val.plot();
+      const plotEl: unknown = Reflect.apply(val.plot, val, []);
       if (plotEl instanceof HTMLElement || plotEl instanceof SVGElement) {
         return plotEl;
       }
@@ -28,9 +43,13 @@ export function resolveToDomElement(val: any, PlotInst: any): HTMLElement | SVGE
       // Ignore plot error
     }
   }
-  if (Array.isArray(val) || val.marks) {
+  if (Array.isArray(val) || (isRecord(val) && val.marks !== undefined)) {
     try {
-      const plotEl = PlotInst.plot(Array.isArray(val) ? { marks: val } : val);
+      const plotEl = PlotInst.plot(
+        Array.isArray(val)
+          ? { marks: val }
+          : val
+      );
       if (plotEl instanceof HTMLElement || plotEl instanceof SVGElement) {
         return plotEl;
       }
@@ -38,9 +57,9 @@ export function resolveToDomElement(val: any, PlotInst: any): HTMLElement | SVGE
       // Ignore plot error
     }
   }
-  if (typeof val.node === 'function') {
+  if (isRecord(val) && typeof val.node === 'function') {
     try {
-      const nodeEl = val.node();
+      const nodeEl: unknown = Reflect.apply(val.node, val, []);
       if (nodeEl instanceof HTMLElement || nodeEl instanceof SVGElement) {
         return nodeEl;
       }
@@ -54,7 +73,7 @@ export function resolveToDomElement(val: any, PlotInst: any): HTMLElement | SVGE
 export async function executePlotJs(
   codeStr: string,
   el: HTMLElement,
-  app: any,
+  app: App,
   sourcePath: string = '',
   onFileReferenced?: (filePath: string) => void
 ): Promise<HTMLElement | SVGElement | null> {
@@ -65,10 +84,10 @@ export async function executePlotJs(
     code = code.replace(/^```[a-zA-Z0-9_-]*\n?/, '').replace(/\n?```$/, '').trim();
   }
 
-  let obsidianModule: any = {};
+  let obsidianModule: unknown = {};
   if (typeof require === 'function') {
     try {
-      obsidianModule = require('obsidian');
+      obsidianModule = require('obsidian') as unknown;
     } catch {
       // Fallback if obsidian module not present
     }
@@ -80,9 +99,9 @@ export async function executePlotJs(
   const d3Inst = getD3();
 
   // Table resolution: parse table IDs / comments and discover note tables
-  const tableScope: Record<string, any> = {};
-  const tablesMap = new Map<string, any[]>();
-  const allTables: Array<{ id: string | null; rows: any[] }> = [];
+  const tableScope: Record<string, unknown> = {};
+  const tablesMap = new Map<string, Record<string, unknown>[]>();
+  const allTables: Array<{ id: string | null; rows: Record<string, unknown>[] }> = [];
 
   let explicitTableRef: string | null = null;
   let explicitFileRef: string | null = null;
@@ -173,15 +192,15 @@ export async function executePlotJs(
     const kebabKeys = Array.from(tablesMap.keys()).filter((k) => k.includes('-') && !k.startsWith('^') && !k.startsWith('#'));
     if (kebabKeys.length > 0) {
       const kebabSet = new Set(kebabKeys);
-      const tokenRegex = /(\/\/.*$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(?<![a-zA-Z0-9_$])([a-zA-Z0-9_$]+(?:-[a-zA-Z0-9_$]+)+)(?![a-zA-Z0-9_$])/gm;
-      code = code.replace(tokenRegex, (match: string, literal: string | undefined, kebabIdent: string | undefined) => {
+      const tokenRegex = /(\/\/.*$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(^|[^a-zA-Z0-9_$])([a-zA-Z0-9_$]+(?:-[a-zA-Z0-9_$]+)+)(?=$|[^a-zA-Z0-9_$])/gm;
+      code = code.replace(tokenRegex, (match: string, literal: string | undefined, boundary: string | undefined, kebabIdent: string | undefined) => {
         if (literal) return literal;
         if (kebabIdent && kebabSet.has(kebabIdent)) {
           const stripped = kebabIdent.replace(/[-_]+/g, '');
           const under = kebabIdent.replace(/[-]/g, '_');
-          if (tableScope[stripped]) return stripped;
-          if (tableScope[under]) return under;
-          return stripped;
+          if (tableScope[stripped]) return `${boundary ?? ''}${stripped}`;
+          if (tableScope[under]) return `${boundary ?? ''}${under}`;
+          return `${boundary ?? ''}${stripped}`;
         }
         return match;
       });
@@ -209,18 +228,21 @@ export async function executePlotJs(
   }
 
   let displayedElement: HTMLElement | SVGElement | null = null;
-  const display = (val: any) => {
+  const display = (val: unknown): unknown => {
     const dom = resolveToDomElement(val, PlotInst);
     if (dom) {
       el.appendChild(dom);
       displayedElement = dom;
     }
-    return val as unknown;
+    return val;
   };
 
-  const prevWindowDisplay = typeof window !== 'undefined' ? (window as any).display : undefined;
-  if (typeof window !== 'undefined') {
-    (window as any).display = display;
+  const windowWithDisplay = typeof window !== 'undefined'
+    ? window as unknown as WindowWithDisplay
+    : null;
+  const prevWindowDisplay = windowWithDisplay?.display;
+  if (windowWithDisplay) {
+    windowWithDisplay.display = display;
   }
 
   const hasTableVars = Object.keys(tableScope).length > 0;
@@ -241,10 +263,10 @@ export async function executePlotJs(
   const runUserCode = async (userSrc: string): Promise<unknown> => {
     const wrapped = wrapFnCode(userSrc);
     const fn = new AsyncFunction('Plot', 'd3', 'el', 'container', 'app', 'obsidian', 'fetch', 'display', '__tableScope__', wrapped);
-    return await fn(PlotInst, d3Inst, el, el, app, obsidianModule, customFetch, display, tableScope) as unknown;
+    return await fn(PlotInst, d3Inst, el, el, app, obsidianModule, customFetch, display, tableScope);
   };
 
-  let result: any;
+  let result: unknown;
   try {
     result = await runUserCode(code);
 
@@ -287,11 +309,11 @@ export async function executePlotJs(
       }
     }
   } finally {
-    if (typeof window !== 'undefined') {
+    if (windowWithDisplay) {
       if (prevWindowDisplay !== undefined) {
-        (window as any).display = prevWindowDisplay;
+        windowWithDisplay.display = prevWindowDisplay;
       } else {
-        delete (window as any).display;
+        delete windowWithDisplay.display;
       }
     }
   }

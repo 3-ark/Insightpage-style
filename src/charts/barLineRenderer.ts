@@ -20,11 +20,66 @@ export interface PreparedChart {
   width?: string;
 }
 
+interface ChartSeries {
+  title?: unknown;
+  data?: unknown;
+}
+
+interface ChartYaml {
+  transparency?: number;
+  labels?: unknown;
+  series?: unknown;
+  type?: string;
+  textColor?: string;
+  width?: string | number;
+  indexAxis?: string;
+  stacked?: boolean;
+  tension?: boolean;
+  pointRadius?: number | string;
+  radius?: number | string;
+  r?: number | string;
+  points?: boolean;
+  dots?: boolean;
+  fillOpacity?: number;
+  legend?: boolean;
+  options?: { legend?: boolean };
+  xTicks?: number | string[];
+  ticks?: number | string[];
+  x?: { ticks?: number | string[] };
+  scales?: { x?: { ticks?: number | string[] } };
+  xDisplay?: boolean;
+  beginAtZero?: boolean;
+  yDisplay?: boolean;
+  title?: string | number;
+  chartTitle?: string | number;
+  subtitle?: string | number;
+  caption?: string | number;
+  grid?: boolean;
+  rMax?: number;
+}
+
+interface ChartDataPoint {
+  x: unknown;
+  y: number;
+  series: string;
+  index: number;
+  seriesIndex: number;
+}
+
+function formatChartValue(value: unknown): string {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (typeof value === 'bigint') return value.toString();
+  return '';
+}
+
 const ISO_DATE_REGEX = /^\d{4}[-/]\d{1,2}(?:[-/]\d{1,2})?(?:[T ].*)?$/;
 const DIGITS_ONLY_REGEX = /^\d+$/;
 const HAS_DIGIT_REGEX = /\d/;
 
-export function tryParseDate(v: any): any {
+export function tryParseDate(v: unknown): unknown {
   if (v instanceof Date) return isNaN(v.getTime()) ? v : v;
   if (typeof v === 'string') {
     const s = v.trim();
@@ -49,14 +104,15 @@ export function tryParseDate(v: any): any {
 }
 
 export function prepareChartDataset(
-  yaml: any,
+  yamlValue: unknown,
   el: HTMLElement,
   settings: { themeable: boolean; colors: string[] },
   themeColors = false
 ): PreparedChart {
-  if (!yaml || typeof yaml !== 'object') {
+  if (!yamlValue || typeof yamlValue !== 'object') {
     return { plotOptions: null, width: '100%' };
   }
+  const yaml = yamlValue as ChartYaml;
 
   const computedStyle = getComputedStyle(el);
 
@@ -77,17 +133,19 @@ export function prepareChartDataset(
     ? colors
     : settings.colors.map((c) => c.trim());
 
-  const transparency = yaml.transparency ?? 0.25;
+  const transparency = typeof yaml.transparency === 'number' ? yaml.transparency : 0.25;
   const innerColors = generateInnerColors(baseColors, transparency);
 
   const rawLabels = yaml.labels;
-  const labels: any[] = Array.isArray(rawLabels) ? rawLabels : [];
-  const rawSeries: any[] = yaml.series ?? [];
+  const labels: unknown[] = Array.isArray(rawLabels) ? rawLabels : [];
+  const rawSeries: ChartSeries[] = Array.isArray(yaml.series)
+    ? (yaml.series as ChartSeries[])
+    : [];
 
   // Performance optimization: Pre-allocate parsedLabels and track hasDateLabels in a single pass.
   // This avoids redundant tryParseDate calls and eliminates subsequent labels.some() and labels.every() passes.
   const numLabels = labels.length;
-  const parsedLabels = new Array(numLabels);
+  const parsedLabels: unknown[] = new Array<unknown>(numLabels);
   let hasDateLabels = false;
 
   for (let idx = 0; idx < numLabels; idx++) {
@@ -102,31 +160,35 @@ export function prepareChartDataset(
   // and assign by index directly instead of dataPoints.push() to eliminate array buffer reallocations.
   let totalPoints = 0;
   for (let i = 0; i < rawSeries.length; i++) {
-    const sData = rawSeries[i]?.data;
-    if (Array.isArray(sData)) {
-      totalPoints += sData.length;
+    const rawData: unknown = rawSeries[i]?.data;
+    if (Array.isArray(rawData)) {
+      totalPoints += rawData.length;
     }
   }
 
-  const dataPoints: Array<{
-    x: any;
-    y: number;
-    series: string;
-    index: number;
-    seriesIndex: number;
-  }> = new Array(totalPoints);
+  const dataPoints: ChartDataPoint[] = [];
+  dataPoints.length = totalPoints;
   let dpIdx = 0;
 
   for (let i = 0; i < rawSeries.length; i++) {
     const s = rawSeries[i];
-    const seriesTitle = s.title ?? `Series ${i + 1}`;
-    const seriesData = s.data ?? [];
+    const seriesTitle = typeof s.title === 'string' ? s.title : `Series ${i + 1}`;
+    const rawSeriesData: unknown = s.data;
+    const seriesData: unknown[] = Array.isArray(rawSeriesData) ? (rawSeriesData as unknown[]) : [];
     const sLen = seriesData.length;
     for (let j = 0; j < sLen; j++) {
       // Since parsedLabels[j] was already parsed during the label pre-pass, avoid redundant tryParseDate calls
       const xVal = j < numLabels ? parsedLabels[j] : j;
       const val = seriesData[j];
-      const numVal = typeof val === 'number' ? val : Number(val);
+      let numVal = 0;
+      if (typeof val === 'number') {
+        numVal = val;
+      } else if (typeof val === 'string') {
+        const parsed = Number(val);
+        numVal = isNaN(parsed) ? 0 : parsed;
+      } else if (typeof val === 'boolean') {
+        numVal = val ? 1 : 0;
+      }
       const yVal = isNaN(numVal) ? 0 : numVal;
       dataPoints[dpIdx++] = {
         x: xVal,
@@ -138,16 +200,20 @@ export function prepareChartDataset(
     }
   }
 
-  const type = String(yaml.type ?? 'bar').trim().toLowerCase();
+  const type = (typeof yaml.type === 'string' ? yaml.type : 'bar').trim().toLowerCase();
   const gridColor =
     computedStyle.getPropertyValue('--background-modifier-border') ||
     '#e0e0e0';
   const textColor =
-    yaml.textColor ||
+    (typeof yaml.textColor === 'string' ? yaml.textColor : '') ||
     computedStyle.getPropertyValue('--text-muted') ||
     'currentColor';
 
-  const widthStr = yaml.width ? String(yaml.width) : '100%';
+  const widthStr = typeof yaml.width === 'string'
+    ? yaml.width
+    : typeof yaml.width === 'number'
+      ? String(yaml.width)
+      : '100%';
 
   // Custom SVG rendering for Pie / Doughnut / Donut
   if (type === 'pie' || type === 'doughnut' || type === 'donut') {
@@ -180,7 +246,7 @@ export function prepareChartDataset(
   }
 
   // Standard Plot marks for Bar and Line charts with interactivity (tip: true)
-  const marks: any[] = [];
+  const marks: Plot.Markish[] = [];
   const isHorizontal = yaml.indexAxis === 'y';
   const isStacked = yaml.stacked === true;
   const curve = yaml.tension ? 'catmull-rom' : 'linear';
@@ -264,7 +330,7 @@ export function prepareChartDataset(
         strokeWidth: pointRadius === 0 ? 0 : 0.75,
         r: pointRadius,
         tip: true,
-        title: (d: any) => `${d.series}\n${d.x instanceof Date ? d.x.toISOString().slice(0, 10) : d.x}: ${d.y}`,
+        title: (d: ChartDataPoint) => `${d.series}\n${formatChartValue(d.x)}: ${d.y}`,
       })
     );
 
@@ -277,7 +343,7 @@ export function prepareChartDataset(
         PlotInst.text(labeledData, {
           x: 'x',
           y: 'y',
-          text: (d: any) => `${d.y}`,
+          text: (d: ChartDataPoint) => `${d.y}`,
           dy: -10,
           fontSize: labelConfig.fontSize,
         })
@@ -293,9 +359,9 @@ export function prepareChartDataset(
             x: 'y',
             y: 'x',
             fill: 'series',
-            fillOpacity: yaml.fillOpacity ?? (yaml.transparency !== undefined ? yaml.transparency : 1),
+            fillOpacity: resolvedFillOpacity,
             tip: true,
-            title: (d: any) => `${d.series}\n${d.x}: ${d.y}`,
+            title: (d: ChartDataPoint) => `${d.series}\n${formatChartValue(d.x)}: ${d.y}`,
           })
         );
       } else {
@@ -305,9 +371,9 @@ export function prepareChartDataset(
             x: 'y',
             fy: 'x',
             fill: 'series',
-            fillOpacity: yaml.fillOpacity ?? (yaml.transparency !== undefined ? yaml.transparency : 1),
+            fillOpacity: resolvedFillOpacity,
             tip: true,
-            title: (d: any) => `${d.series}\n${d.x}: ${d.y}`,
+            title: (d: ChartDataPoint) => `${d.series}\n${formatChartValue(d.x)}: ${d.y}`,
           })
         );
       }
@@ -322,7 +388,7 @@ export function prepareChartDataset(
             x: 'y',
             y: isStacked || !isMultiSeries ? 'x' : 'series',
             ...(isStacked || !isMultiSeries ? {} : { fy: 'x' }),
-            text: (d: any) => `${d.y}`,
+            text: (d: ChartDataPoint) => `${d.y}`,
             dx: 8,
             frameAnchor: 'left',
             fontSize: labelConfig.fontSize,
@@ -337,9 +403,9 @@ export function prepareChartDataset(
             x: 'x',
             y: 'y',
             fill: 'series',
-            fillOpacity: yaml.fillOpacity ?? (yaml.transparency !== undefined ? yaml.transparency : 1),
+            fillOpacity: resolvedFillOpacity,
             tip: true,
-            title: (d: any) => `${d.series}\n${d.x}: ${d.y}`,
+            title: (d: ChartDataPoint) => `${d.series}\n${formatChartValue(d.x)}: ${d.y}`,
           })
         );
       } else {
@@ -349,9 +415,9 @@ export function prepareChartDataset(
             y: 'y',
             fx: 'x',
             fill: 'series',
-            fillOpacity: yaml.fillOpacity ?? (yaml.transparency !== undefined ? yaml.transparency : 1),
+            fillOpacity: resolvedFillOpacity,
             tip: true,
-            title: (d: any) => `${d.series}\n${d.x}: ${d.y}`,
+            title: (d: ChartDataPoint) => `${d.series}\n${formatChartValue(d.x)}: ${d.y}`,
           })
         );
       }
@@ -366,7 +432,7 @@ export function prepareChartDataset(
             x: isStacked || !isMultiSeries ? 'x' : 'series',
             y: 'y',
             ...(isStacked || !isMultiSeries ? {} : { fx: 'x' }),
-            text: (d: any) => `${d.y}`,
+            text: (d: ChartDataPoint) => `${d.y}`,
             dy: -8,
             frameAnchor: 'bottom',
             fontSize: labelConfig.fontSize,
@@ -393,11 +459,15 @@ export function prepareChartDataset(
   const yResolved = resolveAxisConfig(yaml, 'y');
 
   // Auto-adaptive tick calculation based on width to prevent overcrowded tick labels
-  let defaultXTicks: any;
+  let defaultXTicks: number | string[] | undefined;
   const explicitXTicks = yaml.xTicks ?? yaml.ticks ?? yaml.x?.ticks ?? yaml.scales?.x?.ticks;
 
   if (explicitXTicks !== undefined) {
-    defaultXTicks = explicitXTicks;
+    if (typeof explicitXTicks === 'number') {
+      defaultXTicks = explicitXTicks;
+    } else if (Array.isArray(explicitXTicks)) {
+      defaultXTicks = explicitXTicks.filter((tick): tick is string => typeof tick === 'string');
+    }
   } else {
     // Estimate target pixel width
     let estWidth = 640;
@@ -437,8 +507,8 @@ export function prepareChartDataset(
 
   let resolvedXDomain = xResolved.domain;
   let resolvedYDomain = yResolved.domain;
-  let resolvedFxDomain: any = undefined;
-  let resolvedFyDomain: any = undefined;
+  let resolvedFxDomain: unknown[] | undefined = undefined;
+  let resolvedFyDomain: unknown[] | undefined = undefined;
 
   if (!isHorizontal) {
     if (isGroupedBar) {
@@ -472,7 +542,7 @@ export function prepareChartDataset(
     label: yResolved.label,
     domain: resolvedYDomain,
     reverse: yResolved.reverse,
-    zero: yaml.beginAtZero !== undefined ? yaml.beginAtZero : !isYLog,
+    zero: typeof yaml.beginAtZero === 'boolean' ? yaml.beginAtZero : !isYLog,
     axis: yaml.yDisplay === false || yResolved.axis === null ? null : undefined,
   };
 
@@ -485,14 +555,14 @@ export function prepareChartDataset(
     : undefined;
 
   const plotOptions: Plot.PlotOptions = {
-    title: yaml.title ?? yaml.chartTitle ?? undefined,
-    subtitle: yaml.subtitle ?? undefined,
-    caption: yaml.caption ?? undefined,
+    title: yaml.title !== undefined ? String(yaml.title) : yaml.chartTitle !== undefined ? String(yaml.chartTitle) : undefined,
+    subtitle: yaml.subtitle !== undefined ? String(yaml.subtitle) : undefined,
+    caption: yaml.caption !== undefined ? String(yaml.caption) : undefined,
     style: {
       background: 'transparent',
       color: textColor,
     },
-    grid: yaml.grid ?? true,
+    grid: typeof yaml.grid === 'boolean' ? yaml.grid : true,
     x: xOptions,
     y: yOptions,
     ...(fxOptions ? { fx: fxOptions } : {}),
