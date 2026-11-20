@@ -1,11 +1,52 @@
-import { TFile } from 'obsidian';
+import {
+  TFile,
+  type App,
+  type RequestUrlParam,
+  type RequestUrlResponse,
+} from 'obsidian';
+
+interface ObsidianRequestModule {
+  requestUrl: (request: RequestUrlParam | string) => Promise<RequestUrlResponse>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isTFileLike(item: unknown): item is TFile {
+  if (!isRecord(item)) return false;
+  return typeof item.path === 'string';
+}
+
+function getObsidianRequestModule(value: unknown): ObsidianRequestModule | null {
+  if (!isRecord(value) || typeof value.requestUrl !== 'function') return null;
+  return {
+    requestUrl: value.requestUrl as ObsidianRequestModule['requestUrl'],
+  };
+}
+
+function getRequestHeaders(headers: HeadersInit | undefined): Record<string, string> | undefined {
+  if (!headers) return undefined;
+  const result: Record<string, string> = {};
+  new Headers(headers).forEach((value, key) => {
+    result[key] = value;
+  });
+  return result;
+}
+
+function getRequestBody(body: BodyInit | null | undefined): string | ArrayBuffer | undefined {
+  if (typeof body === 'string' || body instanceof ArrayBuffer) return body;
+  if (typeof Blob !== 'undefined' && body instanceof Blob) return undefined;
+  return undefined;
+}
 
 export function toTFile(item: unknown): TFile | null {
   if (typeof TFile === 'function' && item instanceof TFile) return item;
+  if (isTFileLike(item)) return item;
   return null;
 }
 
-export function createCustomFetch(app: any, obsidianModule: any, sourcePath: string = '') {
+export function createCustomFetch(app: App, obsidianModule: unknown, sourcePath: string = '') {
   return async function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const urlString =
       typeof input === 'string'
@@ -15,16 +56,19 @@ export function createCustomFetch(app: any, obsidianModule: any, sourcePath: str
         : input.url;
 
     if (/^https?:\/\//i.test(urlString)) {
-      if (obsidianModule && typeof obsidianModule.requestUrl === 'function') {
+      const requestModule = getObsidianRequestModule(obsidianModule);
+      if (requestModule) {
         try {
-          const reqOptions: any = { url: urlString };
+          const reqOptions: RequestUrlParam = { url: urlString };
           if (init) {
             if (init.method) reqOptions.method = init.method;
-            if (init.headers) reqOptions.headers = init.headers;
-            if (init.body) reqOptions.body = init.body;
+            const headers = getRequestHeaders(init.headers);
+            if (headers) reqOptions.headers = headers;
+            const body = getRequestBody(init.body);
+            if (body) reqOptions.body = body;
           }
-          const res = await obsidianModule.requestUrl(reqOptions);
-          return new Response(res.arrayBuffer || res.text, {
+          const res = await requestModule.requestUrl(reqOptions);
+          return new Response(res.arrayBuffer ?? res.text, {
             status: res.status,
             headers: res.headers,
           });

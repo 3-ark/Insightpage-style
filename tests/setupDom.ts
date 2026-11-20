@@ -6,6 +6,12 @@ function getActiveDocument(): Document {
 }
 
 export function setupDomPolyfills(win?: any) {
+  if (!Object.prototype.hasOwnProperty.call(globalThis, 'activeDocument')) {
+    Object.defineProperty(globalThis, 'activeDocument', {
+      configurable: true,
+      get: () => getActiveDocument(),
+    });
+  }
   (globalThis as any).createEl = (tag: string, o?: any, cb?: (el: any) => void) => {
     const doc = getActiveDocument();
     const el = doc.createElement(tag);

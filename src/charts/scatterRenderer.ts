@@ -477,7 +477,7 @@ export function buildScatterPlotOptions(
         : isObj && trendConfig.stroke
         ? undefined
         : '4,4';
-    const ciVal = isObj && trendConfig.ci !== undefined ? (trendConfig.ci ? 0.95 : null) : null;
+    const ciVal = isObj && trendConfig.ci !== undefined ? (trendConfig.ci ? 0.95 : undefined) : undefined;
     const fillVal =
       isObj && trendConfig.fill
         ? typeof trendConfig.fill === 'string'

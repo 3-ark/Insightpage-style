@@ -61,7 +61,7 @@ export function createTimelineTooltip(
     ttSub = tooltip.querySelector<HTMLDivElement>('.tt-sub')!;
   }
 
-  let hideTimeout: ReturnType<typeof window.setTimeout> | null = null;
+  let hideTimeout: number | null = null;
 
   function clearHideTimeout() {
     if (hideTimeout !== null) {
